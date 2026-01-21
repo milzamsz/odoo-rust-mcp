@@ -1,0 +1,11 @@
+rust-mcp/target/
+rust-mcp/.env
+rust-mcp/.env.*
+
+.env
+.env.*
+
+node_modules/
+
+.DS_Store
+
