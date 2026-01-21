@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use base64::Engine;
 use schemars::{schema_for, JsonSchema};
+use schemars::schema::{InstanceType, Schema, SchemaObject, SingleOrVec};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
@@ -64,13 +65,13 @@ impl OdooClientPool {
 pub struct SearchArgs {
     pub instance: String,
     pub model: String,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "domain_schema")]
     pub domain: Option<Value>,
     pub fields: Option<Vec<String>>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
     pub order: Option<String>,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "context_schema")]
     pub context: Option<Value>,
 }
 
@@ -80,7 +81,7 @@ pub struct ReadArgs {
     pub model: String,
     pub ids: Vec<i64>,
     pub fields: Option<Vec<String>>,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "context_schema")]
     pub context: Option<Value>,
 }
 
@@ -88,9 +89,9 @@ pub struct ReadArgs {
 pub struct CreateArgs {
     pub instance: String,
     pub model: String,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "object_schema")]
     pub values: Value,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "context_schema")]
     pub context: Option<Value>,
 }
 
@@ -99,9 +100,9 @@ pub struct UpdateArgs {
     pub instance: String,
     pub model: String,
     pub ids: Vec<i64>,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "object_schema")]
     pub values: Value,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "context_schema")]
     pub context: Option<Value>,
 }
 
@@ -110,7 +111,7 @@ pub struct DeleteArgs {
     pub instance: String,
     pub model: String,
     pub ids: Vec<i64>,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "context_schema")]
     pub context: Option<Value>,
 }
 
@@ -119,11 +120,11 @@ pub struct ExecuteArgs {
     pub instance: String,
     pub model: String,
     pub method: String,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "array_schema")]
     pub args: Option<Value>,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "object_schema")]
     pub kwargs: Option<Value>,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "context_schema")]
     pub context: Option<Value>,
 }
 
@@ -131,9 +132,9 @@ pub struct ExecuteArgs {
 pub struct CountArgs {
     pub instance: String,
     pub model: String,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "domain_schema")]
     pub domain: Option<Value>,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "context_schema")]
     pub context: Option<Value>,
 }
 
@@ -143,7 +144,7 @@ pub struct WorkflowArgs {
     pub model: String,
     pub ids: Vec<i64>,
     pub action: String,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "context_schema")]
     pub context: Option<Value>,
 }
 
@@ -153,9 +154,9 @@ pub struct ReportArgs {
     #[serde(rename = "reportName")]
     pub report_name: String,
     pub ids: Vec<i64>,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "object_schema")]
     pub data: Option<Value>,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "context_schema")]
     pub context: Option<Value>,
 }
 
@@ -163,7 +164,7 @@ pub struct ReportArgs {
 pub struct ModelMetadataArgs {
     pub instance: String,
     pub model: String,
-    #[schemars(schema_with = "any_schema")]
+    #[schemars(schema_with = "context_schema")]
     pub context: Option<Value>,
 }
 
@@ -201,8 +202,32 @@ pub struct DeepCleanupArgs {
     pub keep_groups: Option<bool>,
 }
 
-fn any_schema(_: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-    schemars::schema::Schema::Bool(true)
+fn schema_with_type(t: InstanceType) -> Schema {
+    Schema::Object(SchemaObject {
+        instance_type: Some(SingleOrVec::Single(Box::new(t))),
+        ..Default::default()
+    })
+}
+
+/// Odoo domain filters are always arrays (possibly nested).
+/// We keep it permissive (no `items`) to avoid client schema parsers choking on boolean schemas.
+fn domain_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema {
+    schema_with_type(InstanceType::Array)
+}
+
+/// Odoo context dict-like object.
+fn context_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema {
+    schema_with_type(InstanceType::Object)
+}
+
+/// Generic JSON object (values/kwargs/data).
+fn object_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema {
+    schema_with_type(InstanceType::Object)
+}
+
+/// Generic JSON array (args).
+fn array_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema {
+    schema_with_type(InstanceType::Array)
 }
 
 pub fn tool_defs(enable_cleanup_tools: bool) -> Vec<Value> {
