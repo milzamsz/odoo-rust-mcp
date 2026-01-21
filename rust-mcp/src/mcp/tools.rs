@@ -66,13 +66,19 @@ pub struct SearchArgs {
     pub instance: String,
     pub model: String,
     #[schemars(schema_with = "domain_schema")]
-    pub domain: Option<Value>,
+    #[serde(default)]
+    pub domain: Value,
+    #[schemars(schema_with = "string_array_schema")]
     pub fields: Option<Vec<String>>,
+    #[schemars(schema_with = "int_schema")]
     pub limit: Option<i64>,
+    #[schemars(schema_with = "int_schema")]
     pub offset: Option<i64>,
+    #[schemars(schema_with = "string_schema")]
     pub order: Option<String>,
     #[schemars(schema_with = "context_schema")]
-    pub context: Option<Value>,
+    #[serde(default)]
+    pub context: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -80,9 +86,11 @@ pub struct ReadArgs {
     pub instance: String,
     pub model: String,
     pub ids: Vec<i64>,
+    #[schemars(schema_with = "string_array_schema")]
     pub fields: Option<Vec<String>>,
     #[schemars(schema_with = "context_schema")]
-    pub context: Option<Value>,
+    #[serde(default)]
+    pub context: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -92,7 +100,8 @@ pub struct CreateArgs {
     #[schemars(schema_with = "object_schema")]
     pub values: Value,
     #[schemars(schema_with = "context_schema")]
-    pub context: Option<Value>,
+    #[serde(default)]
+    pub context: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -103,7 +112,8 @@ pub struct UpdateArgs {
     #[schemars(schema_with = "object_schema")]
     pub values: Value,
     #[schemars(schema_with = "context_schema")]
-    pub context: Option<Value>,
+    #[serde(default)]
+    pub context: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -112,7 +122,8 @@ pub struct DeleteArgs {
     pub model: String,
     pub ids: Vec<i64>,
     #[schemars(schema_with = "context_schema")]
-    pub context: Option<Value>,
+    #[serde(default)]
+    pub context: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -121,11 +132,14 @@ pub struct ExecuteArgs {
     pub model: String,
     pub method: String,
     #[schemars(schema_with = "array_schema")]
-    pub args: Option<Value>,
+    #[serde(default)]
+    pub args: Value,
     #[schemars(schema_with = "object_schema")]
-    pub kwargs: Option<Value>,
+    #[serde(default)]
+    pub kwargs: Value,
     #[schemars(schema_with = "context_schema")]
-    pub context: Option<Value>,
+    #[serde(default)]
+    pub context: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -133,9 +147,11 @@ pub struct CountArgs {
     pub instance: String,
     pub model: String,
     #[schemars(schema_with = "domain_schema")]
-    pub domain: Option<Value>,
+    #[serde(default)]
+    pub domain: Value,
     #[schemars(schema_with = "context_schema")]
-    pub context: Option<Value>,
+    #[serde(default)]
+    pub context: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -145,7 +161,8 @@ pub struct WorkflowArgs {
     pub ids: Vec<i64>,
     pub action: String,
     #[schemars(schema_with = "context_schema")]
-    pub context: Option<Value>,
+    #[serde(default)]
+    pub context: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -155,9 +172,11 @@ pub struct ReportArgs {
     pub report_name: String,
     pub ids: Vec<i64>,
     #[schemars(schema_with = "object_schema")]
-    pub data: Option<Value>,
+    #[serde(default)]
+    pub data: Value,
     #[schemars(schema_with = "context_schema")]
-    pub context: Option<Value>,
+    #[serde(default)]
+    pub context: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -165,25 +184,33 @@ pub struct ModelMetadataArgs {
     pub instance: String,
     pub model: String,
     #[schemars(schema_with = "context_schema")]
-    pub context: Option<Value>,
+    #[serde(default)]
+    pub context: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DatabaseCleanupArgs {
     pub instance: String,
     #[serde(rename = "removeTestData")]
+    #[schemars(schema_with = "bool_schema")]
     pub remove_test_data: Option<bool>,
     #[serde(rename = "removeInactivRecords")]
+    #[schemars(schema_with = "bool_schema")]
     pub remove_inactiv_records: Option<bool>,
     #[serde(rename = "cleanupDrafts")]
+    #[schemars(schema_with = "bool_schema")]
     pub cleanup_drafts: Option<bool>,
     #[serde(rename = "archiveOldRecords")]
+    #[schemars(schema_with = "bool_schema")]
     pub archive_old_records: Option<bool>,
     #[serde(rename = "optimizeDatabase")]
+    #[schemars(schema_with = "bool_schema")]
     pub optimize_database: Option<bool>,
     #[serde(rename = "daysThreshold")]
+    #[schemars(schema_with = "int_schema")]
     pub days_threshold: Option<i64>,
     #[serde(rename = "dryRun")]
+    #[schemars(schema_with = "bool_schema")]
     pub dry_run: Option<bool>,
 }
 
@@ -191,14 +218,19 @@ pub struct DatabaseCleanupArgs {
 pub struct DeepCleanupArgs {
     pub instance: String,
     #[serde(rename = "dryRun")]
+    #[schemars(schema_with = "bool_schema")]
     pub dry_run: Option<bool>,
     #[serde(rename = "keepCompanyDefaults")]
+    #[schemars(schema_with = "bool_schema")]
     pub keep_company_defaults: Option<bool>,
     #[serde(rename = "keepUserAccounts")]
+    #[schemars(schema_with = "bool_schema")]
     pub keep_user_accounts: Option<bool>,
     #[serde(rename = "keepMenus")]
+    #[schemars(schema_with = "bool_schema")]
     pub keep_menus: Option<bool>,
     #[serde(rename = "keepGroups")]
+    #[schemars(schema_with = "bool_schema")]
     pub keep_groups: Option<bool>,
 }
 
@@ -207,6 +239,22 @@ fn schema_with_type(t: InstanceType) -> Schema {
         instance_type: Some(SingleOrVec::Single(Box::new(t))),
         ..Default::default()
     })
+}
+
+fn string_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema {
+    schema_with_type(InstanceType::String)
+}
+
+fn int_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema {
+    schema_with_type(InstanceType::Integer)
+}
+
+fn bool_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema {
+    schema_with_type(InstanceType::Boolean)
+}
+
+fn string_array_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema {
+    schema_with_type(InstanceType::Array)
 }
 
 /// Odoo domain filters are always arrays (possibly nested).
@@ -311,14 +359,16 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
             let a: SearchArgs = serde_json::from_value(args)
                 .map_err(|e| OdooError::InvalidResponse(format!("Invalid args for odoo_search: {e}")))?;
             let client = pool.get(&a.instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+            let domain = (!a.domain.is_null()).then_some(a.domain);
+            let context = (!a.context.is_null()).then_some(a.context);
             let ids = client
                 .search(
                     &a.model,
-                    a.domain,
+                    domain,
                     a.limit,
                     a.offset,
                     a.order,
-                    a.context,
+                    context,
                 )
                 .await?;
             Ok(json!({
@@ -332,15 +382,17 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
             let a: SearchArgs = serde_json::from_value(args)
                 .map_err(|e| OdooError::InvalidResponse(format!("Invalid args for odoo_search_read: {e}")))?;
             let client = pool.get(&a.instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+            let domain = (!a.domain.is_null()).then_some(a.domain);
+            let context = (!a.context.is_null()).then_some(a.context);
             let records = client
                 .search_read(
                     &a.model,
-                    a.domain,
+                    domain,
                     a.fields,
                     a.limit,
                     a.offset,
                     a.order,
-                    a.context,
+                    context,
                 )
                 .await?;
             let count = records.as_array().map(|a| a.len()).unwrap_or(0);
@@ -355,7 +407,8 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
             let a: ReadArgs = serde_json::from_value(args)
                 .map_err(|e| OdooError::InvalidResponse(format!("Invalid args for odoo_read: {e}")))?;
             let client = pool.get(&a.instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
-            let records = client.read(&a.model, a.ids, a.fields, a.context).await?;
+            let context = (!a.context.is_null()).then_some(a.context);
+            let records = client.read(&a.model, a.ids, a.fields, context).await?;
             Ok(json!({
                 "content": [{ "type": "text", "text": serde_json::to_string_pretty(&json!({
                     "records": records,
@@ -366,7 +419,8 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
             let a: CreateArgs = serde_json::from_value(args)
                 .map_err(|e| OdooError::InvalidResponse(format!("Invalid args for odoo_create: {e}")))?;
             let client = pool.get(&a.instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
-            let id = client.create(&a.model, a.values, a.context).await?;
+            let context = (!a.context.is_null()).then_some(a.context);
+            let id = client.create(&a.model, a.values, context).await?;
             Ok(json!({
                 "content": [{ "type": "text", "text": serde_json::to_string_pretty(&json!({
                     "id": id,
@@ -378,7 +432,8 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
             let a: UpdateArgs = serde_json::from_value(args)
                 .map_err(|e| OdooError::InvalidResponse(format!("Invalid args for odoo_update: {e}")))?;
             let client = pool.get(&a.instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
-            let ok = client.write(&a.model, a.ids.clone(), a.values, a.context).await?;
+            let context = (!a.context.is_null()).then_some(a.context);
+            let ok = client.write(&a.model, a.ids.clone(), a.values, context).await?;
             Ok(json!({
                 "content": [{ "type": "text", "text": serde_json::to_string_pretty(&json!({
                     "success": ok,
@@ -390,7 +445,8 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
             let a: DeleteArgs = serde_json::from_value(args)
                 .map_err(|e| OdooError::InvalidResponse(format!("Invalid args for odoo_delete: {e}")))?;
             let client = pool.get(&a.instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
-            let ok = client.unlink(&a.model, a.ids.clone(), a.context).await?;
+            let context = (!a.context.is_null()).then_some(a.context);
+            let ok = client.unlink(&a.model, a.ids.clone(), context).await?;
             Ok(json!({
                 "content": [{ "type": "text", "text": serde_json::to_string_pretty(&json!({
                     "success": ok,
@@ -402,7 +458,9 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
             let a: CountArgs = serde_json::from_value(args)
                 .map_err(|e| OdooError::InvalidResponse(format!("Invalid args for odoo_count: {e}")))?;
             let client = pool.get(&a.instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
-            let count = client.search_count(&a.model, a.domain, a.context).await?;
+            let domain = (!a.domain.is_null()).then_some(a.domain);
+            let context = (!a.context.is_null()).then_some(a.context);
+            let count = client.search_count(&a.model, domain, context).await?;
             Ok(json!({
                 "content": [{ "type": "text", "text": serde_json::to_string_pretty(&json!({
                     "count": count,
@@ -413,10 +471,11 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
             let a: WorkflowArgs = serde_json::from_value(args)
                 .map_err(|e| OdooError::InvalidResponse(format!("Invalid args for odoo_workflow_action: {e}")))?;
             let client = pool.get(&a.instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+            let context = (!a.context.is_null()).then_some(a.context);
             // JSON-2 uses named args; call action with ids.
             let params = serde_json::Map::new();
             let result = client
-                .call_named(&a.model, &a.action, Some(a.ids.clone()), params, a.context)
+                .call_named(&a.model, &a.action, Some(a.ids.clone()), params, context)
                 .await?;
             Ok(json!({
                 "content": [{ "type": "text", "text": serde_json::to_string_pretty(&json!({
@@ -438,8 +497,8 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
             let mut params = serde_json::Map::new();
 
             let mut ids: Option<Vec<i64>> = None;
-            if let Some(v) = a.args.clone() {
-                match v {
+            if !a.args.is_null() {
+                match a.args {
                     Value::Array(arr) => {
                         if arr.len() == 1 {
                             if let Some(Value::Array(inner)) = arr.get(0) {
@@ -470,16 +529,18 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
                 }
             }
 
-            if let Some(Value::Object(map)) = a.kwargs {
+            if let Value::Object(map) = a.kwargs {
                 for (k, v) in map {
                     params.insert(k, v);
                 }
-            } else if let Some(v) = a.kwargs {
+            } else if !a.kwargs.is_null() {
+                let v = a.kwargs;
                 params.insert("kwargs".to_string(), v);
             }
 
+            let context = (!a.context.is_null()).then_some(a.context);
             let result = client
-                .call_named(&a.model, &a.method, ids, params, a.context)
+                .call_named(&a.model, &a.method, ids, params, context)
                 .await?;
 
             Ok(json!({
@@ -492,8 +553,9 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
             let a: ModelMetadataArgs = serde_json::from_value(args)
                 .map_err(|e| OdooError::InvalidResponse(format!("Invalid args for odoo_get_model_metadata: {e}")))?;
             let client = pool.get(&a.instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+            let context = (!a.context.is_null()).then_some(a.context);
 
-            let fields = client.fields_get(&a.model, a.context.clone()).await?;
+            let fields = client.fields_get(&a.model, context.clone()).await?;
             let domain = json!([[ "model", "=", a.model ]]);
             let info = client
                 .search_read(
@@ -503,7 +565,7 @@ pub async fn call_tool(pool: &OdooClientPool, name: &str, args: Value) -> Result
                     Some(1),
                     None,
                     None,
-                    a.context,
+                    context,
                 )
                 .await?;
 
