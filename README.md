@@ -494,21 +494,9 @@ Cursor supports `stdio`, `SSE`, and `Streamable HTTP` transports. See Cursor doc
 
 Put this in `~/.cursor/mcp.json` (or `${workspaceFolder}/.cursor/mcp.json`):
 
-**Using .env file (recommended):**
-```json
-{
-  "mcpServers": {
-    "odoo-rust-mcp": {
-      "type": "stdio",
-      "command": "/absolute/path/to/odoo-rust-mcp/rust-mcp/target/release/rust-mcp",
-      "args": ["--transport", "stdio"],
-      "envFile": "${workspaceFolder}/.env"
-    }
-  }
-}
-```
+**IMPORTANT:** For stdio transport, you must use **absolute paths** for config files because Cursor runs the binary from a different working directory.
 
-**Odoo 19+ inline env:**
+**Odoo 19+ (complete example):**
 ```json
 {
   "mcpServers": {
@@ -519,14 +507,17 @@ Put this in `~/.cursor/mcp.json` (or `${workspaceFolder}/.cursor/mcp.json`):
       "env": {
         "ODOO_URL": "http://localhost:8069",
         "ODOO_DB": "mydb",
-        "ODOO_API_KEY": "YOUR_API_KEY"
+        "ODOO_API_KEY": "YOUR_API_KEY",
+        "MCP_TOOLS_JSON": "/absolute/path/to/odoo-rust-mcp/config/tools.json",
+        "MCP_PROMPTS_JSON": "/absolute/path/to/odoo-rust-mcp/config/prompts.json",
+        "MCP_SERVER_JSON": "/absolute/path/to/odoo-rust-mcp/config/server.json"
       }
     }
   }
 }
 ```
 
-**Odoo < 19 inline env:**
+**Odoo < 19 (complete example):**
 ```json
 {
   "mcpServers": {
@@ -539,12 +530,31 @@ Put this in `~/.cursor/mcp.json` (or `${workspaceFolder}/.cursor/mcp.json`):
         "ODOO_DB": "mydb",
         "ODOO_VERSION": "18",
         "ODOO_USERNAME": "admin",
-        "ODOO_PASSWORD": "admin"
+        "ODOO_PASSWORD": "admin",
+        "MCP_TOOLS_JSON": "/absolute/path/to/odoo-rust-mcp/config/tools.json",
+        "MCP_PROMPTS_JSON": "/absolute/path/to/odoo-rust-mcp/config/prompts.json",
+        "MCP_SERVER_JSON": "/absolute/path/to/odoo-rust-mcp/config/server.json"
       }
     }
   }
 }
 ```
+
+**Using .env file:**
+```json
+{
+  "mcpServers": {
+    "odoo-rust-mcp": {
+      "type": "stdio",
+      "command": "/absolute/path/to/odoo-rust-mcp/rust-mcp/target/release/rust-mcp",
+      "args": ["--transport", "stdio"],
+      "envFile": "/absolute/path/to/odoo-rust-mcp/.env"
+    }
+  }
+}
+```
+
+Note: When using `envFile`, ensure your `.env` contains absolute paths for `MCP_TOOLS_JSON`, `MCP_PROMPTS_JSON`, and `MCP_SERVER_JSON`.
 
 #### Cursor: Streamable HTTP (remote / multi-user)
 
