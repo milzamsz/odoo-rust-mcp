@@ -77,6 +77,9 @@ This server is **fully declarative**:
 - **`prompts.json`** defines prompt `name` / `description` / `content`
 - **`server.json`** defines initialize metadata (`serverName`, `instructions`, default protocol version)
 
+Cursor schema constraints:
+- Avoid `anyOf`, `oneOf`, `allOf`, `$ref`, `definitions`, and `\"type\": [...]` (type arrays). These are rejected to prevent Cursor schema parsing issues.
+
 Auto-reload:
 - The server watches these files and reloads them on change.
 - If a JSON file is missing at startup, the server will **create it from built-in seed defaults** (embedded from `rust-mcp/config-defaults/*`).
@@ -142,7 +145,10 @@ docker compose up --build
 
 By default, the container runs **HTTP** transport and exposes `http://localhost:8787/mcp`.
 
-If you want JSON-driven tools/prompts in Docker, either bake the files into the image or mount them and set `MCP_TOOLS_JSON` / `MCP_PROMPTS_JSON` to their paths inside the container.
+If you want JSON-driven tools/prompts/server metadata in Docker, either bake the files into the image or mount them and set:
+- `MCP_TOOLS_JSON`
+- `MCP_PROMPTS_JSON`
+- `MCP_SERVER_JSON`
 
 ### Cleanup tools (disabled by default)
 
@@ -154,25 +160,20 @@ export ODOO_ENABLE_CLEANUP_TOOLS=true
 
 ### Tools
 
-Core tools:
-- `odoo_search`
-- `odoo_search_read`
-- `odoo_read`
-- `odoo_create`
-- `odoo_update`
-- `odoo_delete`
-- `odoo_execute`
-- `odoo_count`
-- `odoo_workflow_action`
-- `odoo_generate_report` (returns base64 PDF)
-- `odoo_get_model_metadata`
+Tools are defined by `tools.json` (authoritative). The default seed includes tools like:
+- `odoo_search`, `odoo_search_read`, `odoo_read`, `odoo_create`, `odoo_update`, `odoo_delete`
+- `odoo_execute`, `odoo_count`, `odoo_workflow_action`, `odoo_generate_report`, `odoo_get_model_metadata`
+- cleanup tools (`odoo_database_cleanup`, `odoo_deep_cleanup`) guarded by `ODOO_ENABLE_CLEANUP_TOOLS=true`
 
-Cleanup tools (feature-flag):
-- `odoo_database_cleanup`
-- `odoo_deep_cleanup`
+Supported `op.type` values (used in `tools.json`):
+- `search`, `search_read`, `read`, `create`, `write`, `unlink`
+- `search_count`, `workflow_action`, `execute`
+- `generate_report`, `get_model_metadata`
+- `database_cleanup`, `deep_cleanup`
 
 ### Prompts
 
+Prompts are defined by `prompts.json` (authoritative). The default seed includes:
 - `odoo_common_models`
 - `odoo_domain_filters`
 
