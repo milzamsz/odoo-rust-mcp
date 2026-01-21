@@ -147,14 +147,44 @@ Seed defaults (used only when files are missing):
 
 ### Installation
 
-#### Option 1: Download pre-built binary (recommended)
+#### Option 1: One-line installer (recommended)
+
+**Linux / macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/rachmataditiya/odoo-rust-mcp/main/scripts/install.sh | bash
+```
+
+This installs:
+- Binary to `/usr/local/bin/rust-mcp`
+- Config files to `/usr/local/share/odoo-rust-mcp/`
+
+To uninstall:
+```bash
+curl -fsSL https://raw.githubusercontent.com/rachmataditiya/odoo-rust-mcp/main/scripts/install.sh | bash -s uninstall
+```
+
+**Windows (PowerShell as Administrator):**
+```powershell
+irm https://raw.githubusercontent.com/rachmataditiya/odoo-rust-mcp/main/scripts/install.ps1 | iex
+```
+
+This installs:
+- Binary to `C:\Program Files\odoo-rust-mcp\`
+- Config files to `C:\ProgramData\odoo-rust-mcp\`
+- Adds binary to system PATH
+
+To uninstall:
+```powershell
+irm https://raw.githubusercontent.com/rachmataditiya/odoo-rust-mcp/main/scripts/install.ps1 -OutFile install.ps1; .\install.ps1 -Uninstall
+```
+
+#### Option 2: Manual download
 
 Download the latest release for your platform from [GitHub Releases](https://github.com/rachmataditiya/odoo-rust-mcp/releases):
 
 | Platform | File |
 |----------|------|
 | Linux x86_64 | `rust-mcp-x86_64-unknown-linux-gnu.tar.gz` |
-| Linux ARM64 | `rust-mcp-aarch64-unknown-linux-gnu.tar.gz` |
 | macOS x86_64 | `rust-mcp-x86_64-apple-darwin.tar.gz` |
 | macOS ARM64 (Apple Silicon) | `rust-mcp-aarch64-apple-darwin.tar.gz` |
 | Windows x86_64 | `rust-mcp-x86_64-pc-windows-msvc.zip` |
@@ -177,7 +207,7 @@ The release archive includes:
 - `config/` - default configuration files (tools.json, prompts.json, server.json)
 - `.env.example` - example environment variables
 
-#### Option 2: Build from source
+#### Option 3: Build from source
 
 ```bash
 cd rust-mcp
