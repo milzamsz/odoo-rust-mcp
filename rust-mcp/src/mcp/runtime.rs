@@ -1,22 +1,24 @@
 use std::sync::Arc;
 
 use futures::StreamExt;
+use serde_json::json;
 use tokio::sync::RwLock;
 
 use mcp_rust_sdk::error::{Error, ErrorCode};
 use mcp_rust_sdk::protocol::{Request, Response, ResponseError};
-use mcp_rust_sdk::transport::{Message, Transport};
-use mcp_rust_sdk::types::{ClientCapabilities, Implementation};
 use mcp_rust_sdk::server::ServerHandler;
+use mcp_rust_sdk::transport::{Message, Transport};
+
+use super::McpOdooHandler;
 
 pub struct ServerCompat {
     transport: Arc<dyn Transport>,
-    handler: Arc<dyn ServerHandler>,
+    handler: Arc<McpOdooHandler>,
     initialized: Arc<RwLock<bool>>,
 }
 
 impl ServerCompat {
-    pub fn new(transport: Arc<dyn Transport>, handler: Arc<dyn ServerHandler>) -> Self {
+    pub fn new(transport: Arc<dyn Transport>, handler: Arc<McpOdooHandler>) -> Self {
         Self {
             transport,
             handler,
@@ -69,21 +71,37 @@ impl ServerCompat {
 
                 let params = request.params.unwrap_or(serde_json::json!({}));
 
-                // Accept both MCP-spec-ish and mcp_rust_sdk legacy field names.
-                let impl_val = params
-                    .get("implementation")
-                    .cloned()
-                    .or_else(|| params.get("client_info").cloned())
-                    .or_else(|| params.get("clientInfo").cloned())
-                    .unwrap_or_default();
+                // Get protocol version from client or use default
+                let default_protocol = self.handler.protocol_version_default().await;
+                let protocol_version = params
+                    .get("protocolVersion")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or(default_protocol);
 
-                let caps_val = params.get("capabilities").cloned().unwrap_or_default();
+                let server_name = self.handler.server_name().await;
+                let instructions = self.handler.instructions().await;
+                let odoo_instances = self.handler.instance_names();
 
-                let implementation: Implementation = serde_json::from_value(impl_val)?;
-                let capabilities: ClientCapabilities = serde_json::from_value(caps_val)?;
+                // Build MCP-compliant initialize response with protocolVersion, capabilities, serverInfo
+                let result = json!({
+                    "protocolVersion": protocol_version,
+                    "capabilities": {
+                        "tools": {},
+                        "prompts": {},
+                        "resources": {},
+                        "experimental": {
+                            "odooInstances": { "available": odoo_instances }
+                        }
+                    },
+                    "serverInfo": {
+                        "name": server_name,
+                        "version": env!("CARGO_PKG_VERSION")
+                    },
+                    "instructions": instructions
+                });
 
-                let result = self.handler.initialize(implementation, capabilities).await?;
-                Ok(Response::success(request.id, Some(serde_json::to_value(result)?)))
+                Ok(Response::success(request.id, Some(result)))
             }
             "shutdown" => {
                 if !initialized {

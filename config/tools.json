@@ -1,0 +1,353 @@
+{
+  "tools": [
+    {
+      "name": "odoo_search",
+      "description": "Search for Odoo records with domain filters. Returns record IDs matching the criteria.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "domain": { "type": "array" },
+          "fields": { "type": "array", "items": { "type": "string" } },
+          "limit": { "type": "integer" },
+          "offset": { "type": "integer" },
+          "order": { "type": "string" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "search",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "domain": "/domain",
+          "limit": "/limit",
+          "offset": "/offset",
+          "order": "/order",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_search_read",
+      "description": "Search and read Odoo records in one operation. Returns full record data.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "domain": { "type": "array" },
+          "fields": { "type": "array", "items": { "type": "string" } },
+          "limit": { "type": "integer" },
+          "offset": { "type": "integer" },
+          "order": { "type": "string" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "search_read",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "domain": "/domain",
+          "fields": "/fields",
+          "limit": "/limit",
+          "offset": "/offset",
+          "order": "/order",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_read",
+      "description": "Read specific Odoo records by IDs. Returns detailed field values.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "ids": { "type": "array", "items": { "type": "integer" } },
+          "fields": { "type": "array", "items": { "type": "string" } },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model", "ids"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "read",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "ids": "/ids",
+          "fields": "/fields",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_create",
+      "description": "Create a new Odoo record. Returns the ID of the created record.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "values": { "type": "object" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model", "values"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "create",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "values": "/values",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_update",
+      "description": "Update existing Odoo records. Returns true on success.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "ids": { "type": "array", "items": { "type": "integer" } },
+          "values": { "type": "object" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model", "ids", "values"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "write",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "ids": "/ids",
+          "values": "/values",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_delete",
+      "description": "Delete Odoo records. Returns true on success. Use with caution!",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "ids": { "type": "array", "items": { "type": "integer" } },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model", "ids"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "unlink",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "ids": "/ids",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_execute",
+      "description": "Execute arbitrary method on Odoo model. For advanced operations and custom methods.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "method": { "type": "string" },
+          "args": { "type": "array" },
+          "kwargs": { "type": "object" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model", "method"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "execute",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "method": "/method",
+          "args": "/args",
+          "kwargs": "/kwargs",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_count",
+      "description": "Count records matching domain filters. Returns the total count.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "domain": { "type": "array" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "search_count",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "domain": "/domain",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_workflow_action",
+      "description": "Execute workflow action/button on records (e.g., confirm sale order, post invoice).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "ids": { "type": "array", "items": { "type": "integer" } },
+          "action": { "type": "string" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model", "ids", "action"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "workflow_action",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "ids": "/ids",
+          "action": "/action",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_generate_report",
+      "description": "Generate PDF report for records. Returns base64-encoded PDF.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "reportName": { "type": "string" },
+          "ids": { "type": "array", "items": { "type": "integer" } },
+          "data": { "type": "object" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "reportName", "ids"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "generate_report",
+        "map": {
+          "instance": "/instance",
+          "reportName": "/reportName",
+          "ids": "/ids"
+        }
+      }
+    },
+    {
+      "name": "odoo_get_model_metadata",
+      "description": "Get model metadata including field definitions, types, and relationships.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "get_model_metadata",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_database_cleanup",
+      "description": "Comprehensive database cleanup for production readiness. IMPORTANT: Use dryRun=true to preview changes first!",
+      "guards": { "requiresEnvTrue": "ODOO_ENABLE_CLEANUP_TOOLS" },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "removeTestData": { "type": "boolean" },
+          "removeInactivRecords": { "type": "boolean" },
+          "cleanupDrafts": { "type": "boolean" },
+          "archiveOldRecords": { "type": "boolean" },
+          "optimizeDatabase": { "type": "boolean" },
+          "daysThreshold": { "type": "integer" },
+          "dryRun": { "type": "boolean" }
+        },
+        "required": ["instance"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "database_cleanup",
+        "map": {
+          "instance": "/instance",
+          "removeTestData": "/removeTestData",
+          "removeInactivRecords": "/removeInactivRecords",
+          "cleanupDrafts": "/cleanupDrafts",
+          "archiveOldRecords": "/archiveOldRecords",
+          "optimizeDatabase": "/optimizeDatabase",
+          "daysThreshold": "/daysThreshold",
+          "dryRun": "/dryRun"
+        }
+      }
+    },
+    {
+      "name": "odoo_deep_cleanup",
+      "description": "DESTRUCTIVE: Remove ALL non-essential data. ALWAYS use dryRun=true first!",
+      "guards": { "requiresEnvTrue": "ODOO_ENABLE_CLEANUP_TOOLS" },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "dryRun": { "type": "boolean" },
+          "keepCompanyDefaults": { "type": "boolean" },
+          "keepUserAccounts": { "type": "boolean" },
+          "keepMenus": { "type": "boolean" },
+          "keepGroups": { "type": "boolean" }
+        },
+        "required": ["instance"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "deep_cleanup",
+        "map": {
+          "instance": "/instance",
+          "dryRun": "/dryRun",
+          "keepCompanyDefaults": "/keepCompanyDefaults",
+          "keepUserAccounts": "/keepUserAccounts",
+          "keepMenus": "/keepMenus",
+          "keepGroups": "/keepGroups"
+        }
+      }
+    }
+  ]
+}
