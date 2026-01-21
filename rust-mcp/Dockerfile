@@ -5,6 +5,7 @@ WORKDIR /app
 # (Optional) needed by some crates; keep minimal for this repo
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
+    libssl-dev \
     ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
