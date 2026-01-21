@@ -1,11 +1,19 @@
 use serde_json::json;
 use serde_json::Value;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub struct PromptDef {
     pub name: &'static str,
     pub description: &'static str,
     pub content: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Prompt {
+    pub name: String,
+    pub description: String,
+    pub content: String,
 }
 
 pub const PROMPTS: &[PromptDef] = &[
@@ -96,28 +104,38 @@ pub const PROMPTS: &[PromptDef] = &[
     },
 ];
 
-pub fn list_prompts_result() -> Value {
+pub fn default_prompts() -> Vec<Prompt> {
+    PROMPTS
+        .iter()
+        .map(|p| Prompt {
+            name: p.name.to_string(),
+            description: p.description.to_string(),
+            content: p.content.to_string(),
+        })
+        .collect()
+}
+
+pub fn list_prompts_result(prompts: &[(String, String)]) -> Value {
     json!({
-        "prompts": PROMPTS.iter().map(|p| json!({
-            "name": p.name,
-            "description": p.description,
+        "prompts": prompts.iter().map(|(name, description)| json!({
+            "name": name,
+            "description": description,
         })).collect::<Vec<_>>()
     })
 }
 
-pub fn get_prompt_result(name: &str) -> Option<Value> {
-    let p = PROMPTS.iter().find(|p| p.name == name)?;
-    Some(json!({
-        "description": p.description,
+pub fn get_prompt_result(prompt: &Prompt) -> Value {
+    json!({
+        "description": prompt.description,
         "messages": [
             {
                 "role": "user",
                 "content": {
                     "type": "text",
-                    "text": p.content
+                    "text": prompt.content
                 }
             }
         ]
-    }))
+    })
 }
 

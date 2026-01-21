@@ -70,11 +70,17 @@ fn jsonrpc_err(id: RequestId, code: ErrorCode, message: impl Into<String>) -> Re
     )
 }
 
-fn cursor_initialize_result(params: &Value, odoo_instances: Vec<String>) -> Result<Value, McpError> {
+fn cursor_initialize_result(
+    params: &Value,
+    odoo_instances: Vec<String>,
+    protocol_default: String,
+    server_name: String,
+    instructions: String,
+) -> Result<Value, McpError> {
     let protocol_version = params
         .get("protocolVersion")
         .and_then(|v| v.as_str())
-        .unwrap_or("2025-11-05")
+        .unwrap_or(&protocol_default)
         .to_string();
 
     Ok(json!({
@@ -88,10 +94,10 @@ fn cursor_initialize_result(params: &Value, odoo_instances: Vec<String>) -> Resu
             }
         },
         "serverInfo": {
-            "name": "odoo-rust-mcp",
+            "name": server_name,
             "version": env!("CARGO_PKG_VERSION")
         },
-        "instructions": "Odoo MCP server (Rust). Use tools/* and prompts/* to interact with Odoo via JSON-2 API."
+        "instructions": instructions
     }))
 }
 
@@ -118,7 +124,16 @@ async fn handle_jsonrpc(
         let id: RequestId = serde_json::from_value(id_val)
             .map_err(|e| (StatusCode::BAD_REQUEST, json!({"error": e.to_string()})))?;
         let params = params.unwrap_or_else(|| json!({}));
-        let result = cursor_initialize_result(&params, state.handler.instance_names())
+        let protocol_default = state.handler.protocol_version_default().await;
+        let server_name = state.handler.server_name().await;
+        let instructions = state.handler.instructions().await;
+        let result = cursor_initialize_result(
+            &params,
+            state.handler.instance_names(),
+            protocol_default,
+            server_name,
+            instructions,
+        )
             .map_err(|e| (StatusCode::BAD_REQUEST, json!({"error": e.to_string()})))?;
 
         let sess = Uuid::new_v4().to_string();

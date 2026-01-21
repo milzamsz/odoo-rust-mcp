@@ -1,0 +1,14 @@
+{
+  "prompts": [
+    {
+      "name": "odoo_common_models",
+      "description": "List of commonly used Odoo models",
+      "content": "# Common Odoo Models (v17-19)\n\n## Sales & CRM\n- sale.order - Sales Orders\n- sale.order.line - Sales Order Lines\n- crm.lead - CRM Leads/Opportunities\n- crm.team - Sales Teams\n\n## Accounting & Invoicing\n- account.move - Invoices & Bills\n- account.move.line - Invoice/Bill Lines\n- account.payment - Payments\n- account.journal - Journals\n- account.account - Chart of Accounts\n\n## Inventory & Manufacturing\n- stock.picking - Transfers\n- stock.move - Stock Moves\n- stock.warehouse - Warehouses\n- stock.location - Locations\n- product.product - Products (variants)\n- product.template - Product Templates\n\n## Partners & Contacts\n- res.partner - Contacts/Customers/Vendors\n- res.company - Companies\n- res.users - Users\n\n## HR & Employees\n- hr.employee - Employees\n- hr.department - Departments\n- hr.leave - Time Off\n\n## Projects & Tasks\n- project.project - Projects\n- project.task - Tasks\n\n## Purchase\n- purchase.order - Purchase Orders\n- purchase.order.line - Purchase Order Lines\n"
+    },
+    {
+      "name": "odoo_domain_filters",
+      "description": "Guide for Odoo domain filter syntax",
+      "content": "# Odoo Domain Filter Examples\n\n## Basic Operators\n- ['name', '=', 'John'] - Exact match\n- ['name', '!=', 'John'] - Not equal\n- ['age', '>', 18] - Greater than\n- ['age', '>=', 18] - Greater than or equal\n- ['age', '<', 65] - Less than\n- ['age', '<=', 65] - Less than or equal\n\n## String Operators\n- ['name', 'like', 'John'] - Contains (case-sensitive)\n- ['name', 'ilike', 'john'] - Contains (case-insensitive)\n- ['email', '=like', '%@example.com'] - Pattern match\n- ['name', '=ilike', 'john%'] - Pattern match (case-insensitive)\n\n## List Operators\n- ['state', 'in', ['draft', 'posted']] - In list\n- ['state', 'not in', ['cancel', 'draft']] - Not in list\n\n## Logical Operators\n- ['&', ['name', '=', 'John'], ['age', '>', 18]] - AND\n- ['|', ['name', '=', 'John'], ['name', '=', 'Jane']] - OR\n- ['!', ['state', '=', 'cancel']] - NOT\n\n## Complex Example\n[\n  '&',\n  ['state', '=', 'sale'],\n  '|',\n  ['amount_total', '>', 1000],\n  ['partner_id.country_id.code', '=', 'US']\n]\n"
+    }
+  ]
+}

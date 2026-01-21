@@ -9,4 +9,11 @@ ODOO_API_KEY=YOUR_API_KEY
 # ODOO_ENABLE_CLEANUP_TOOLS=true
 # ODOO_TIMEOUT_MS=30000
 # ODOO_MAX_RETRIES=2
+#
+# MCP tool/prompt config (optional)
+# - If unset: server looks for ./tools.json and ./prompts.json relative to current working directory.
+# - If set: point to custom paths (absolute or relative).
+# MCP_TOOLS_JSON=tools.json
+# MCP_PROMPTS_JSON=prompts.json
+# MCP_SERVER_JSON=server.json
 

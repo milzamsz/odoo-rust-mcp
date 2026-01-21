@@ -8,6 +8,7 @@ use tracing::{error, info};
 
 use rust_mcp::mcp::cursor_stdio::CursorStdioTransport;
 use rust_mcp::mcp::http as mcp_http;
+use rust_mcp::mcp::registry::Registry;
 use rust_mcp::mcp::runtime::ServerCompat;
 use rust_mcp::mcp::tools::OdooClientPool;
 use rust_mcp::mcp::McpOdooHandler;
@@ -43,7 +44,13 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     let pool = OdooClientPool::from_env()?;
-    let handler = Arc::new(McpOdooHandler::new(pool, cli.enable_cleanup_tools));
+    let registry = Arc::new(Registry::from_env());
+    registry.initial_load().await?;
+    registry.start_watchers();
+
+    // Cleanup tool gating is handled via tool guards (e.g. requiresEnvTrue=ODOO_ENABLE_CLEANUP_TOOLS).
+    // We keep the CLI flag for compatibility, but it only affects the env var via clap env binding.
+    let handler = Arc::new(McpOdooHandler::new(pool, registry));
 
     match cli.transport {
         TransportMode::Stdio => run_stdio(handler).await?,

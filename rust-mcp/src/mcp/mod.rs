@@ -1,10 +1,12 @@
 pub mod prompts;
+pub mod registry;
 pub mod runtime;
 pub mod tools;
 pub mod cursor_stdio;
 pub mod http;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use async_trait::async_trait;
 use mcp_rust_sdk::error::{Error, ErrorCode};
 use mcp_rust_sdk::server::ServerHandler;
@@ -12,24 +14,37 @@ use mcp_rust_sdk::types::{ClientCapabilities, Implementation, ServerCapabilities
 use serde_json::{json, Value};
 
 use crate::mcp::prompts::{get_prompt_result, list_prompts_result};
-use crate::mcp::tools::{call_tool, tool_defs, OdooClientPool};
+use crate::mcp::registry::Registry;
+use crate::mcp::tools::{call_tool, OdooClientPool};
 
 #[derive(Clone)]
 pub struct McpOdooHandler {
     pool: OdooClientPool,
-    enable_cleanup_tools: bool,
+    registry: Arc<Registry>,
 }
 
 impl McpOdooHandler {
-    pub fn new(pool: OdooClientPool, enable_cleanup_tools: bool) -> Self {
+    pub fn new(pool: OdooClientPool, registry: Arc<Registry>) -> Self {
         Self {
             pool,
-            enable_cleanup_tools,
+            registry,
         }
     }
 
     pub fn instance_names(&self) -> Vec<String> {
         self.pool.instance_names()
+    }
+
+    pub async fn server_name(&self) -> String {
+        self.registry.server_name().await
+    }
+
+    pub async fn instructions(&self) -> String {
+        self.registry.instructions().await
+    }
+
+    pub async fn protocol_version_default(&self) -> String {
+        self.registry.protocol_version_default().await
     }
 }
 
@@ -64,7 +79,9 @@ impl ServerHandler for McpOdooHandler {
     async fn handle_method(&self, method: &str, params: Option<Value>) -> Result<Value, Error> {
         match method {
             "tools/list" => {
-                let tools = tool_defs(self.enable_cleanup_tools);
+                // Fully declarative: tools are served from tools.json (registry).
+                // Note: cleanup gating is handled by tool guards (e.g. requiresEnvTrue).
+                let tools = self.registry.list_tools().await;
                 Ok(json!({ "tools": tools }))
             }
             "tools/call" => {
@@ -75,22 +92,20 @@ impl ServerHandler for McpOdooHandler {
                     .ok_or_else(|| protocol_err("tools/call missing 'name'"))?;
                 let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
 
-                if !self.enable_cleanup_tools
-                    && matches!(name, "odoo_database_cleanup" | "odoo_deep_cleanup")
-                {
+                let Some(tool) = self.registry.get_tool(name).await else {
                     return Ok(json!({
                         "content": [{
                             "type": "text",
                             "text": serde_json::to_string_pretty(&json!({
-                                "error": "Cleanup tools are disabled. Set ODOO_ENABLE_CLEANUP_TOOLS=true (or --enable-cleanup-tools) to enable.",
+                                "error": "Unknown or disabled tool",
                                 "tool": name,
                             })).unwrap_or_else(|_| "{\"error\":\"disabled\"}".to_string())
                         }],
                         "isError": true
                     }));
-                }
+                };
 
-                match call_tool(&self.pool, name, args).await {
+                match call_tool(&self.pool, &tool, args).await {
                     Ok(v) => Ok(v),
                     Err(e) => Ok(json!({
                         "content": [{
@@ -104,14 +119,22 @@ impl ServerHandler for McpOdooHandler {
                     })),
                 }
             }
-            "prompts/list" => Ok(list_prompts_result()),
+            "prompts/list" => {
+                let prompts = self.registry.list_prompts().await;
+                Ok(list_prompts_result(&prompts))
+            }
             "prompts/get" => {
                 let params = params.ok_or_else(|| protocol_err("Missing params for prompts/get"))?;
                 let name = params
                     .get("name")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| protocol_err("prompts/get missing 'name'"))?;
-                get_prompt_result(name).ok_or_else(|| protocol_err(format!("Unknown prompt: {name}")))
+                let p = self
+                    .registry
+                    .get_prompt(name)
+                    .await
+                    .ok_or_else(|| protocol_err(format!("Unknown prompt: {name}")))?;
+                Ok(get_prompt_result(&p))
             }
             _ => Err(protocol_err(format!("Unknown method: {method}"))),
         }

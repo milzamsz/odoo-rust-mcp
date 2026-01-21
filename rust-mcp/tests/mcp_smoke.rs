@@ -10,7 +10,8 @@ use mcp_rust_sdk::{
     transport::{Message, Transport},
 };
 
-use rust_mcp::mcp::{runtime::ServerCompat, tools::OdooClientPool, McpOdooHandler};
+use rust_mcp::mcp::{registry::Registry, runtime::ServerCompat, tools::OdooClientPool, McpOdooHandler};
+use uuid::Uuid;
 
 struct MockTransport {
     client_to_server: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<Result<Message, Error>>>>,
@@ -70,8 +71,21 @@ async fn mcp_initialize_and_list_tools_prompts() {
         std::env::set_var("ODOO_API_KEY", "dummy");
     }
 
+    // Use temp config paths so tests don't depend on repo files.
+    let tmp = std::env::temp_dir().join(format!("odoo-rust-mcp-test-{}", Uuid::new_v4()));
+    unsafe {
+        std::env::set_var("MCP_TOOLS_JSON", tmp.join("tools.json").to_string_lossy().to_string());
+        std::env::set_var(
+            "MCP_PROMPTS_JSON",
+            tmp.join("prompts.json").to_string_lossy().to_string(),
+        );
+        std::env::set_var("MCP_SERVER_JSON", tmp.join("server.json").to_string_lossy().to_string());
+    }
+
     let pool = OdooClientPool::from_env().unwrap();
-    let handler = Arc::new(McpOdooHandler::new(pool, false));
+    let registry = Arc::new(Registry::from_env());
+    registry.initial_load().await.unwrap();
+    let handler = Arc::new(McpOdooHandler::new(pool, registry));
 
     let (transport, client_tx, mut client_rx) = MockTransport::new();
     let server = ServerCompat::new(Arc::new(transport), handler);

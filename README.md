@@ -65,6 +65,40 @@ export ODOO_DB="v19_pos"
 export ODOO_API_KEY="YOUR_API_KEY"
 ```
 
+### Tools, prompts, and server metadata via JSON (no recompile)
+
+This server is **fully declarative**:
+
+- **`tools.json`** defines:
+  - tool `name` / `description`
+  - tool `inputSchema` (JSON Schema; must be Cursor-friendly)
+  - tool `op` (maps tool calls to a primitive operation executed by Rust)
+  - optional `guards` (e.g. `requiresEnvTrue`)
+- **`prompts.json`** defines prompt `name` / `description` / `content`
+- **`server.json`** defines initialize metadata (`serverName`, `instructions`, default protocol version)
+
+Auto-reload:
+- The server watches these files and reloads them on change.
+- If a JSON file is missing at startup, the server will **create it from built-in seed defaults** (embedded from `rust-mcp/config-defaults/*`).
+
+Environment variables (optional overrides):
+
+```bash
+export MCP_TOOLS_JSON="tools.json"
+export MCP_PROMPTS_JSON="prompts.json"
+export MCP_SERVER_JSON="server.json"
+```
+
+Sample files are provided in:
+- `rust-mcp/tools.json`
+- `rust-mcp/prompts.json`
+- `rust-mcp/server.json`
+
+Seed defaults (used only when files are missing):
+- `rust-mcp/config-defaults/tools.json`
+- `rust-mcp/config-defaults/prompts.json`
+- `rust-mcp/config-defaults/server.json`
+
 ### Build
 
 ```bash
@@ -107,6 +141,8 @@ docker compose up --build
 ```
 
 By default, the container runs **HTTP** transport and exposes `http://localhost:8787/mcp`.
+
+If you want JSON-driven tools/prompts in Docker, either bake the files into the image or mount them and set `MCP_TOOLS_JSON` / `MCP_PROMPTS_JSON` to their paths inside the container.
 
 ### Cleanup tools (disabled by default)
 
