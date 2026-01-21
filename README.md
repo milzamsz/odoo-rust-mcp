@@ -217,6 +217,58 @@ cd rust-mcp
 cargo build --release
 ```
 
+### Run as Background Service
+
+The installer scripts support running the MCP server as a background service (HTTP transport on port 8787).
+
+**Linux (systemd):**
+```bash
+./install.sh service
+```
+
+Commands:
+- Start: `sudo systemctl start odoo-rust-mcp`
+- Stop: `sudo systemctl stop odoo-rust-mcp`
+- Status: `sudo systemctl status odoo-rust-mcp`
+- Logs: `sudo journalctl -u odoo-rust-mcp -f`
+
+Config: `/etc/odoo-rust-mcp.env`
+
+**macOS (launchd):**
+```bash
+./install.sh service
+```
+
+Commands:
+- Start: `launchctl load ~/Library/LaunchAgents/com.odoo.rust-mcp.plist`
+- Stop: `launchctl unload ~/Library/LaunchAgents/com.odoo.rust-mcp.plist`
+- Logs: `tail -f ~/.config/odoo-rust-mcp/stdout.log`
+
+Config: `~/.config/odoo-rust-mcp/env`
+
+**Windows (Scheduled Task):**
+```powershell
+.\install.ps1 -Service
+```
+
+Commands (PowerShell as Admin):
+- Start: `Start-ScheduledTask -TaskName OdooRustMcpService`
+- Stop: `Stop-ScheduledTask -TaskName OdooRustMcpService`
+- Status: `Get-ScheduledTask -TaskName OdooRustMcpService | Select-Object State`
+
+Config: `C:\ProgramData\odoo-rust-mcp\env.ps1`
+
+**Service endpoint:** `http://127.0.0.1:8787/mcp`
+
+To remove service only:
+```bash
+# Linux/macOS
+./install.sh service-uninstall
+
+# Windows
+.\install.ps1 -ServiceUninstall
+```
+
 ### Run (stdio)
 
 ```bash
