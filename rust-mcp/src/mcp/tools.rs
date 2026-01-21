@@ -7,15 +7,16 @@ use tokio::sync::Mutex;
 
 use crate::cleanup;
 use crate::mcp::registry::{OpSpec, ToolDef};
-use crate::odoo::client::OdooHttpClient;
 use crate::odoo::config::{load_odoo_env, OdooEnvConfig};
+use crate::odoo::unified_client::OdooClient;
 use crate::odoo::types::OdooError;
 
-/// Shared state: parsed env + instantiated HTTP clients per instance.
+/// Shared state: parsed env + instantiated clients per instance.
+/// Supports both Odoo 19+ (JSON-2 API) and Odoo < 19 (JSON-RPC).
 #[derive(Clone)]
 pub struct OdooClientPool {
     env: Arc<OdooEnvConfig>,
-    clients: Arc<Mutex<HashMap<String, OdooHttpClient>>>,
+    clients: Arc<Mutex<HashMap<String, OdooClient>>>,
 }
 
 impl OdooClientPool {
@@ -27,7 +28,7 @@ impl OdooClientPool {
         })
     }
 
-    pub async fn get(&self, instance: &str) -> anyhow::Result<OdooHttpClient> {
+    pub async fn get(&self, instance: &str) -> anyhow::Result<OdooClient> {
         {
             let guard = self.clients.lock().await;
             if let Some(c) = guard.get(instance) {
@@ -46,7 +47,7 @@ impl OdooClientPool {
             anyhow::anyhow!("Unknown Odoo instance '{instance}'. Available: {available}")
         })?;
 
-        let client = OdooHttpClient::new(cfg)?;
+        let client = OdooClient::new(cfg)?;
         let mut guard = self.clients.lock().await;
         guard.insert(instance.to_string(), client.clone());
         Ok(client)

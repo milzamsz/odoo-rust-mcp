@@ -1,16 +1,34 @@
 ## Copy to .env (do not commit .env)
 #
-# Odoo connection (host machine)
-ODOO_URL=http://host.docker.internal:8069
-ODOO_DB=v19_pos
-ODOO_API_KEY=YOUR_API_KEY
+# =============================================================================
+# Odoo 19+ (JSON-2 API with API Key)
+# =============================================================================
+# ODOO_URL=http://host.docker.internal:8069
+# ODOO_DB=v19_pos
+# ODOO_API_KEY=YOUR_API_KEY
 #
-# Optional
+# =============================================================================
+# Odoo < 19 (JSON-RPC with Username/Password)
+# =============================================================================
+# Set ODOO_VERSION to your Odoo major version (e.g., "18", "17", "16")
+# This enables legacy JSON-RPC authentication with username/password
+#
+ODOO_URL=http://host.docker.internal:8069
+ODOO_DB=mydb
+ODOO_VERSION=18
+ODOO_USERNAME=admin
+ODOO_PASSWORD=admin
+#
+# =============================================================================
+# Optional settings
+# =============================================================================
 # ODOO_ENABLE_CLEANUP_TOOLS=true
 # ODOO_TIMEOUT_MS=30000
 # ODOO_MAX_RETRIES=2
 #
+# =============================================================================
 # MCP tool/prompt config (optional)
+# =============================================================================
 # - Recommended: edit the files under rust-mcp/config/ (runtime config).
 # - If unset: server looks for ./config/tools.json, ./config/prompts.json, ./config/server.json relative to current working directory.
 # - If set: point to custom paths (absolute or relative).

@@ -1,6 +1,8 @@
 ## odoo-rust-mcp
 
-Rust implementation of an **Odoo MCP server** (Model Context Protocol), using **Odoo 19 JSON-2 External API** (`/json/2/...`) for fast HTTP-based access (no XML-RPC).
+Rust implementation of an **Odoo MCP server** (Model Context Protocol), supporting:
+- **Odoo 19+**: JSON-2 External API (`/json/2/...`) with API key authentication
+- **Odoo < 19**: JSON-RPC (`/jsonrpc`) with username/password authentication
 
 ### Features
 
@@ -18,9 +20,11 @@ Rust implementation of an **Odoo MCP server** (Model Context Protocol), using **
 ### Requirements
 
 - Rust toolchain (cargo)
-- Odoo instance that supports **External JSON-2 API** and **API keys** (Odoo 19+)
+- Odoo instance:
+  - **Odoo 19+**: Requires External JSON-2 API and API keys
+  - **Odoo < 19**: Works with standard JSON-RPC endpoint (username/password)
 
-Notes: Odoo states access to JSON-2 external API is only available on **Custom** plans. If your Odoo doesn’t expose `/json/2`, this server won’t work as-is.
+Notes: For Odoo 19+, access to JSON-2 external API is only available on **Custom** plans. For Odoo < 19, the standard JSON-RPC endpoint is used which is available on all editions.
 
 ### Configuration (environment variables)
 
@@ -38,31 +42,61 @@ Set `ODOO_INSTANCES` to JSON:
   "staging": {
     "url": "https://staging.mycompany.example.com",
     "apiKey": "YOUR_API_KEY"
+  },
+  "legacy": {
+    "url": "https://legacy.mycompany.example.com",
+    "db": "legacy_db",
+    "version": "18",
+    "username": "admin",
+    "password": "admin_password"
   }
 }
 ```
 
 Notes:
-- `db` is optional (only needed when Host header isn’t enough to select DB).
+- `db` is optional for Odoo 19+ (only needed when Host header isn't enough to select DB).
+- `db` is **required** for Odoo < 19 (legacy mode).
+- `version` determines authentication mode: `< 19` uses username/password, `>= 19` uses API key.
 - Extra fields in the JSON are ignored.
 - If an instance omits `apiKey`, the server will fall back to the global `ODOO_API_KEY` (if set).
+- If an instance omits `username`/`password`, the server will fall back to `ODOO_USERNAME`/`ODOO_PASSWORD`.
 
 #### Single-instance (fallback)
 
+**Odoo 19+ (API Key):**
 ```bash
 export ODOO_URL="https://mycompany.example.com"
 export ODOO_API_KEY="YOUR_API_KEY"
 export ODOO_DB="mycompany"   # optional
 ```
 
+**Odoo < 19 (Username/Password):**
+```bash
+export ODOO_URL="https://mycompany.example.com"
+export ODOO_DB="mycompany"   # required for legacy
+export ODOO_VERSION="18"     # triggers legacy mode
+export ODOO_USERNAME="admin"
+export ODOO_PASSWORD="your_password"
+```
+
 URL convenience: `ODOO_URL` may be given as `localhost:8069` (it will be normalized to `http://localhost:8069`).
 
-#### Local example (your setup)
+#### Local example (Odoo 19+)
 
 ```bash
 export ODOO_URL="localhost:8069"
 export ODOO_DB="v19_pos"
 export ODOO_API_KEY="YOUR_API_KEY"
+```
+
+#### Local example (Odoo 18 or earlier)
+
+```bash
+export ODOO_URL="localhost:8069"
+export ODOO_DB="v18_db"
+export ODOO_VERSION="18"
+export ODOO_USERNAME="admin"
+export ODOO_PASSWORD="admin"
 ```
 
 ### Tools, prompts, and server metadata via JSON (no recompile)

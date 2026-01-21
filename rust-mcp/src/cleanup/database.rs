@@ -2,7 +2,7 @@ use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::odoo::client::OdooHttpClient;
+use crate::odoo::unified_client::OdooClient;
 use crate::odoo::types::{OdooError, OdooResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,7 +49,7 @@ pub struct CleanupReport {
     pub dry_run: bool,
 }
 
-pub async fn execute_full_cleanup(client: &OdooHttpClient, options: CleanupOptions) -> OdooResult<CleanupReport> {
+pub async fn execute_full_cleanup(client: &OdooClient, options: CleanupOptions) -> OdooResult<CleanupReport> {
     let dry_run = options.dry_run.unwrap_or(false);
     let days = options.days_threshold.unwrap_or(180);
     let mut report = CleanupReport {
@@ -167,7 +167,7 @@ pub async fn execute_full_cleanup(client: &OdooHttpClient, options: CleanupOptio
     Ok(report)
 }
 
-async fn remove_test_data(client: &OdooHttpClient, dry_run: bool) -> OdooResult<(i64, Vec<CleanupDetail>)> {
+async fn remove_test_data(client: &OdooClient, dry_run: bool) -> OdooResult<(i64, Vec<CleanupDetail>)> {
     let mut details = vec![];
     let mut total = 0i64;
 
@@ -211,7 +211,7 @@ async fn remove_test_data(client: &OdooHttpClient, dry_run: bool) -> OdooResult<
 }
 
 async fn archive_inactive_records(
-    client: &OdooHttpClient,
+    client: &OdooClient,
     days_threshold: i64,
     dry_run: bool,
 ) -> OdooResult<(i64, Vec<CleanupDetail>)> {
@@ -256,7 +256,7 @@ async fn archive_inactive_records(
     Ok((total, details))
 }
 
-async fn cleanup_draft_documents(client: &OdooHttpClient, dry_run: bool) -> OdooResult<(i64, Vec<CleanupDetail>)> {
+async fn cleanup_draft_documents(client: &OdooClient, dry_run: bool) -> OdooResult<(i64, Vec<CleanupDetail>)> {
     let mut details = vec![];
     let mut total = 0i64;
     let draft_models = vec![("sale.order", "state"), ("account.move", "state"), ("purchase.order", "state")];
@@ -290,7 +290,7 @@ async fn cleanup_draft_documents(client: &OdooHttpClient, dry_run: bool) -> Odoo
     Ok((total, details))
 }
 
-async fn remove_orphan_records(client: &OdooHttpClient, dry_run: bool) -> OdooResult<(i64, Vec<CleanupDetail>)> {
+async fn remove_orphan_records(client: &OdooClient, dry_run: bool) -> OdooResult<(i64, Vec<CleanupDetail>)> {
     let mut details = vec![];
     let mut total = 0i64;
 
@@ -330,7 +330,7 @@ async fn remove_orphan_records(client: &OdooHttpClient, dry_run: bool) -> OdooRe
 }
 
 async fn cleanup_activity_logs(
-    client: &OdooHttpClient,
+    client: &OdooClient,
     days_threshold: i64,
     dry_run: bool,
 ) -> OdooResult<(i64, Vec<CleanupDetail>)> {
@@ -404,7 +404,7 @@ async fn cleanup_activity_logs(
 }
 
 async fn cleanup_attachments(
-    client: &OdooHttpClient,
+    client: &OdooClient,
     days_threshold: i64,
     dry_run: bool,
 ) -> OdooResult<(i64, Vec<CleanupDetail>)> {
@@ -451,7 +451,7 @@ async fn cleanup_attachments(
     Ok((total, details))
 }
 
-async fn clear_caches(client: &OdooHttpClient) -> Result<bool, OdooError> {
+async fn clear_caches(client: &OdooClient) -> Result<bool, OdooError> {
     // Best effort: those methods may not exist depending on modules/edition.
     let params = serde_json::Map::new();
     let _ = client

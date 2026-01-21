@@ -2,7 +2,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::odoo::client::OdooHttpClient;
+use crate::odoo::unified_client::OdooClient;
 use crate::odoo::types::OdooResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,7 +69,7 @@ pub struct DeepCleanupReport {
     pub default_data_retained: Vec<String>,
 }
 
-pub async fn execute_deep_cleanup(client: &OdooHttpClient, options: DeepCleanupOptions) -> OdooResult<DeepCleanupReport> {
+pub async fn execute_deep_cleanup(client: &OdooClient, options: DeepCleanupOptions) -> OdooResult<DeepCleanupReport> {
     let dry_run = options.dry_run.unwrap_or(false);
     let keep_defaults = options.keep_company_defaults.unwrap_or(true);
     let keep_users = options.keep_user_accounts.unwrap_or(true);
@@ -296,7 +296,7 @@ pub async fn execute_deep_cleanup(client: &OdooHttpClient, options: DeepCleanupO
     Ok(report)
 }
 
-async fn remove_partners(client: &OdooHttpClient, keep_defaults: bool, dry_run: bool) -> OdooResult<(i64, Vec<DeepCleanupDetail>)> {
+async fn remove_partners(client: &OdooClient, keep_defaults: bool, dry_run: bool) -> OdooResult<(i64, Vec<DeepCleanupDetail>)> {
     let mut details = vec![];
     let domain = if keep_defaults {
         json!([["name","!=", "Your Company"]])
@@ -361,7 +361,7 @@ async fn remove_partners(client: &OdooHttpClient, keep_defaults: bool, dry_run: 
 }
 
 async fn remove_model_all(
-    client: &OdooHttpClient,
+    client: &OdooClient,
     model: &str,
     dry_run: bool,
     label: &str,
@@ -370,7 +370,7 @@ async fn remove_model_all(
 }
 
 async fn remove_by_domain_best_effort(
-    client: &OdooHttpClient,
+    client: &OdooClient,
     model: &str,
     domain: Value,
     dry_run: bool,
@@ -403,7 +403,7 @@ async fn remove_by_domain_best_effort(
     Ok((count, details))
 }
 
-async fn identify_default_data(client: &OdooHttpClient) -> OdooResult<Vec<String>> {
+async fn identify_default_data(client: &OdooClient) -> OdooResult<Vec<String>> {
     let mut defaults = vec![];
     if !client.search("res.company", None, Some(1), None, None, None).await?.is_empty() {
         defaults.push("✓ Default Company Retained".to_string());
