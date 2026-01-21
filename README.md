@@ -84,18 +84,27 @@ Auto-reload:
 - The server watches these files and reloads them on change.
 - If a JSON file is missing at startup, the server will **create it from built-in seed defaults** (embedded from `rust-mcp/config-defaults/*`).
 
+Editable vs seed defaults (important):
+- **Edit these runtime files** for day-to-day configuration:
+  - `rust-mcp/config/tools.json`
+  - `rust-mcp/config/prompts.json`
+  - `rust-mcp/config/server.json`
+- **Do not edit** `rust-mcp/config-defaults/*` for normal configuration changes.
+  - Those files are embedded into the binary as seed defaults (used only to auto-create missing runtime config files).
+  - If you change `config-defaults/*`, you must rebuild the binary/image for changes to take effect.
+
 Environment variables (optional overrides):
 
 ```bash
-export MCP_TOOLS_JSON="tools.json"
-export MCP_PROMPTS_JSON="prompts.json"
-export MCP_SERVER_JSON="server.json"
+export MCP_TOOLS_JSON="config/tools.json"
+export MCP_PROMPTS_JSON="config/prompts.json"
+export MCP_SERVER_JSON="config/server.json"
 ```
 
 Sample files are provided in:
-- `rust-mcp/tools.json`
-- `rust-mcp/prompts.json`
-- `rust-mcp/server.json`
+- `rust-mcp/config/tools.json`
+- `rust-mcp/config/prompts.json`
+- `rust-mcp/config/server.json`
 
 Seed defaults (used only when files are missing):
 - `rust-mcp/config-defaults/tools.json`

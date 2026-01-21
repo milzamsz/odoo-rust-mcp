@@ -8,9 +8,9 @@ services:
     # Mount JSON configs so they always exist and can be edited without rebuilding.
     # Use :rw so the server can rewrite defaults if needed.
     volumes:
-      - ./rust-mcp/tools.json:/config/tools.json:rw
-      - ./rust-mcp/prompts.json:/config/prompts.json:rw
-      - ./rust-mcp/server.json:/config/server.json:rw
+      - ./rust-mcp/config/tools.json:/config/tools.json:rw
+      - ./rust-mcp/config/prompts.json:/config/prompts.json:rw
+      - ./rust-mcp/config/server.json:/config/server.json:rw
     env_file:
       - .env
     environment:

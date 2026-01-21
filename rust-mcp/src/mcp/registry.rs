@@ -99,11 +99,12 @@ struct WatchGuards {
 
 impl Registry {
     pub fn from_env() -> Self {
-        let tools_path = std::env::var("MCP_TOOLS_JSON").unwrap_or_else(|_| "tools.json".to_string());
+        let tools_path =
+            std::env::var("MCP_TOOLS_JSON").unwrap_or_else(|_| "config/tools.json".to_string());
         let prompts_path =
-            std::env::var("MCP_PROMPTS_JSON").unwrap_or_else(|_| "prompts.json".to_string());
+            std::env::var("MCP_PROMPTS_JSON").unwrap_or_else(|_| "config/prompts.json".to_string());
         let server_path =
-            std::env::var("MCP_SERVER_JSON").unwrap_or_else(|_| "server.json".to_string());
+            std::env::var("MCP_SERVER_JSON").unwrap_or_else(|_| "config/server.json".to_string());
 
         Self {
             tools_path: PathBuf::from(tools_path),

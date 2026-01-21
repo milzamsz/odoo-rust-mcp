@@ -11,9 +11,10 @@ ODOO_API_KEY=YOUR_API_KEY
 # ODOO_MAX_RETRIES=2
 #
 # MCP tool/prompt config (optional)
-# - If unset: server looks for ./tools.json and ./prompts.json relative to current working directory.
+# - Recommended: edit the files under rust-mcp/config/ (runtime config).
+# - If unset: server looks for ./config/tools.json, ./config/prompts.json, ./config/server.json relative to current working directory.
 # - If set: point to custom paths (absolute or relative).
-# MCP_TOOLS_JSON=tools.json
-# MCP_PROMPTS_JSON=prompts.json
-# MCP_SERVER_JSON=server.json
+# MCP_TOOLS_JSON=config/tools.json
+# MCP_PROMPTS_JSON=config/prompts.json
+# MCP_SERVER_JSON=config/server.json
 

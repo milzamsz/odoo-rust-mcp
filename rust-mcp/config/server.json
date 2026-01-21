@@ -3,8 +3,3 @@
   "instructions": "Odoo MCP server (Rust). Tools & prompts are fully configurable via JSON files. Use tools/* and prompts/* to interact with Odoo via JSON-2 API.",
   "protocolVersionDefault": "2025-11-05"
 }
-{
-  "serverName": "odoo-rust-mcp",
-  "instructions": "Odoo MCP server (Rust). Tools & prompts are fully configurable via JSON files. Use tools/* and prompts/* to interact with Odoo via JSON-2 API.",
-  "protocolVersionDefault": "2025-11-05"
-}
