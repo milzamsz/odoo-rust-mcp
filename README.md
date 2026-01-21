@@ -145,7 +145,39 @@ Seed defaults (used only when files are missing):
 - `rust-mcp/config-defaults/prompts.json`
 - `rust-mcp/config-defaults/server.json`
 
-### Build
+### Installation
+
+#### Option 1: Download pre-built binary (recommended)
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/rachmataditiya/odoo-rust-mcp/releases):
+
+| Platform | File |
+|----------|------|
+| Linux x86_64 | `rust-mcp-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux ARM64 | `rust-mcp-aarch64-unknown-linux-gnu.tar.gz` |
+| macOS x86_64 | `rust-mcp-x86_64-apple-darwin.tar.gz` |
+| macOS ARM64 (Apple Silicon) | `rust-mcp-aarch64-apple-darwin.tar.gz` |
+| Windows x86_64 | `rust-mcp-x86_64-pc-windows-msvc.zip` |
+
+Extract and run:
+
+```bash
+# Linux/macOS
+tar -xzf rust-mcp-<platform>.tar.gz
+chmod +x rust-mcp
+./rust-mcp --transport stdio
+
+# Windows (PowerShell)
+Expand-Archive rust-mcp-x86_64-pc-windows-msvc.zip -DestinationPath .
+.\rust-mcp.exe --transport stdio
+```
+
+The release archive includes:
+- `rust-mcp` (or `rust-mcp.exe` on Windows) - the binary
+- `config/` - default configuration files (tools.json, prompts.json, server.json)
+- `.env.example` - example environment variables
+
+#### Option 2: Build from source
 
 ```bash
 cd rust-mcp
