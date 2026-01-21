@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use clap::{Parser, ValueEnum};
-use mcp_rust_sdk::transport::stdio::StdioTransport;
 use mcp_rust_sdk::transport::websocket::WebSocketTransport;
 use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
 use tracing::{error, info};
 
+use rust_mcp::mcp::cursor_stdio::CursorStdioTransport;
+use rust_mcp::mcp::http as mcp_http;
 use rust_mcp::mcp::runtime::ServerCompat;
 use rust_mcp::mcp::tools::OdooClientPool;
 use rust_mcp::mcp::McpOdooHandler;
@@ -15,6 +16,7 @@ use rust_mcp::mcp::McpOdooHandler;
 enum TransportMode {
     Stdio,
     Ws,
+    Http,
 }
 
 #[derive(Debug, Parser)]
@@ -46,13 +48,14 @@ async fn main() -> anyhow::Result<()> {
     match cli.transport {
         TransportMode::Stdio => run_stdio(handler).await?,
         TransportMode::Ws => run_ws(handler, &cli.listen).await?,
+        TransportMode::Http => run_http(handler, &cli.listen).await?,
     }
 
     Ok(())
 }
 
 async fn run_stdio(handler: Arc<McpOdooHandler>) -> anyhow::Result<()> {
-    let (transport, _sender) = StdioTransport::new();
+    let (transport, _sender) = CursorStdioTransport::new();
     let server = ServerCompat::new(Arc::new(transport), handler);
 
     info!("MCP server starting (stdio)");
@@ -80,4 +83,9 @@ async fn run_ws(handler: Arc<McpOdooHandler>, listen: &str) -> anyhow::Result<()
             }
         });
     }
+}
+
+async fn run_http(handler: Arc<McpOdooHandler>, listen: &str) -> anyhow::Result<()> {
+    info!("MCP server listening (http) on {}", listen);
+    mcp_http::serve(handler, listen).await
 }

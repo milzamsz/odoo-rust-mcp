@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use base64::Engine;
-use schemars::{schema_for, JsonSchema};
+use schemars::JsonSchema;
 use schemars::schema::{InstanceType, Schema, SchemaObject, SingleOrVec};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -278,62 +278,256 @@ fn array_schema(_: &mut schemars::r#gen::SchemaGenerator) -> Schema {
     schema_with_type(InstanceType::Array)
 }
 
+// Cursor's MCP client can be picky about JSON Schema features (e.g. $ref/definitions/anyOf).
+// We provide explicit inline schemas for tool inputs to avoid those issues.
+fn schema_object(properties: Value, required: &[&str]) -> Value {
+    json!({
+        "type": "object",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": false
+    })
+}
+
+fn schema_string() -> Value {
+    json!({ "type": "string" })
+}
+
+fn schema_integer() -> Value {
+    json!({ "type": "integer" })
+}
+
+fn schema_boolean() -> Value {
+    json!({ "type": "boolean" })
+}
+
+fn schema_object_any() -> Value {
+    json!({ "type": "object" })
+}
+
+fn schema_array_any() -> Value {
+    json!({ "type": "array" })
+}
+
+fn schema_array_of(item: Value) -> Value {
+    json!({ "type": "array", "items": item })
+}
+
+fn input_schema_search() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "model": schema_string(),
+            "domain": schema_array_any(),
+            "fields": schema_array_of(schema_string()),
+            "limit": schema_integer(),
+            "offset": schema_integer(),
+            "order": schema_string(),
+            "context": schema_object_any()
+        }),
+        &["instance", "model"],
+    )
+}
+
+fn input_schema_read() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "model": schema_string(),
+            "ids": schema_array_of(schema_integer()),
+            "fields": schema_array_of(schema_string()),
+            "context": schema_object_any()
+        }),
+        &["instance", "model", "ids"],
+    )
+}
+
+fn input_schema_create() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "model": schema_string(),
+            "values": schema_object_any(),
+            "context": schema_object_any()
+        }),
+        &["instance", "model", "values"],
+    )
+}
+
+fn input_schema_update() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "model": schema_string(),
+            "ids": schema_array_of(schema_integer()),
+            "values": schema_object_any(),
+            "context": schema_object_any()
+        }),
+        &["instance", "model", "ids", "values"],
+    )
+}
+
+fn input_schema_delete() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "model": schema_string(),
+            "ids": schema_array_of(schema_integer()),
+            "context": schema_object_any()
+        }),
+        &["instance", "model", "ids"],
+    )
+}
+
+fn input_schema_execute() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "model": schema_string(),
+            "method": schema_string(),
+            "args": schema_array_any(),
+            "kwargs": schema_object_any(),
+            "context": schema_object_any()
+        }),
+        &["instance", "model", "method"],
+    )
+}
+
+fn input_schema_count() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "model": schema_string(),
+            "domain": schema_array_any(),
+            "context": schema_object_any()
+        }),
+        &["instance", "model"],
+    )
+}
+
+fn input_schema_workflow() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "model": schema_string(),
+            "ids": schema_array_of(schema_integer()),
+            "action": schema_string(),
+            "context": schema_object_any()
+        }),
+        &["instance", "model", "ids", "action"],
+    )
+}
+
+fn input_schema_report() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "reportName": schema_string(),
+            "ids": schema_array_of(schema_integer()),
+            "data": schema_object_any(),
+            "context": schema_object_any()
+        }),
+        &["instance", "reportName", "ids"],
+    )
+}
+
+fn input_schema_model_metadata() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "model": schema_string(),
+            "context": schema_object_any()
+        }),
+        &["instance", "model"],
+    )
+}
+
+fn input_schema_database_cleanup() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "removeTestData": schema_boolean(),
+            "removeInactivRecords": schema_boolean(),
+            "cleanupDrafts": schema_boolean(),
+            "archiveOldRecords": schema_boolean(),
+            "optimizeDatabase": schema_boolean(),
+            "daysThreshold": schema_integer(),
+            "dryRun": schema_boolean()
+        }),
+        &["instance"],
+    )
+}
+
+fn input_schema_deep_cleanup() -> Value {
+    schema_object(
+        json!({
+            "instance": schema_string(),
+            "dryRun": schema_boolean(),
+            "keepCompanyDefaults": schema_boolean(),
+            "keepUserAccounts": schema_boolean(),
+            "keepMenus": schema_boolean(),
+            "keepGroups": schema_boolean()
+        }),
+        &["instance"],
+    )
+}
+
 pub fn tool_defs(enable_cleanup_tools: bool) -> Vec<Value> {
     let mut tools = vec![
         json!({
             "name": "odoo_search",
             "description": "Search for Odoo records with domain filters. Returns record IDs matching the criteria.",
-            "inputSchema": schema_for!(SearchArgs).schema,
+            "inputSchema": input_schema_search(),
         }),
         json!({
             "name": "odoo_search_read",
             "description": "Search and read Odoo records in one operation. Returns full record data.",
-            "inputSchema": schema_for!(SearchArgs).schema,
+            "inputSchema": input_schema_search(),
         }),
         json!({
             "name": "odoo_read",
             "description": "Read specific Odoo records by IDs. Returns detailed field values.",
-            "inputSchema": schema_for!(ReadArgs).schema,
+            "inputSchema": input_schema_read(),
         }),
         json!({
             "name": "odoo_create",
             "description": "Create a new Odoo record. Returns the ID of the created record.",
-            "inputSchema": schema_for!(CreateArgs).schema,
+            "inputSchema": input_schema_create(),
         }),
         json!({
             "name": "odoo_update",
             "description": "Update existing Odoo records. Returns true on success.",
-            "inputSchema": schema_for!(UpdateArgs).schema,
+            "inputSchema": input_schema_update(),
         }),
         json!({
             "name": "odoo_delete",
             "description": "Delete Odoo records. Returns true on success. Use with caution!",
-            "inputSchema": schema_for!(DeleteArgs).schema,
+            "inputSchema": input_schema_delete(),
         }),
         json!({
             "name": "odoo_execute",
             "description": "Execute arbitrary method on Odoo model. For advanced operations and custom methods.",
-            "inputSchema": schema_for!(ExecuteArgs).schema,
+            "inputSchema": input_schema_execute(),
         }),
         json!({
             "name": "odoo_count",
             "description": "Count records matching domain filters. Returns the total count.",
-            "inputSchema": schema_for!(CountArgs).schema,
+            "inputSchema": input_schema_count(),
         }),
         json!({
             "name": "odoo_workflow_action",
             "description": "Execute workflow action/button on records (e.g., confirm sale order, post invoice).",
-            "inputSchema": schema_for!(WorkflowArgs).schema,
+            "inputSchema": input_schema_workflow(),
         }),
         json!({
             "name": "odoo_generate_report",
             "description": "Generate PDF report for records. Returns base64-encoded PDF.",
-            "inputSchema": schema_for!(ReportArgs).schema,
+            "inputSchema": input_schema_report(),
         }),
         json!({
             "name": "odoo_get_model_metadata",
             "description": "Get model metadata including field definitions, types, and relationships.",
-            "inputSchema": schema_for!(ModelMetadataArgs).schema,
+            "inputSchema": input_schema_model_metadata(),
         }),
     ];
 
@@ -341,12 +535,12 @@ pub fn tool_defs(enable_cleanup_tools: bool) -> Vec<Value> {
         tools.push(json!({
             "name": "odoo_database_cleanup",
             "description": "Comprehensive database cleanup for production readiness. IMPORTANT: Use dryRun=true to preview changes first!",
-            "inputSchema": schema_for!(DatabaseCleanupArgs).schema
+            "inputSchema": input_schema_database_cleanup()
         }));
         tools.push(json!({
             "name": "odoo_deep_cleanup",
             "description": "DESTRUCTIVE: Remove ALL non-essential data. ALWAYS use dryRun=true first!",
-            "inputSchema": schema_for!(DeepCleanupArgs).schema
+            "inputSchema": input_schema_deep_cleanup()
         }));
     }
 

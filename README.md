@@ -4,8 +4,10 @@ Rust implementation of an **Odoo MCP server** (Model Context Protocol), using **
 
 ### Features
 
-- MCP over **stdio** (Claude Desktop style)
-- MCP over **WebSocket** (standalone server)
+- MCP over **stdio** (Cursor / Claude Desktop style)
+- MCP over **Streamable HTTP** (Cursor remote transport)
+- MCP over **SSE** (legacy HTTP+SSE transport)
+- MCP over **WebSocket** (standalone server; not used by Cursor)
 - **Multi-instance** support via `ODOO_INSTANCES`
 - Optional cleanup tools gated behind `ODOO_ENABLE_CLEANUP_TOOLS=true`
 
@@ -77,6 +79,18 @@ cd rust-mcp
 ./target/release/rust-mcp --transport stdio
 ```
 
+### Run (Streamable HTTP)
+
+```bash
+cd rust-mcp
+./target/release/rust-mcp --transport http --listen 127.0.0.1:8787
+```
+
+Endpoints:
+
+- Streamable HTTP: `http://127.0.0.1:8787/mcp`
+- Legacy SSE: `http://127.0.0.1:8787/sse` (paired with `POST /messages`)
+
 ### Run (WebSocket / standalone server)
 
 ```bash
@@ -91,6 +105,8 @@ Create `.env` in the repo root (example in `dotenv.example`), then:
 ```bash
 docker compose up --build
 ```
+
+By default, the container runs **HTTP** transport and exposes `http://localhost:8787/mcp`.
 
 ### Cleanup tools (disabled by default)
 
@@ -374,6 +390,41 @@ Set your MCP server command to the built binary:
 }
 ```
 
+### Cursor config example
+
+Cursor supports `stdio`, `SSE`, and `Streamable HTTP` transports. See Cursor docs: [`cursor.com/docs/context/mcp`](https://cursor.com/docs/context/mcp).
+
+#### Cursor (recommended): stdio
+
+Put this in `~/.cursor/mcp.json` (or `${workspaceFolder}/.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "odoo-rust-mcp": {
+      "type": "stdio",
+      "command": "/absolute/path/to/odoo-rust-mcp/rust-mcp/target/release/rust-mcp",
+      "args": ["--transport", "stdio"],
+      "envFile": "${workspaceFolder}/.env"
+    }
+  }
+}
+```
+
+#### Cursor: Streamable HTTP (remote / multi-user)
+
+Run the server with `--transport http` and set:
+
+```json
+{
+  "mcpServers": {
+    "odoo-rust-mcp": {
+      "url": "http://127.0.0.1:8787/mcp"
+    }
+  }
+}
+```
+
 ### Test / smoke
 
 Run unit tests (no warnings):
@@ -412,6 +463,13 @@ odoo_count result: {"count":18}
 odoo_search_read count: 2
 odoo_search_read sample records: [{"id":46,"name":"Kasir C"},{"id":45,"name":"Kasir B"}]
 prompts/list: odoo_common_models, odoo_domain_filters
+```
+
+There is also a Python smoke tester that validates Cursor-style stdio + Streamable HTTP:
+
+```bash
+python3 ./mcp_test.py stdio --bin ./rust-mcp/target/release/rust-mcp --env-file .env
+python3 ./mcp_test.py http --url http://127.0.0.1:8787/mcp
 ```
 
 ### Security

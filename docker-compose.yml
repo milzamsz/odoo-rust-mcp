@@ -21,4 +21,6 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
+    # Default CMD is HTTP (`/mcp`). To force other transports, uncomment:
+    # command: ["rust-mcp", "--transport", "ws", "--listen", "0.0.0.0:8787"]
 

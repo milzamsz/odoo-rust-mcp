@@ -19,5 +19,13 @@ fn cursor_can_parse_tool_schemas() {
         !s.contains("\"type\":["),
         "tool schemas contain type arrays (nullable union) which Cursor may not parse"
     );
+    assert!(
+        !s.contains("\"$ref\""),
+        "tool schemas contain $ref which Cursor may not parse"
+    );
+    assert!(
+        !s.contains("\"definitions\""),
+        "tool schemas contain definitions which Cursor may not parse"
+    );
 }
 

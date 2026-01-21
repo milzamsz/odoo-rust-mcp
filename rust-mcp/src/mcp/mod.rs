@@ -1,6 +1,8 @@
 pub mod prompts;
 pub mod runtime;
 pub mod tools;
+pub mod cursor_stdio;
+pub mod http;
 
 use std::collections::HashMap;
 use async_trait::async_trait;

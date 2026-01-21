@@ -27,5 +27,7 @@ COPY --from=builder /app/target/release/rust-mcp /usr/local/bin/rust-mcp
 
 EXPOSE 8787
 
-CMD ["rust-mcp", "--transport", "ws", "--listen", "0.0.0.0:8787"]
+# Default to Streamable HTTP (Cursor remote transport).
+# Override with `--transport stdio|ws` as needed.
+CMD ["rust-mcp", "--transport", "http", "--listen", "0.0.0.0:8787"]
 
