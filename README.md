@@ -5,7 +5,7 @@
 [![codecov](https://codecov.io/gh/rachmataditiya/odoo-rust-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/rachmataditiya/odoo-rust-mcp)
 [![GitHub release](https://img.shields.io/github/v/release/rachmataditiya/odoo-rust-mcp)](https://github.com/rachmataditiya/odoo-rust-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Homebrew](https://img.shields.io/badge/homebrew-available-orange)](https://github.com/rachmataditiya/homebrew-odoo-rust-mcp)
+[![Homebrew](https://img.shields.io/badge/homebrew-available-orange)](https://rachmataditiya.github.io/homebrew-odoo-rust-mcp/)
 [![Debian/Ubuntu](https://img.shields.io/badge/apt-available-blue)](https://rachmataditiya.github.io/odoo-rust-mcp/)
 
 Rust implementation of an **Odoo MCP server** (Model Context Protocol), supporting:
@@ -220,7 +220,7 @@ Use `rust-mcp-service` (not `rust-mcp`) to auto-load your env file:
 }
 ```
 
-For full Homebrew documentation, see: https://github.com/rachmataditiya/homebrew-odoo-rust-mcp
+For full Homebrew documentation, see: https://rachmataditiya.github.io/homebrew-odoo-rust-mcp/
 
 #### Option 2: APT (Debian/Ubuntu)
 
