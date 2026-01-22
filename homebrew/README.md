@@ -27,6 +27,63 @@ brew install rust-mcp
 
 3. Service runs at: `http://127.0.0.1:8787/mcp`
 
+### Service Authentication
+
+To enable Bearer token authentication for the HTTP service, add to your `~/.config/odoo-rust-mcp/env`:
+
+```bash
+# Generate token: openssl rand -hex 32
+MCP_AUTH_TOKEN=your-secure-random-token-here
+```
+
+Then restart the service:
+
+```bash
+brew services restart rust-mcp
+```
+
+### Cursor Configuration
+
+**STDIO (direct process):**
+
+```json
+{
+  "mcpServers": {
+    "odoo": {
+      "command": "/opt/homebrew/bin/rust-mcp-service",
+      "args": ["--transport", "stdio"]
+    }
+  }
+}
+```
+
+**HTTP (service mode):**
+
+```json
+{
+  "mcpServers": {
+    "odoo": {
+      "url": "http://127.0.0.1:8787/mcp"
+    }
+  }
+}
+```
+
+**HTTP with Bearer Token:**
+
+```json
+{
+  "mcpServers": {
+    "odoo": {
+      "url": "http://127.0.0.1:8787/mcp",
+      "headers": {
+        "Authorization": "Bearer your-secure-random-token-here"
+      }
+    }
+  }
+}
+```
+
 For complete documentation, see: https://github.com/rachmataditiya/homebrew-odoo-rust-mcp
 
 ## For Maintainers
