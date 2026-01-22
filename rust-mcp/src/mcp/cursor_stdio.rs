@@ -141,3 +141,119 @@ impl Transport for CursorStdioTransport {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_parse_jsonrpc_request_with_id() {
+        let json = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {}
+        });
+
+        let result = parse_jsonrpc_value(json).unwrap();
+        match result {
+            Message::Request(req) => {
+                assert_eq!(req.method, "initialize");
+            }
+            _ => panic!("Expected Request"),
+        }
+    }
+
+    #[test]
+    fn test_parse_jsonrpc_notification_without_id() {
+        let json = json!({
+            "jsonrpc": "2.0",
+            "method": "initialized",
+            "params": {}
+        });
+
+        let result = parse_jsonrpc_value(json).unwrap();
+        match result {
+            Message::Notification(notif) => {
+                assert_eq!(notif.method, "initialized");
+            }
+            _ => panic!("Expected Notification"),
+        }
+    }
+
+    #[test]
+    fn test_parse_jsonrpc_response_with_result() {
+        let json = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {"success": true}
+        });
+
+        let result = parse_jsonrpc_value(json).unwrap();
+        match result {
+            Message::Response(resp) => {
+                assert!(resp.result.is_some());
+                assert!(resp.error.is_none());
+            }
+            _ => panic!("Expected Response"),
+        }
+    }
+
+    #[test]
+    fn test_parse_jsonrpc_response_with_error() {
+        let json = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "error": {
+                "code": -32600,
+                "message": "Invalid Request"
+            }
+        });
+
+        let result = parse_jsonrpc_value(json).unwrap();
+        match result {
+            Message::Response(resp) => {
+                assert!(resp.error.is_some());
+            }
+            _ => panic!("Expected Response"),
+        }
+    }
+
+    #[test]
+    fn test_parse_jsonrpc_invalid_non_object() {
+        let json = json!([1, 2, 3]);
+
+        let result = parse_jsonrpc_value(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_jsonrpc_invalid_no_method_no_id() {
+        let json = json!({
+            "jsonrpc": "2.0",
+            "data": "something"
+        });
+
+        let result = parse_jsonrpc_value(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_jsonrpc_request_string_id() {
+        let json = json!({
+            "jsonrpc": "2.0",
+            "id": "request-1",
+            "method": "tools/list",
+            "params": {}
+        });
+
+        let result = parse_jsonrpc_value(json).unwrap();
+        match result {
+            Message::Request(req) => {
+                assert_eq!(req.method, "tools/list");
+            }
+            _ => panic!("Expected Request"),
+        }
+    }
+}

@@ -643,3 +643,183 @@ async fn op_onchange(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<
         .await?;
     Ok(ok_text(json!({ "result": result })))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn make_op(map: HashMap<String, String>) -> OpSpec {
+        OpSpec {
+            op_type: "test".to_string(),
+            map,
+        }
+    }
+
+    #[test]
+    fn test_ptr_finds_value_by_json_pointer() {
+        let args = json!({
+            "data": {
+                "name": "test"
+            }
+        });
+        let mut map = HashMap::new();
+        map.insert("key".to_string(), "/data/name".to_string());
+        let op = make_op(map);
+
+        let result = ptr(&args, &op, "key");
+        assert_eq!(result, Some(&json!("test")));
+    }
+
+    #[test]
+    fn test_ptr_returns_none_for_missing_key() {
+        let args = json!({"data": "value"});
+        let op = make_op(HashMap::new());
+
+        let result = ptr(&args, &op, "nonexistent");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_ptr_returns_none_for_invalid_pointer() {
+        let args = json!({"data": "value"});
+        let mut map = HashMap::new();
+        map.insert("key".to_string(), "/nonexistent/path".to_string());
+        let op = make_op(map);
+
+        let result = ptr(&args, &op, "key");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_req_str_success() {
+        let args = json!({"name": "test"});
+        let mut map = HashMap::new();
+        map.insert("name".to_string(), "/name".to_string());
+        let op = make_op(map);
+
+        let result = req_str(&args, &op, "name").unwrap();
+        assert_eq!(result, "test");
+    }
+
+    #[test]
+    fn test_req_str_missing_returns_error() {
+        let args = json!({});
+        let op = make_op(HashMap::new());
+
+        let result = req_str(&args, &op, "name");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_req_str_non_string_returns_error() {
+        let args = json!({"name": 123});
+        let mut map = HashMap::new();
+        map.insert("name".to_string(), "/name".to_string());
+        let op = make_op(map);
+
+        let result = req_str(&args, &op, "name");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_opt_str_success() {
+        let args = json!({"name": "test"});
+        let mut map = HashMap::new();
+        map.insert("name".to_string(), "/name".to_string());
+        let op = make_op(map);
+
+        let result = opt_str(&args, &op, "name").unwrap();
+        assert_eq!(result, Some("test".to_string()));
+    }
+
+    #[test]
+    fn test_opt_str_missing_returns_none() {
+        let args = json!({});
+        let op = make_op(HashMap::new());
+
+        let result = opt_str(&args, &op, "name").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_opt_str_null_returns_none() {
+        let args = json!({"name": null});
+        let mut map = HashMap::new();
+        map.insert("name".to_string(), "/name".to_string());
+        let op = make_op(map);
+
+        let result = opt_str(&args, &op, "name").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_opt_i64_success() {
+        let args = json!({"count": 42});
+        let mut map = HashMap::new();
+        map.insert("count".to_string(), "/count".to_string());
+        let op = make_op(map);
+
+        let result = opt_i64(&args, &op, "count").unwrap();
+        assert_eq!(result, Some(42));
+    }
+
+    #[test]
+    fn test_opt_i64_missing_returns_none() {
+        let args = json!({});
+        let op = make_op(HashMap::new());
+
+        let result = opt_i64(&args, &op, "count").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_opt_i64_null_returns_none() {
+        let args = json!({"count": null});
+        let mut map = HashMap::new();
+        map.insert("count".to_string(), "/count".to_string());
+        let op = make_op(map);
+
+        let result = opt_i64(&args, &op, "count").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_opt_bool_success() {
+        let args = json!({"active": true});
+        let mut map = HashMap::new();
+        map.insert("active".to_string(), "/active".to_string());
+        let op = make_op(map);
+
+        let result = opt_bool(&args, &op, "active").unwrap();
+        assert_eq!(result, Some(true));
+    }
+
+    #[test]
+    fn test_opt_bool_missing_returns_none() {
+        let args = json!({});
+        let op = make_op(HashMap::new());
+
+        let result = opt_bool(&args, &op, "active").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_ok_text_format() {
+        let result = ok_text(json!({"data": "test"}));
+        assert!(result.is_object());
+        assert!(result.get("content").is_some());
+        let content = result["content"].as_array().unwrap();
+        assert_eq!(content.len(), 1);
+        assert_eq!(content[0]["type"], "text");
+    }
+
+    #[test]
+    fn test_ok_text_contains_json() {
+        let data = json!({"key": "value"});
+        let result = ok_text(data);
+        let text = result["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("key"));
+        assert!(text.contains("value"));
+    }
+}
