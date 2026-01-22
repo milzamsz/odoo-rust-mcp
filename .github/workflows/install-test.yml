@@ -472,12 +472,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
           
           # Create default env file
-          $envContent = @"
-# Odoo Rust MCP Server Configuration
-ODOO_URL=http://localhost:8069
-ODOO_DB=mydb
-ODOO_API_KEY=YOUR_API_KEY
-"@
+          $envContent = "# Odoo Rust MCP Server Configuration`nODOO_URL=http://localhost:8069`nODOO_DB=mydb`nODOO_API_KEY=YOUR_API_KEY"
           Set-Content -Path (Join-Path $ConfigDir "env") -Value $envContent
           
           # Verify config directory was created
