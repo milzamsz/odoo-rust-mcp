@@ -2,6 +2,8 @@
 name = "rust-mcp"
 version = "0.2.0"
 edition = "2024"
+description = "Model Context Protocol server for Odoo integration"
+license = "MIT"
 
 [dependencies]
 anyhow = "1"
@@ -50,3 +52,6 @@ assets = [
 ]
 maintainer-scripts = "debian/"
 systemd-units = { unit-name = "rust-mcp", enable = false }
+
+[profile.release]
+strip = true

@@ -71,3 +71,5 @@ echo "  3. Enable on boot: sudo systemctl enable rust-mcp"
 echo ""
 echo "Service endpoint: http://127.0.0.1:8787/mcp"
 echo ""
+
+#DEBHELPER#
