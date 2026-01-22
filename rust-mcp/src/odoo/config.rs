@@ -191,3 +191,123 @@ fn normalize_url(raw: &str) -> String {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_url_with_scheme() {
+        assert_eq!(normalize_url("https://example.com"), "https://example.com");
+        assert_eq!(normalize_url("http://localhost:8069"), "http://localhost:8069");
+    }
+
+    #[test]
+    fn test_normalize_url_without_scheme() {
+        assert_eq!(normalize_url("localhost:8069"), "http://localhost:8069");
+        assert_eq!(normalize_url("example.com"), "http://example.com");
+    }
+
+    #[test]
+    fn test_normalize_url_with_whitespace() {
+        assert_eq!(normalize_url("  localhost:8069  "), "http://localhost:8069");
+    }
+
+    #[test]
+    fn test_auth_mode_api_key_default() {
+        let config = OdooInstanceConfig {
+            url: "http://localhost".to_string(),
+            db: None,
+            api_key: Some("test-key".to_string()),
+            username: None,
+            password: None,
+            version: None,
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        assert_eq!(config.auth_mode(), OdooAuthMode::ApiKey);
+    }
+
+    #[test]
+    fn test_auth_mode_password_by_version() {
+        let config = OdooInstanceConfig {
+            url: "http://localhost".to_string(),
+            db: Some("mydb".to_string()),
+            api_key: None,
+            username: Some("admin".to_string()),
+            password: Some("admin".to_string()),
+            version: Some("18".to_string()),
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        assert_eq!(config.auth_mode(), OdooAuthMode::Password);
+    }
+
+    #[test]
+    fn test_auth_mode_password_by_credentials() {
+        let config = OdooInstanceConfig {
+            url: "http://localhost".to_string(),
+            db: Some("mydb".to_string()),
+            api_key: None,
+            username: Some("admin".to_string()),
+            password: Some("admin".to_string()),
+            version: None,
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        assert_eq!(config.auth_mode(), OdooAuthMode::Password);
+    }
+
+    #[test]
+    fn test_auth_mode_api_key_version_19() {
+        let config = OdooInstanceConfig {
+            url: "http://localhost".to_string(),
+            db: None,
+            api_key: Some("test-key".to_string()),
+            username: None,
+            password: None,
+            version: Some("19".to_string()),
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        assert_eq!(config.auth_mode(), OdooAuthMode::ApiKey);
+    }
+
+    #[test]
+    fn test_instance_config_deserialize() {
+        let json = r#"{
+            "url": "http://localhost:8069",
+            "db": "mydb",
+            "apiKey": "test-key",
+            "timeout_ms": 30000,
+            "extraField": "ignored"
+        }"#;
+        let config: OdooInstanceConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.url, "http://localhost:8069");
+        assert_eq!(config.db, Some("mydb".to_string()));
+        assert_eq!(config.api_key, Some("test-key".to_string()));
+        assert_eq!(config.timeout_ms, Some(30000));
+        assert!(config.extra.contains_key("extraField"));
+    }
+
+    #[test]
+    fn test_instance_config_deserialize_legacy() {
+        let json = r#"{
+            "url": "http://localhost:8069",
+            "db": "mydb",
+            "version": "18",
+            "username": "admin",
+            "password": "admin123"
+        }"#;
+        let config: OdooInstanceConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.url, "http://localhost:8069");
+        assert_eq!(config.version, Some("18".to_string()));
+        assert_eq!(config.username, Some("admin".to_string()));
+        assert_eq!(config.password, Some("admin123".to_string()));
+        assert_eq!(config.auth_mode(), OdooAuthMode::Password);
+    }
+}
+

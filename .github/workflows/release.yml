@@ -323,16 +323,18 @@ jobs:
           # Export public key
           gpg --armor --export > apt-repo/pubkey.gpg
 
-      - name: Checkout gh-pages branch
+      - name: Fetch existing APT repo from gh-pages
         run: |
-          git fetch origin gh-pages:gh-pages || git checkout --orphan gh-pages
-          git checkout gh-pages || true
-          # Copy existing repo data if exists
-          if [ -d "dists" ]; then
-            cp -r dists apt-repo/ || true
-            cp -r pool apt-repo/ || true
+          # Try to fetch gh-pages and copy existing repo data
+          git fetch origin gh-pages || echo "No gh-pages branch yet"
+          if git show origin/gh-pages:dists 2>/dev/null; then
+            git checkout origin/gh-pages -- dists pool 2>/dev/null || true
+            if [ -d "dists" ]; then
+              cp -r dists apt-repo/ || true
+              cp -r pool apt-repo/ || true
+              rm -rf dists pool
+            fi
           fi
-          git checkout -
 
       - name: Update APT repository
         env:
