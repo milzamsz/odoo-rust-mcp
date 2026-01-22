@@ -25,6 +25,8 @@ jobs:
 
       - name: Install from Homebrew tap
         run: |
+          # Ensure fresh tap (no cached version)
+          brew untap rachmataditiya/odoo-rust-mcp 2>/dev/null || true
           brew tap rachmataditiya/odoo-rust-mcp
           brew install rust-mcp
 
@@ -147,6 +149,8 @@ jobs:
       - name: Install from Homebrew tap
         run: |
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          # Ensure fresh tap (no cached version)
+          brew untap rachmataditiya/odoo-rust-mcp 2>/dev/null || true
           brew tap rachmataditiya/odoo-rust-mcp
           brew install rust-mcp
 
@@ -248,8 +252,8 @@ jobs:
 
       - name: Add APT repository and install
         run: |
-          # Add GPG key (pubkey.gpg is already in binary format, no need to dearmor)
-          curl -fsSL https://rachmataditiya.github.io/odoo-rust-mcp/pubkey.gpg | sudo tee /usr/share/keyrings/rust-mcp.gpg > /dev/null
+          # Add GPG key (convert from ASCII armored to binary format)
+          curl -fsSL https://rachmataditiya.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg
           
           # Add repository
           echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://rachmataditiya.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
