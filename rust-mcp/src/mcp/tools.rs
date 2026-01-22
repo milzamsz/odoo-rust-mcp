@@ -77,6 +77,12 @@ pub async fn execute_op(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Resu
         "get_model_metadata" => op_get_model_metadata(pool, op, args).await,
         "database_cleanup" => op_database_cleanup(pool, op, args).await,
         "deep_cleanup" => op_deep_cleanup(pool, op, args).await,
+        "read_group" => op_read_group(pool, op, args).await,
+        "name_search" => op_name_search(pool, op, args).await,
+        "name_get" => op_name_get(pool, op, args).await,
+        "default_get" => op_default_get(pool, op, args).await,
+        "copy" => op_copy(pool, op, args).await,
+        "onchange" => op_onchange(pool, op, args).await,
         other => Err(OdooError::InvalidResponse(format!("Unknown op.type: {other}"))),
     }
 }
@@ -429,5 +435,84 @@ async fn op_deep_cleanup(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Res
     .await?;
     let v = serde_json::to_value(&report).unwrap_or_else(|_| json!({}));
     Ok(ok_text(v))
+}
+
+async fn op_read_group(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let model = req_str(&args, op, "model")?;
+    let fields = opt_vec_string(&args, op, "fields")?.unwrap_or_default();
+    let groupby = opt_vec_string(&args, op, "groupby")?.unwrap_or_default();
+    let domain = opt_value(&args, op, "domain");
+    let offset = opt_i64(&args, op, "offset")?;
+    let limit = opt_i64(&args, op, "limit")?;
+    let orderby = opt_str(&args, op, "orderby")?;
+    let lazy = opt_bool(&args, op, "lazy")?;
+    let context = opt_value(&args, op, "context");
+
+    let client = pool.get(&instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    let result = client.read_group(&model, domain, fields, groupby, offset, limit, orderby, lazy, context).await?;
+    Ok(ok_text(json!({ "groups": result })))
+}
+
+async fn op_name_search(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let model = req_str(&args, op, "model")?;
+    let name = opt_str(&args, op, "name")?;
+    let domain = opt_value(&args, op, "args");
+    let operator = opt_str(&args, op, "operator")?;
+    let limit = opt_i64(&args, op, "limit")?;
+    let context = opt_value(&args, op, "context");
+
+    let client = pool.get(&instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    let result = client.name_search(&model, name, domain, operator, limit, context).await?;
+    Ok(ok_text(json!({ "results": result })))
+}
+
+async fn op_name_get(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let model = req_str(&args, op, "model")?;
+    let ids = req_vec_i64(&args, op, "ids")?;
+    let context = opt_value(&args, op, "context");
+
+    let client = pool.get(&instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    let result = client.name_get(&model, ids, context).await?;
+    Ok(ok_text(json!({ "names": result })))
+}
+
+async fn op_default_get(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let model = req_str(&args, op, "model")?;
+    let fields_list = opt_vec_string(&args, op, "fields")?.unwrap_or_default();
+    let context = opt_value(&args, op, "context");
+
+    let client = pool.get(&instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    let result = client.default_get(&model, fields_list, context).await?;
+    Ok(ok_text(json!({ "defaults": result })))
+}
+
+async fn op_copy(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let model = req_str(&args, op, "model")?;
+    let id = opt_i64(&args, op, "id")?.ok_or_else(|| OdooError::InvalidResponse("Missing required argument 'id'".to_string()))?;
+    let default = opt_value(&args, op, "default");
+    let context = opt_value(&args, op, "context");
+
+    let client = pool.get(&instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    let new_id = client.copy(&model, id, default, context).await?;
+    Ok(ok_text(json!({ "id": new_id, "success": true })))
+}
+
+async fn op_onchange(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let model = req_str(&args, op, "model")?;
+    let ids = req_vec_i64(&args, op, "ids")?;
+    let values = req_value(&args, op, "values")?;
+    let field_name = opt_vec_string(&args, op, "fieldName")?.unwrap_or_default();
+    let field_onchange = opt_value(&args, op, "fieldOnchange").unwrap_or(json!({}));
+    let context = opt_value(&args, op, "context");
+
+    let client = pool.get(&instance).await.map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    let result = client.onchange(&model, ids, values, field_name, field_onchange, context).await?;
+    Ok(ok_text(json!({ "result": result })))
 }
 

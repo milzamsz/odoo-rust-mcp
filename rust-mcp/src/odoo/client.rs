@@ -376,5 +376,143 @@ impl OdooHttpClient {
         }
         self.post_json2_raw(model, method, body).await
     }
+
+    /// read_group - Aggregate records with GROUP BY
+    pub async fn read_group(
+        &self,
+        model: &str,
+        domain: Option<Value>,
+        fields: Vec<String>,
+        groupby: Vec<String>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        orderby: Option<String>,
+        lazy: Option<bool>,
+        context: Option<Value>,
+    ) -> OdooResult<Value> {
+        let mut body = json!({
+            "fields": fields,
+            "groupby": groupby
+        });
+        if let Some(ctx) = context {
+            body["context"] = ctx;
+        }
+        if let Some(d) = domain {
+            body["domain"] = d;
+        }
+        if let Some(v) = offset {
+            body["offset"] = json!(v);
+        }
+        if let Some(v) = limit {
+            body["limit"] = json!(v);
+        }
+        if let Some(v) = orderby {
+            body["orderby"] = json!(v);
+        }
+        if let Some(v) = lazy {
+            body["lazy"] = json!(v);
+        }
+        self.post_json2_raw(model, "read_group", body).await
+    }
+
+    /// name_search - Search by name with autocomplete-style matching
+    pub async fn name_search(
+        &self,
+        model: &str,
+        name: Option<String>,
+        args: Option<Value>,
+        operator: Option<String>,
+        limit: Option<i64>,
+        context: Option<Value>,
+    ) -> OdooResult<Value> {
+        let mut body = json!({});
+        if let Some(ctx) = context {
+            body["context"] = ctx;
+        }
+        if let Some(n) = name {
+            body["name"] = json!(n);
+        }
+        if let Some(a) = args {
+            body["args"] = a;
+        }
+        if let Some(op) = operator {
+            body["operator"] = json!(op);
+        }
+        if let Some(l) = limit {
+            body["limit"] = json!(l);
+        }
+        self.post_json2_raw(model, "name_search", body).await
+    }
+
+    /// name_get - Get display names for records
+    pub async fn name_get(
+        &self,
+        model: &str,
+        ids: Vec<i64>,
+        context: Option<Value>,
+    ) -> OdooResult<Value> {
+        let mut body = json!({ "ids": ids });
+        if let Some(ctx) = context {
+            body["context"] = ctx;
+        }
+        self.post_json2_raw(model, "name_get", body).await
+    }
+
+    /// default_get - Get default values for new records
+    pub async fn default_get(
+        &self,
+        model: &str,
+        fields_list: Vec<String>,
+        context: Option<Value>,
+    ) -> OdooResult<Value> {
+        let mut body = json!({ "fields_list": fields_list });
+        if let Some(ctx) = context {
+            body["context"] = ctx;
+        }
+        self.post_json2_raw(model, "default_get", body).await
+    }
+
+    /// copy - Duplicate a record
+    pub async fn copy(
+        &self,
+        model: &str,
+        id: i64,
+        default: Option<Value>,
+        context: Option<Value>,
+    ) -> OdooResult<i64> {
+        let mut body = json!({ "ids": [id] });
+        if let Some(ctx) = context {
+            body["context"] = ctx;
+        }
+        if let Some(d) = default {
+            body["default"] = d;
+        }
+        let v = self.post_json2_raw(model, "copy", body).await?;
+        serde_json::from_value(v).map_err(|e| {
+            OdooError::InvalidResponse(format!("Expected id from copy: {e}"))
+        })
+    }
+
+    /// onchange - Simulate form onchange behavior
+    pub async fn onchange(
+        &self,
+        model: &str,
+        ids: Vec<i64>,
+        values: Value,
+        field_name: Vec<String>,
+        field_onchange: Value,
+        context: Option<Value>,
+    ) -> OdooResult<Value> {
+        let mut body = json!({
+            "ids": ids,
+            "values": values,
+            "field_name": field_name,
+            "field_onchange": field_onchange
+        });
+        if let Some(ctx) = context {
+            body["context"] = ctx;
+        }
+        self.post_json2_raw(model, "onchange", body).await
+    }
 }
 

@@ -482,4 +482,121 @@ impl OdooLegacyClient {
             OdooError::InvalidResponse("Request failed without error details".to_string())
         }))
     }
+
+    /// read_group - Aggregate records with GROUP BY
+    pub async fn read_group(
+        &self,
+        model: &str,
+        domain: Option<Value>,
+        fields: Vec<String>,
+        groupby: Vec<String>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        orderby: Option<String>,
+        lazy: Option<bool>,
+        _context: Option<Value>,
+    ) -> OdooResult<Value> {
+        let domain = domain.unwrap_or(json!([]));
+        let mut kwargs = json!({});
+        if let Some(v) = offset {
+            kwargs["offset"] = json!(v);
+        }
+        if let Some(v) = limit {
+            kwargs["limit"] = json!(v);
+        }
+        if let Some(v) = orderby {
+            kwargs["orderby"] = json!(v);
+        }
+        if let Some(v) = lazy {
+            kwargs["lazy"] = json!(v);
+        }
+        self.execute_kw(
+            model,
+            "read_group",
+            json!([domain, fields, groupby]),
+            Some(kwargs),
+        )
+        .await
+    }
+
+    /// name_search - Search by name with autocomplete-style matching
+    pub async fn name_search(
+        &self,
+        model: &str,
+        name: Option<String>,
+        args: Option<Value>,
+        operator: Option<String>,
+        limit: Option<i64>,
+        _context: Option<Value>,
+    ) -> OdooResult<Value> {
+        let name = name.unwrap_or_default();
+        let args = args.unwrap_or(json!([]));
+        let operator = operator.unwrap_or_else(|| "ilike".to_string());
+        let limit = limit.unwrap_or(100);
+        self.execute_kw(
+            model,
+            "name_search",
+            json!([name, args, operator, limit]),
+            None,
+        )
+        .await
+    }
+
+    /// name_get - Get display names for records
+    pub async fn name_get(
+        &self,
+        model: &str,
+        ids: Vec<i64>,
+        _context: Option<Value>,
+    ) -> OdooResult<Value> {
+        self.execute_kw(model, "name_get", json!([ids]), None).await
+    }
+
+    /// default_get - Get default values for new records
+    pub async fn default_get(
+        &self,
+        model: &str,
+        fields_list: Vec<String>,
+        _context: Option<Value>,
+    ) -> OdooResult<Value> {
+        self.execute_kw(model, "default_get", json!([fields_list]), None).await
+    }
+
+    /// copy - Duplicate a record
+    pub async fn copy(
+        &self,
+        model: &str,
+        id: i64,
+        default: Option<Value>,
+        _context: Option<Value>,
+    ) -> OdooResult<i64> {
+        let kwargs = if let Some(d) = default {
+            Some(json!({ "default": d }))
+        } else {
+            None
+        };
+        let result = self.execute_kw(model, "copy", json!([id]), kwargs).await?;
+        serde_json::from_value(result).map_err(|e| {
+            OdooError::InvalidResponse(format!("Expected id from copy: {e}"))
+        })
+    }
+
+    /// onchange - Simulate form onchange behavior
+    pub async fn onchange(
+        &self,
+        model: &str,
+        ids: Vec<i64>,
+        values: Value,
+        field_name: Vec<String>,
+        field_onchange: Value,
+        _context: Option<Value>,
+    ) -> OdooResult<Value> {
+        self.execute_kw(
+            model,
+            "onchange",
+            json!([ids, values, field_name, field_onchange]),
+            None,
+        )
+        .await
+    }
 }

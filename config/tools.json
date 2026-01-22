@@ -348,6 +348,176 @@
           "keepGroups": "/keepGroups"
         }
       }
+    },
+    {
+      "name": "odoo_read_group",
+      "description": "Aggregate records with GROUP BY. Returns grouped data with sum, count, avg, etc.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "domain": { "type": "array" },
+          "fields": { "type": "array", "items": { "type": "string" } },
+          "groupby": { "type": "array", "items": { "type": "string" } },
+          "offset": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "orderby": { "type": "string" },
+          "lazy": { "type": "boolean" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model", "fields", "groupby"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "read_group",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "domain": "/domain",
+          "fields": "/fields",
+          "groupby": "/groupby",
+          "offset": "/offset",
+          "limit": "/limit",
+          "orderby": "/orderby",
+          "lazy": "/lazy",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_name_search",
+      "description": "Search records by name with autocomplete-style matching. Returns list of [id, name] pairs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "name": { "type": "string" },
+          "args": { "type": "array" },
+          "operator": { "type": "string" },
+          "limit": { "type": "integer" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "name_search",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "name": "/name",
+          "args": "/args",
+          "operator": "/operator",
+          "limit": "/limit",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_name_get",
+      "description": "Get display names for records. Returns list of [id, display_name] pairs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "ids": { "type": "array", "items": { "type": "integer" } },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model", "ids"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "name_get",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "ids": "/ids",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_default_get",
+      "description": "Get default values for a new record. Useful when creating records programmatically.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "fields": { "type": "array", "items": { "type": "string" } },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "default_get",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "fields": "/fields",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_copy",
+      "description": "Duplicate a record. Returns the ID of the new copy.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "id": { "type": "integer" },
+          "default": { "type": "object" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model", "id"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "copy",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "id": "/id",
+          "default": "/default",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_onchange",
+      "description": "Simulate form onchange behavior. Returns computed values and domain changes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "model": { "type": "string" },
+          "ids": { "type": "array", "items": { "type": "integer" } },
+          "values": { "type": "object" },
+          "fieldName": { "type": "array", "items": { "type": "string" } },
+          "fieldOnchange": { "type": "object" },
+          "context": { "type": "object" }
+        },
+        "required": ["instance", "model", "ids", "values"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "onchange",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "ids": "/ids",
+          "values": "/values",
+          "fieldName": "/fieldName",
+          "fieldOnchange": "/fieldOnchange",
+          "context": "/context"
+        }
+      }
     }
   ]
 }

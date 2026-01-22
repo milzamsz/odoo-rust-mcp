@@ -166,4 +166,93 @@ impl OdooClient {
             OdooClient::Legacy(c) => c.download_report_pdf(report_name, ids).await,
         }
     }
+
+    pub async fn read_group(
+        &self,
+        model: &str,
+        domain: Option<Value>,
+        fields: Vec<String>,
+        groupby: Vec<String>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        orderby: Option<String>,
+        lazy: Option<bool>,
+        context: Option<Value>,
+    ) -> OdooResult<Value> {
+        match self {
+            OdooClient::Modern(c) => {
+                c.read_group(model, domain, fields, groupby, offset, limit, orderby, lazy, context).await
+            }
+            OdooClient::Legacy(c) => {
+                c.read_group(model, domain, fields, groupby, offset, limit, orderby, lazy, context).await
+            }
+        }
+    }
+
+    pub async fn name_search(
+        &self,
+        model: &str,
+        name: Option<String>,
+        args: Option<Value>,
+        operator: Option<String>,
+        limit: Option<i64>,
+        context: Option<Value>,
+    ) -> OdooResult<Value> {
+        match self {
+            OdooClient::Modern(c) => c.name_search(model, name, args, operator, limit, context).await,
+            OdooClient::Legacy(c) => c.name_search(model, name, args, operator, limit, context).await,
+        }
+    }
+
+    pub async fn name_get(
+        &self,
+        model: &str,
+        ids: Vec<i64>,
+        context: Option<Value>,
+    ) -> OdooResult<Value> {
+        match self {
+            OdooClient::Modern(c) => c.name_get(model, ids, context).await,
+            OdooClient::Legacy(c) => c.name_get(model, ids, context).await,
+        }
+    }
+
+    pub async fn default_get(
+        &self,
+        model: &str,
+        fields_list: Vec<String>,
+        context: Option<Value>,
+    ) -> OdooResult<Value> {
+        match self {
+            OdooClient::Modern(c) => c.default_get(model, fields_list, context).await,
+            OdooClient::Legacy(c) => c.default_get(model, fields_list, context).await,
+        }
+    }
+
+    pub async fn copy(
+        &self,
+        model: &str,
+        id: i64,
+        default: Option<Value>,
+        context: Option<Value>,
+    ) -> OdooResult<i64> {
+        match self {
+            OdooClient::Modern(c) => c.copy(model, id, default, context).await,
+            OdooClient::Legacy(c) => c.copy(model, id, default, context).await,
+        }
+    }
+
+    pub async fn onchange(
+        &self,
+        model: &str,
+        ids: Vec<i64>,
+        values: Value,
+        field_name: Vec<String>,
+        field_onchange: Value,
+        context: Option<Value>,
+    ) -> OdooResult<Value> {
+        match self {
+            OdooClient::Modern(c) => c.onchange(model, ids, values, field_name, field_onchange, context).await,
+            OdooClient::Legacy(c) => c.onchange(model, ids, values, field_name, field_onchange, context).await,
+        }
+    }
 }
