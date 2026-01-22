@@ -71,6 +71,16 @@ pub async fn serve_with_auth(
     listen: &str,
     auth: AuthConfig,
 ) -> anyhow::Result<()> {
+    let app = create_app(handler, auth);
+    let addr: SocketAddr = listen.parse()?;
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+/// Create the Axum Router for the MCP HTTP server.
+/// This is public to enable integration testing with axum-test.
+pub fn create_app(handler: Arc<McpOdooHandler>, auth: AuthConfig) -> Router {
     let state = AppState {
         handler,
         sessions: Arc::new(Mutex::new(HashMap::new())),
@@ -78,19 +88,14 @@ pub async fn serve_with_auth(
         auth,
     };
 
-    let app = Router::new()
+    Router::new()
         // Streamable HTTP (recommended)
         .route("/mcp", post(mcp_post).get(mcp_get))
         // Legacy SSE transport (Cursor supports `SSE` transport option)
         .route("/sse", get(legacy_sse))
         .route("/messages", post(legacy_messages))
         .layer(CorsLayer::permissive())
-        .with_state(state);
-
-    let addr: SocketAddr = listen.parse()?;
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
-    Ok(())
+        .with_state(state)
 }
 
 fn jsonrpc_err(id: RequestId, code: ErrorCode, message: impl Into<String>) -> Response {
