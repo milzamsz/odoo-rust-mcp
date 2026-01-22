@@ -205,20 +205,28 @@ tail -f /opt/homebrew/var/log/rust-mcp.log  # View logs
 
 Service endpoint: `http://127.0.0.1:8787/mcp`
 
-**For Cursor/Claude Desktop with Homebrew:**
+**For Cursor/Claude Desktop/Windsurf with Homebrew:**
 
-Use `rust-mcp-service` (not `rust-mcp`) to auto-load your env file:
+The binary automatically loads config from `~/.config/odoo-rust-mcp/env`, so you can use it directly:
 
 ```json
 {
   "mcpServers": {
     "odoo": {
-      "command": "/opt/homebrew/bin/rust-mcp-service",
+      "command": "/opt/homebrew/bin/rust-mcp",
       "args": ["--transport", "stdio"]
     }
   }
 }
 ```
+
+**Note:** Starting from v0.2.4, the binary (`rust-mcp`) automatically:
+- Creates `~/.config/odoo-rust-mcp/` directory if it doesn't exist
+- Creates a default `env` template file
+- Loads environment variables from `~/.config/odoo-rust-mcp/env`
+- Sets default MCP config paths from Homebrew share directory
+
+This means you can use `rust-mcp` directly without the shell wrapper `rust-mcp-service`. This is especially important for MCP clients like Windsurf that don't support shell script execution.
 
 For full Homebrew documentation, see: https://rachmataditiya.github.io/homebrew-odoo-rust-mcp/
 
