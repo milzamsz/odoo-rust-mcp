@@ -32,7 +32,8 @@ class RustMcp < Formula
 
     # Create wrapper script that loads env file before running
     # Also creates config dir if it doesn't exist (fallback for post_install)
-    (bin/"rust-mcp-service").write <<~EOS
+    wrapper_script = bin/"rust-mcp-service"
+    wrapper_script.write <<~EOS
       #!/bin/bash
       CONFIG_DIR="$HOME/.config/odoo-rust-mcp"
       
@@ -77,7 +78,8 @@ ENVEOF
       fi
       exec "#{opt_bin}/rust-mcp" "$@"
     EOS
-    chmod 0755, bin/"rust-mcp-service"
+    # Ensure executable permission is set correctly
+    wrapper_script.chmod 0755
   end
 
   def post_install
