@@ -524,3 +524,109 @@ impl OdooHttpClient {
         self.post_json2_raw(model, "onchange", body).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn make_config(url: &str, api_key: Option<&str>) -> OdooInstanceConfig {
+        OdooInstanceConfig {
+            url: url.to_string(),
+            db: Some("test_db".to_string()),
+            api_key: api_key.map(|s| s.to_string()),
+            username: None,
+            password: None,
+            version: Some("19".to_string()),
+            timeout_ms: Some(5000),
+            max_retries: Some(2),
+            extra: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn test_client_new_success() {
+        let cfg = make_config("http://localhost:8069", Some("test_key"));
+        let client = OdooHttpClient::new(&cfg);
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn test_client_new_invalid_url() {
+        let cfg = make_config("not a valid url", Some("test_key"));
+        let client = OdooHttpClient::new(&cfg);
+        assert!(client.is_err());
+    }
+
+    #[test]
+    fn test_client_new_missing_api_key() {
+        let cfg = make_config("http://localhost:8069", None);
+        let client = OdooHttpClient::new(&cfg);
+        assert!(client.is_err());
+    }
+
+    #[test]
+    fn test_client_normalizes_url() {
+        let cfg = make_config("http://localhost:8069/some/path?query=1", Some("key"));
+        let client = OdooHttpClient::new(&cfg).unwrap();
+        // The base_url should be normalized without path/query
+        assert_eq!(client.base_url.path(), "/");
+        assert!(client.base_url.query().is_none());
+    }
+
+    #[test]
+    fn test_client_endpoint_format() {
+        let cfg = make_config("http://localhost:8069", Some("key"));
+        let client = OdooHttpClient::new(&cfg).unwrap();
+        let endpoint = client.endpoint("res.partner", "search").unwrap();
+        assert_eq!(endpoint.path(), "/json/2/res.partner/search");
+    }
+
+    #[test]
+    fn test_client_stores_db() {
+        let cfg = OdooInstanceConfig {
+            url: "http://localhost:8069".to_string(),
+            db: Some("my_database".to_string()),
+            api_key: Some("test_key".to_string()),
+            username: None,
+            password: None,
+            version: None,
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        let client = OdooHttpClient::new(&cfg).unwrap();
+        assert_eq!(client.db, Some("my_database".to_string()));
+    }
+
+    #[test]
+    fn test_client_stores_api_key() {
+        let cfg = make_config("http://localhost:8069", Some("my_secret_key"));
+        let client = OdooHttpClient::new(&cfg).unwrap();
+        assert_eq!(client.api_key, "my_secret_key");
+    }
+
+    #[test]
+    fn test_client_default_max_retries() {
+        let cfg = OdooInstanceConfig {
+            url: "http://localhost:8069".to_string(),
+            db: None,
+            api_key: Some("key".to_string()),
+            username: None,
+            password: None,
+            version: None,
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        let client = OdooHttpClient::new(&cfg).unwrap();
+        assert_eq!(client.max_retries, 3); // default
+    }
+
+    #[test]
+    fn test_client_custom_max_retries() {
+        let cfg = make_config("http://localhost:8069", Some("key"));
+        let client = OdooHttpClient::new(&cfg).unwrap();
+        assert_eq!(client.max_retries, 2); // from config
+    }
+}

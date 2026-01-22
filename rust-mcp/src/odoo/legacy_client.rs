@@ -609,3 +609,125 @@ impl OdooLegacyClient {
         .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn make_legacy_config(url: &str, db: Option<&str>, username: Option<&str>, password: Option<&str>) -> OdooInstanceConfig {
+        OdooInstanceConfig {
+            url: url.to_string(),
+            db: db.map(|s| s.to_string()),
+            api_key: None,
+            username: username.map(|s| s.to_string()),
+            password: password.map(|s| s.to_string()),
+            version: Some("18".to_string()),
+            timeout_ms: Some(5000),
+            max_retries: Some(2),
+            extra: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn test_legacy_client_new_success() {
+        let cfg = make_legacy_config("http://localhost:8069", Some("mydb"), Some("admin"), Some("admin"));
+        let client = OdooLegacyClient::new(&cfg);
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn test_legacy_client_new_invalid_url() {
+        let cfg = make_legacy_config("not a valid url", Some("db"), Some("user"), Some("pass"));
+        let client = OdooLegacyClient::new(&cfg);
+        assert!(client.is_err());
+    }
+
+    #[test]
+    fn test_legacy_client_new_missing_db() {
+        let cfg = make_legacy_config("http://localhost:8069", None, Some("admin"), Some("admin"));
+        let client = OdooLegacyClient::new(&cfg);
+        assert!(client.is_err());
+    }
+
+    #[test]
+    fn test_legacy_client_new_missing_username() {
+        let cfg = make_legacy_config("http://localhost:8069", Some("db"), None, Some("pass"));
+        let client = OdooLegacyClient::new(&cfg);
+        assert!(client.is_err());
+    }
+
+    #[test]
+    fn test_legacy_client_new_missing_password() {
+        let cfg = make_legacy_config("http://localhost:8069", Some("db"), Some("user"), None);
+        let client = OdooLegacyClient::new(&cfg);
+        assert!(client.is_err());
+    }
+
+    #[test]
+    fn test_legacy_client_normalizes_url() {
+        let cfg = make_legacy_config(
+            "http://localhost:8069/some/path?query=1",
+            Some("db"),
+            Some("user"),
+            Some("pass"),
+        );
+        let client = OdooLegacyClient::new(&cfg).unwrap();
+        // The base_url should be normalized without path/query
+        assert_eq!(client.base_url.path(), "/");
+        assert!(client.base_url.query().is_none());
+    }
+
+    #[test]
+    fn test_legacy_client_stores_credentials() {
+        let cfg = make_legacy_config("http://localhost:8069", Some("mydb"), Some("admin"), Some("secret"));
+        let client = OdooLegacyClient::new(&cfg).unwrap();
+        assert_eq!(client.db, "mydb");
+        assert_eq!(client.username, "admin");
+        assert_eq!(client.password, "secret");
+    }
+
+    #[test]
+    fn test_legacy_client_default_max_retries() {
+        let cfg = OdooInstanceConfig {
+            url: "http://localhost:8069".to_string(),
+            db: Some("db".to_string()),
+            api_key: None,
+            username: Some("user".to_string()),
+            password: Some("pass".to_string()),
+            version: None,
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        let client = OdooLegacyClient::new(&cfg).unwrap();
+        assert_eq!(client.max_retries, 3); // default
+    }
+
+    #[test]
+    fn test_legacy_client_custom_max_retries() {
+        let cfg = make_legacy_config("http://localhost:8069", Some("db"), Some("user"), Some("pass"));
+        let client = OdooLegacyClient::new(&cfg).unwrap();
+        assert_eq!(client.max_retries, 2); // from config
+    }
+
+    #[test]
+    fn test_legacy_client_jsonrpc_endpoint() {
+        let cfg = make_legacy_config("http://localhost:8069", Some("db"), Some("user"), Some("pass"));
+        let client = OdooLegacyClient::new(&cfg).unwrap();
+        let endpoint = client.jsonrpc_endpoint();
+        assert_eq!(endpoint.path(), "/jsonrpc");
+    }
+
+    #[test]
+    fn test_legacy_client_build_jsonrpc_request() {
+        let cfg = make_legacy_config("http://localhost:8069", Some("db"), Some("user"), Some("pass"));
+        let client = OdooLegacyClient::new(&cfg).unwrap();
+        let request = client.build_jsonrpc_request("common", "version", json!([]));
+
+        assert_eq!(request["jsonrpc"], "2.0");
+        assert_eq!(request["method"], "call");
+        assert_eq!(request["params"]["service"], "common");
+        assert_eq!(request["params"]["method"], "version");
+    }
+}
