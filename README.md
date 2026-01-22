@@ -781,6 +781,25 @@ Run the server with `--transport http` and set:
 }
 ```
 
+**With Bearer Token Authentication:**
+
+If you have `MCP_AUTH_TOKEN` set on the server, configure Cursor with the token in headers:
+
+```json
+{
+  "mcpServers": {
+    "odoo-rust-mcp": {
+      "url": "http://127.0.0.1:8787/mcp",
+      "headers": {
+        "Authorization": "Bearer your-secure-random-token-here"
+      }
+    }
+  }
+}
+```
+
+Note: Generate a secure token with `openssl rand -hex 32` and set `MCP_AUTH_TOKEN` on the server.
+
 ### Test / smoke
 
 Run unit tests (no warnings):
