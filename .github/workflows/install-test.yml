@@ -248,11 +248,11 @@ jobs:
 
       - name: Add APT repository and install
         run: |
-          # Add GPG key
-          curl -fsSL https://rachmataditiya.github.io/odoo-rust-mcp/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/odoo-rust-mcp.gpg
+          # Add GPG key (pubkey.gpg is already in binary format, no need to dearmor)
+          curl -fsSL https://rachmataditiya.github.io/odoo-rust-mcp/pubkey.gpg | sudo tee /usr/share/keyrings/rust-mcp.gpg > /dev/null
           
           # Add repository
-          echo "deb [signed-by=/usr/share/keyrings/odoo-rust-mcp.gpg] https://rachmataditiya.github.io/odoo-rust-mcp/apt stable main" | sudo tee /etc/apt/sources.list.d/odoo-rust-mcp.list
+          echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://rachmataditiya.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
           
           # Update and install
           sudo apt-get update
