@@ -76,6 +76,12 @@ ENVEOF
         source "$CONFIG_DIR/env"
         set +a
       fi
+      
+      # Set default MCP config paths to Homebrew share if not already set
+      export MCP_TOOLS_JSON="${MCP_TOOLS_JSON:-#{HOMEBREW_PREFIX}/share/odoo-rust-mcp/tools.json}"
+      export MCP_PROMPTS_JSON="${MCP_PROMPTS_JSON:-#{HOMEBREW_PREFIX}/share/odoo-rust-mcp/prompts.json}"
+      export MCP_SERVER_JSON="${MCP_SERVER_JSON:-#{HOMEBREW_PREFIX}/share/odoo-rust-mcp/server.json}"
+      
       exec "#{opt_bin}/rust-mcp" "$@"
     EOS
     # Ensure executable permission is set correctly
