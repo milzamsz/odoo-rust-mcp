@@ -214,7 +214,50 @@ Use `rust-mcp-service` (not `rust-mcp`) to auto-load your env file:
 
 For full Homebrew documentation, see: https://github.com/rachmataditiya/homebrew-odoo-rust-mcp
 
-#### Option 2: Download and install
+#### Option 2: APT (Debian/Ubuntu)
+
+```bash
+# Add GPG key
+curl -fsSL https://rachmataditiya.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg
+
+# Add repository
+echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://rachmataditiya.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
+
+# Install
+sudo apt update
+sudo apt install rust-mcp
+
+# Configure (edit with your Odoo credentials)
+nano ~/.config/rust-mcp/env
+
+# Start service
+sudo systemctl start rust-mcp
+sudo systemctl enable rust-mcp
+```
+
+**What gets installed:**
+
+| Component | Location |
+|-----------|----------|
+| Binary | `/usr/bin/rust-mcp` |
+| Service wrapper | `/usr/bin/rust-mcp-service` |
+| Default configs | `/usr/share/rust-mcp/` |
+| User configs | `~/.config/rust-mcp/` (auto-created on install) |
+| Systemd service | `/lib/systemd/system/rust-mcp.service` |
+
+**Service commands:**
+
+```bash
+sudo systemctl start rust-mcp      # Start service
+sudo systemctl stop rust-mcp       # Stop service
+sudo systemctl restart rust-mcp    # Restart after config changes
+sudo systemctl status rust-mcp     # Check status
+journalctl -u rust-mcp -f          # View logs
+```
+
+Service endpoint: `http://127.0.0.1:8787/mcp`
+
+#### Option 3: Download and install
 
 Download the latest release for your platform from [GitHub Releases](https://github.com/rachmataditiya/odoo-rust-mcp/releases):
 
@@ -277,7 +320,7 @@ The release archive includes:
 - `.env.example` - example environment variables
 - `install.sh` (Linux/macOS) or `install.ps1` (Windows) - installer script
 
-#### Option 3: Build from source
+#### Option 4: Build from source
 
 ```bash
 cd rust-mcp

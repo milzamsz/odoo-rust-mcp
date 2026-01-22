@@ -1,0 +1,73 @@
+#!/bin/bash
+set -e
+
+# Post-installation script for rust-mcp
+# Creates user configuration directory and default env file
+
+# Get the actual user (not root when using sudo)
+if [ -n "$SUDO_USER" ]; then
+    ACTUAL_USER="$SUDO_USER"
+    ACTUAL_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+else
+    ACTUAL_USER="$USER"
+    ACTUAL_HOME="$HOME"
+fi
+
+# Skip if no valid user found (e.g., during automated builds)
+if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
+    echo "Note: Skipping user config setup (no regular user detected)"
+    echo "Run 'rust-mcp-service --help' as your user to create config"
+    exit 0
+fi
+
+CONFIG_DIR="$ACTUAL_HOME/.config/rust-mcp"
+
+# Create config directory if it doesn't exist
+if [ ! -d "$CONFIG_DIR" ]; then
+    mkdir -p "$CONFIG_DIR"
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR"
+    echo "Created config directory: $CONFIG_DIR"
+fi
+
+# Create default env file if it doesn't exist
+if [ ! -f "$CONFIG_DIR/env" ]; then
+    cat > "$CONFIG_DIR/env" << 'EOF'
+# Odoo Rust MCP Server Configuration
+# Edit this file with your Odoo credentials
+
+# Odoo 19+ (API Key authentication)
+ODOO_URL=http://localhost:8069
+ODOO_DB=mydb
+ODOO_API_KEY=YOUR_API_KEY
+
+# Odoo < 19 (Username/Password authentication)
+# ODOO_URL=http://localhost:8069
+# ODOO_DB=mydb
+# ODOO_VERSION=18
+# ODOO_USERNAME=admin
+# ODOO_PASSWORD=admin
+
+# MCP Authentication (HTTP transport)
+# Generate a secure token: openssl rand -hex 32
+# MCP_AUTH_TOKEN=your-secure-random-token-here
+EOF
+    chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/env"
+    chmod 600 "$CONFIG_DIR/env"
+    echo "Created default env file: $CONFIG_DIR/env"
+fi
+
+echo ""
+echo "=============================================="
+echo "rust-mcp installed successfully!"
+echo "=============================================="
+echo ""
+echo "Configuration: $CONFIG_DIR/env"
+echo "Please edit it with your Odoo credentials."
+echo ""
+echo "Quick start:"
+echo "  1. Edit config:  nano $CONFIG_DIR/env"
+echo "  2. Start service: sudo systemctl start rust-mcp"
+echo "  3. Enable on boot: sudo systemctl enable rust-mcp"
+echo ""
+echo "Service endpoint: http://127.0.0.1:8787/mcp"
+echo ""

@@ -1,0 +1,27 @@
+[Unit]
+Description=Odoo MCP Server - Model Context Protocol server for Odoo integration
+Documentation=https://github.com/rachmataditiya/odoo-rust-mcp
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/rust-mcp-service --transport http --listen 127.0.0.1:8787
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+
+# Allow reading user config
+ReadOnlyPaths=/home
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rust-mcp
+
+[Install]
+WantedBy=multi-user.target

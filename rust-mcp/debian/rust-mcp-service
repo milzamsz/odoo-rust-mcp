@@ -1,0 +1,52 @@
+#!/bin/bash
+# Wrapper script for rust-mcp that loads user configuration
+# This script is used by systemd service and can be run directly
+
+CONFIG_DIR="$HOME/.config/rust-mcp"
+
+# Create config directory if it doesn't exist
+if [ ! -d "$CONFIG_DIR" ]; then
+    mkdir -p "$CONFIG_DIR"
+    echo "Created config directory: $CONFIG_DIR"
+fi
+
+# Create default env file if it doesn't exist
+if [ ! -f "$CONFIG_DIR/env" ]; then
+    cat > "$CONFIG_DIR/env" << 'ENVEOF'
+# Odoo Rust MCP Server Configuration
+# Edit this file with your Odoo credentials
+
+# Odoo 19+ (API Key authentication)
+ODOO_URL=http://localhost:8069
+ODOO_DB=mydb
+ODOO_API_KEY=YOUR_API_KEY
+
+# Odoo < 19 (Username/Password authentication)
+# ODOO_URL=http://localhost:8069
+# ODOO_DB=mydb
+# ODOO_VERSION=18
+# ODOO_USERNAME=admin
+# ODOO_PASSWORD=admin
+
+# MCP Authentication (HTTP transport)
+# Generate a secure token: openssl rand -hex 32
+# MCP_AUTH_TOKEN=your-secure-random-token-here
+ENVEOF
+    chmod 600 "$CONFIG_DIR/env"
+    echo "Created default env file: $CONFIG_DIR/env"
+    echo "Please edit it with your Odoo credentials"
+fi
+
+# Load environment from user config if exists
+if [ -f "$CONFIG_DIR/env" ]; then
+    set -a
+    source "$CONFIG_DIR/env"
+    set +a
+fi
+
+# Set default MCP config paths if not already set
+export MCP_TOOLS_JSON="${MCP_TOOLS_JSON:-/usr/share/rust-mcp/tools.json}"
+export MCP_PROMPTS_JSON="${MCP_PROMPTS_JSON:-/usr/share/rust-mcp/prompts.json}"
+export MCP_SERVER_JSON="${MCP_SERVER_JSON:-/usr/share/rust-mcp/server.json}"
+
+exec /usr/bin/rust-mcp "$@"

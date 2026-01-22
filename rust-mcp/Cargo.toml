@@ -29,3 +29,24 @@ uuid = { version = "1.19.0", features = ["v4"] }
 
 [dev-dependencies]
 async-stream = "0.3"
+
+[package.metadata.deb]
+maintainer = "Rachmat Aditiya <rachmataditiya@gmail.com>"
+copyright = "2024-2026, Rachmat Aditiya"
+license-file = ["../LICENSE", "0"]
+extended-description = """Odoo MCP Server - Model Context Protocol server for Odoo integration.
+Supports both modern JSON-2 API (Odoo 19+) and legacy JSON-RPC (Odoo 18 and earlier).
+Provides tools for CRUD operations, workflow actions, report generation, and more."""
+section = "utils"
+priority = "optional"
+depends = "$auto"
+assets = [
+    ["target/release/rust-mcp", "usr/bin/", "755"],
+    ["config/tools.json", "usr/share/rust-mcp/", "644"],
+    ["config/prompts.json", "usr/share/rust-mcp/", "644"],
+    ["config/server.json", "usr/share/rust-mcp/", "644"],
+    ["../dotenv.example", "usr/share/rust-mcp/.env.example", "644"],
+    ["debian/rust-mcp-service", "usr/bin/", "755"],
+]
+maintainer-scripts = "debian/"
+systemd-units = { unit-name = "rust-mcp", enable = false }
