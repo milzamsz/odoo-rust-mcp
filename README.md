@@ -147,21 +147,72 @@ Seed defaults (used only when files are missing):
 
 ### Installation
 
-#### Option 1: Homebrew (macOS/Linux)
+#### Option 1: Homebrew (macOS/Linux) - Recommended
 
 ```bash
-# Add the tap
-brew tap rachmataditiya/odoo-rust-mcp
-
 # Install
+brew tap rachmataditiya/odoo-rust-mcp
 brew install rust-mcp
+
+# Configure (edit with your Odoo credentials)
+nano ~/.config/odoo-rust-mcp/env
+
+# Start as background service
+brew services start rust-mcp
 ```
 
-Or install directly:
+Or install directly in one command:
 
 ```bash
 brew install rachmataditiya/odoo-rust-mcp/rust-mcp
 ```
+
+**What gets installed:**
+
+| Component | Location |
+|-----------|----------|
+| Binary | `/opt/homebrew/bin/rust-mcp` |
+| Service wrapper | `/opt/homebrew/bin/rust-mcp-service` |
+| User configs | `~/.config/odoo-rust-mcp/` (auto-created) |
+| Service logs | `/opt/homebrew/var/log/rust-mcp.log` |
+
+**User config directory (`~/.config/odoo-rust-mcp/`):**
+
+```
+├── env              # Environment variables - EDIT THIS with Odoo credentials
+├── tools.json       # MCP tools definition
+├── prompts.json     # MCP prompts definition  
+└── server.json      # MCP server metadata
+```
+
+**Service commands:**
+
+```bash
+brew services start rust-mcp      # Start service
+brew services stop rust-mcp       # Stop service
+brew services restart rust-mcp    # Restart after config changes
+brew services list                # Check status
+tail -f /opt/homebrew/var/log/rust-mcp.log  # View logs
+```
+
+Service endpoint: `http://127.0.0.1:8787/mcp`
+
+**For Cursor/Claude Desktop with Homebrew:**
+
+Use `rust-mcp-service` (not `rust-mcp`) to auto-load your env file:
+
+```json
+{
+  "mcpServers": {
+    "odoo": {
+      "command": "/opt/homebrew/bin/rust-mcp-service",
+      "args": ["--transport", "stdio"]
+    }
+  }
+}
+```
+
+For full Homebrew documentation, see: https://github.com/rachmataditiya/homebrew-odoo-rust-mcp
 
 #### Option 2: Download and install
 

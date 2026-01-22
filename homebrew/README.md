@@ -1,66 +1,70 @@
 # Homebrew Formula for odoo-rust-mcp
 
-This folder contains the Homebrew formula for installing `rust-mcp` via Homebrew.
+This folder contains the Homebrew formula source for `rust-mcp`.
 
-## Setup Homebrew Tap
+The actual Homebrew tap is hosted at: https://github.com/rachmataditiya/homebrew-odoo-rust-mcp
 
-To make this formula available via Homebrew, you need to create a separate repository named `homebrew-odoo-rust-mcp`.
+## For Users
 
-### Step 1: Create the Tap Repository
-
-Create a new GitHub repository:
-- Repository name: `homebrew-odoo-rust-mcp`
-- Make it public
-
-### Step 2: Copy Formula
-
-Copy the `Formula/` folder to the new repository:
+### Quick Install
 
 ```bash
-# Clone your new tap repository
-git clone https://github.com/YOUR_USERNAME/homebrew-odoo-rust-mcp.git
-cd homebrew-odoo-rust-mcp
-
-# Copy the Formula folder
-cp -r /path/to/odoo-rust-mcp/homebrew/Formula .
-
-# Commit and push
-git add -A
-git commit -m "Add rust-mcp formula"
-git push
-```
-
-### Step 3: Update SHA256 Checksums
-
-After creating a release, update the SHA256 checksums in `Formula/rust-mcp.rb`:
-
-```bash
-# Download release artifacts and generate checksums
-curl -sL https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v0.1.0/rust-mcp-aarch64-apple-darwin.tar.gz | shasum -a 256
-curl -sL https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v0.1.0/rust-mcp-x86_64-apple-darwin.tar.gz | shasum -a 256
-curl -sL https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v0.1.0/rust-mcp-x86_64-unknown-linux-gnu.tar.gz | shasum -a 256
-```
-
-Replace `PLACEHOLDER_SHA256_*` values in the formula with actual checksums.
-
-## Installation
-
-Once the tap is set up:
-
-```bash
-# Add the tap
-brew tap YOUR_USERNAME/odoo-rust-mcp
-
-# Install
+brew tap rachmataditiya/odoo-rust-mcp
 brew install rust-mcp
 ```
 
-Or install directly:
+### After Installation
+
+1. Edit your Odoo credentials:
+   ```bash
+   nano ~/.config/odoo-rust-mcp/env
+   ```
+
+2. Start the service:
+   ```bash
+   brew services start rust-mcp
+   ```
+
+3. Service runs at: `http://127.0.0.1:8787/mcp`
+
+For complete documentation, see: https://github.com/rachmataditiya/homebrew-odoo-rust-mcp
+
+## For Maintainers
+
+### Formula Location
+
+- Source: `homebrew/Formula/rust-mcp.rb` (this repo)
+- Published: https://github.com/rachmataditiya/homebrew-odoo-rust-mcp
+
+### Updating the Formula
+
+1. Update `Formula/rust-mcp.rb` in this repo
+2. Copy to homebrew-odoo-rust-mcp repo
+3. Commit and push both repos
+
+### Automated Updates
+
+The GitHub Actions workflow (`.github/workflows/release.yml`) automatically:
+1. Generates SHA256 checksums for release artifacts
+2. Updates the formula with new version and checksums
+3. Pushes to the homebrew tap repository
+
+**Required GitHub Settings:**
+
+Set these in repository Settings > Secrets and variables:
+
+| Type | Name | Value |
+|------|------|-------|
+| Variable | `HOMEBREW_TAP_REPO` | `rachmataditiya/homebrew-odoo-rust-mcp` |
+| Secret | `HOMEBREW_TAP_TOKEN` | Personal access token with `repo` scope |
+
+### Manual Checksum Generation
+
+After creating a release, generate checksums:
 
 ```bash
-brew install YOUR_USERNAME/odoo-rust-mcp/rust-mcp
+VERSION=0.1.0
+curl -sL "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-aarch64-apple-darwin.tar.gz" | shasum -a 256
+curl -sL "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-x86_64-apple-darwin.tar.gz" | shasum -a 256
+curl -sL "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-x86_64-unknown-linux-gnu.tar.gz" | shasum -a 256
 ```
-
-## Automated Updates
-
-The GitHub Actions workflow in `.github/workflows/release.yml` can be configured to automatically update the formula when a new release is created. See the workflow file for details.
