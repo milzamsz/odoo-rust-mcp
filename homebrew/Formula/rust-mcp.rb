@@ -1,25 +1,25 @@
 class RustMcp < Formula
   desc "Odoo MCP Server - Model Context Protocol server for Odoo integration"
   homepage "https://github.com/rachmataditiya/odoo-rust-mcp"
-  version "0.1.0"
+  version "0.2.0"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-aarch64-apple-darwin.tar.gz"
-      sha256 "PLACEHOLDER_SHA256_MACOS_ARM64"
+      sha256 "dfbc02b8ea02bd2ca585e984008691555e5c87aa8202090057fa1974c77a1ac4"
     end
 
     if Hardware::CPU.intel?
       url "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-x86_64-apple-darwin.tar.gz"
-      sha256 "PLACEHOLDER_SHA256_MACOS_X64"
+      sha256 "a79b086ba7a5e5917e797391ad18785dcb432085c2283652a6efd30d273978a6"
     end
   end
 
   on_linux do
     if Hardware::CPU.intel?
       url "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "PLACEHOLDER_SHA256_LINUX_X64"
+      sha256 "6934407c1d2ff4c691cd45f4c8316c9d739dc8387256758e47f625d40a534ceb"
     end
   end
 
@@ -31,12 +31,48 @@ class RustMcp < Formula
     (share/"odoo-rust-mcp").install ".env.example" if File.exist?(".env.example")
 
     # Create wrapper script that loads env file before running
+    # Also creates config dir if it doesn't exist (fallback for post_install)
     (bin/"rust-mcp-service").write <<~EOS
       #!/bin/bash
+      CONFIG_DIR="$HOME/.config/odoo-rust-mcp"
+      
+      # Create config directory if it doesn't exist
+      if [ ! -d "$CONFIG_DIR" ]; then
+        mkdir -p "$CONFIG_DIR"
+        echo "Created config directory: $CONFIG_DIR"
+      fi
+      
+      # Create default env file if it doesn't exist
+      if [ ! -f "$CONFIG_DIR/env" ]; then
+        cat > "$CONFIG_DIR/env" << 'ENVEOF'
+# Odoo Rust MCP Server Configuration
+# Edit this file with your Odoo credentials
+
+# Odoo 19+ (API Key authentication)
+ODOO_URL=http://localhost:8069
+ODOO_DB=mydb
+ODOO_API_KEY=YOUR_API_KEY
+
+# Odoo < 19 (Username/Password authentication)
+# ODOO_URL=http://localhost:8069
+# ODOO_DB=mydb
+# ODOO_VERSION=18
+# ODOO_USERNAME=admin
+# ODOO_PASSWORD=admin
+
+# MCP Authentication (HTTP transport)
+# Generate a secure token: openssl rand -hex 32
+# MCP_AUTH_TOKEN=your-secure-random-token-here
+ENVEOF
+        chmod 600 "$CONFIG_DIR/env"
+        echo "Created default env file: $CONFIG_DIR/env"
+        echo "Please edit it with your Odoo credentials"
+      fi
+      
       # Load environment from user config if exists
-      if [ -f "$HOME/.config/odoo-rust-mcp/env" ]; then
+      if [ -f "$CONFIG_DIR/env" ]; then
         set -a
-        source "$HOME/.config/odoo-rust-mcp/env"
+        source "$CONFIG_DIR/env"
         set +a
       fi
       exec "#{opt_bin}/rust-mcp" "$@"
@@ -112,21 +148,15 @@ class RustMcp < Formula
 
   def caveats
     <<~EOS
-      Configuration files created in: ~/.config/odoo-rust-mcp/
-        - env           (environment variables - EDIT THIS with your Odoo credentials)
-        - tools.json    (MCP tools definition)
-        - prompts.json  (MCP prompts definition)
-        - server.json   (MCP server metadata)
-
-      Default config templates: #{share}/odoo-rust-mcp/
-
-      Usage:
-        Run directly (stdio):  rust-mcp --transport stdio
-        Run as HTTP server:    rust-mcp --transport http --listen 127.0.0.1:8787
-
-      Run as a background service:
-        1. Edit ~/.config/odoo-rust-mcp/env with your Odoo credentials
-        2. brew services start rust-mcp
+      Configuration directory: ~/.config/odoo-rust-mcp/
+      
+      The config directory and default env file will be automatically created
+      the first time you run 'rust-mcp-service'.
+      
+      Quick start:
+        1. Run once to create config: rust-mcp-service --help
+        2. Edit credentials: nano ~/.config/odoo-rust-mcp/env
+        3. Start service: brew services start rust-mcp
 
       Service commands:
         brew services start rust-mcp
