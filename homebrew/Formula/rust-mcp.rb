@@ -82,64 +82,6 @@ ENVEOF
     wrapper_script.chmod 0755
   end
 
-  def post_install
-    # Create user config directory
-    user_config_dir = Pathname.new(Dir.home)/".config/odoo-rust-mcp"
-    user_config_dir.mkpath unless user_config_dir.exist?
-
-    # Copy default env file if not exists
-    user_env_file = user_config_dir/"env"
-    unless user_env_file.exist?
-      user_env_file.write <<~EOS
-        # Odoo Rust MCP Server Configuration
-        # Edit this file with your Odoo credentials
-
-        # =============================================================================
-        # Odoo 19+ (JSON-2 API with API Key)
-        # =============================================================================
-        ODOO_URL=http://localhost:8069
-        ODOO_DB=mydb
-        ODOO_API_KEY=YOUR_API_KEY
-
-        # =============================================================================
-        # Odoo < 19 (JSON-RPC with Username/Password)
-        # Uncomment and set ODOO_VERSION to enable legacy mode
-        # =============================================================================
-        # ODOO_URL=http://localhost:8069
-        # ODOO_DB=mydb
-        # ODOO_VERSION=18
-        # ODOO_USERNAME=admin
-        # ODOO_PASSWORD=admin
-
-        # =============================================================================
-        # MCP Authentication (HTTP transport only)
-        # =============================================================================
-        # Generate a secure token: openssl rand -hex 32
-        # MCP_AUTH_TOKEN=your-secure-random-token-here
-
-        # =============================================================================
-        # MCP Config paths (auto-configured by Homebrew)
-        # =============================================================================
-        MCP_TOOLS_JSON=#{HOMEBREW_PREFIX}/share/odoo-rust-mcp/tools.json
-        MCP_PROMPTS_JSON=#{HOMEBREW_PREFIX}/share/odoo-rust-mcp/prompts.json
-        MCP_SERVER_JSON=#{HOMEBREW_PREFIX}/share/odoo-rust-mcp/server.json
-      EOS
-      chmod 0600, user_env_file
-    end
-
-    # Copy default config files if not exist
-    %w[tools.json prompts.json server.json].each do |config_file|
-      user_config = user_config_dir/config_file
-      default_config = share/"odoo-rust-mcp"/config_file
-      if !user_config.exist? && default_config.exist?
-        cp default_config, user_config
-      end
-    end
-
-    ohai "Configuration files created in ~/.config/odoo-rust-mcp/"
-    ohai "Edit ~/.config/odoo-rust-mcp/env with your Odoo credentials"
-  end
-
   # Service configuration for `brew services start rust-mcp`
   service do
     run [opt_bin/"rust-mcp-service", "--transport", "http", "--listen", "127.0.0.1:8787"]
