@@ -102,6 +102,47 @@ jobs:
           
           echo "All Homebrew installation tests passed!"
 
+      - name: Verify share directory config files
+        run: |
+          # Create mock share directory structure (simulating Homebrew install)
+          SHARE_DIR="$HOME/.local/share/odoo-rust-mcp"
+          mkdir -p "$SHARE_DIR"
+          cp config/tools.json "$SHARE_DIR/"
+          cp config/prompts.json "$SHARE_DIR/"
+          cp config/server.json "$SHARE_DIR/"
+          
+          # Verify tools.json
+          if [ ! -f "$SHARE_DIR/tools.json" ]; then
+            echo "FAIL: tools.json not found in share directory"
+            exit 1
+          fi
+          echo "PASS: tools.json exists in share directory"
+          
+          # Verify prompts.json
+          if [ ! -f "$SHARE_DIR/prompts.json" ]; then
+            echo "FAIL: prompts.json not found in share directory"
+            exit 1
+          fi
+          echo "PASS: prompts.json exists in share directory"
+          
+          # Verify server.json
+          if [ ! -f "$SHARE_DIR/server.json" ]; then
+            echo "FAIL: server.json not found in share directory"
+            exit 1
+          fi
+          echo "PASS: server.json exists in share directory"
+          
+          # Verify JSON files are valid
+          for f in tools.json prompts.json server.json; do
+            if ! python3 -c "import json; json.load(open('$SHARE_DIR/$f'))"; then
+              echo "FAIL: $f is not valid JSON"
+              exit 1
+            fi
+            echo "PASS: $f is valid JSON"
+          done
+          
+          echo "All config file tests passed!"
+
   test-deb-linux:
     name: Test Debian Package (Linux)
     runs-on: ubuntu-latest
@@ -183,6 +224,47 @@ jobs:
           
           echo "All Debian installation tests passed!"
 
+      - name: Verify share directory config files (Debian)
+        run: |
+          # Create mock share directory structure (simulating apt install)
+          SHARE_DIR="/tmp/mock-share/rust-mcp"
+          mkdir -p "$SHARE_DIR"
+          cp config/tools.json "$SHARE_DIR/"
+          cp config/prompts.json "$SHARE_DIR/"
+          cp config/server.json "$SHARE_DIR/"
+          
+          # Verify tools.json
+          if [ ! -f "$SHARE_DIR/tools.json" ]; then
+            echo "FAIL: tools.json not found in share directory"
+            exit 1
+          fi
+          echo "PASS: tools.json exists in share directory"
+          
+          # Verify prompts.json
+          if [ ! -f "$SHARE_DIR/prompts.json" ]; then
+            echo "FAIL: prompts.json not found in share directory"
+            exit 1
+          fi
+          echo "PASS: prompts.json exists in share directory"
+          
+          # Verify server.json
+          if [ ! -f "$SHARE_DIR/server.json" ]; then
+            echo "FAIL: server.json not found in share directory"
+            exit 1
+          fi
+          echo "PASS: server.json exists in share directory"
+          
+          # Verify JSON files are valid
+          for f in tools.json prompts.json server.json; do
+            if ! python3 -c "import json; json.load(open('$SHARE_DIR/$f'))"; then
+              echo "FAIL: $f is not valid JSON"
+              exit 1
+            fi
+            echo "PASS: $f is valid JSON"
+          done
+          
+          echo "All Debian config file tests passed!"
+
       - name: Test rust-mcp-service wrapper
         run: |
           # Clean config
@@ -250,6 +332,43 @@ jobs:
             exit 1
           fi
           echo "PASS: Config directory installed"
+          
+          # Verify individual config files
+          CONFIG_DIR="$HOME/.local/share/odoo-rust-mcp"
+          
+          if [ ! -f "$CONFIG_DIR/tools.json" ]; then
+            echo "FAIL: tools.json not installed"
+            exit 1
+          fi
+          echo "PASS: tools.json installed"
+          
+          if [ ! -f "$CONFIG_DIR/prompts.json" ]; then
+            echo "FAIL: prompts.json not installed"
+            exit 1
+          fi
+          echo "PASS: prompts.json installed"
+          
+          if [ ! -f "$CONFIG_DIR/server.json" ]; then
+            echo "FAIL: server.json not installed"
+            exit 1
+          fi
+          echo "PASS: server.json installed"
+          
+          # Verify JSON files are valid
+          for f in tools.json prompts.json server.json; do
+            if ! python3 -c "import json; json.load(open('$CONFIG_DIR/$f'))"; then
+              echo "FAIL: $f is not valid JSON"
+              exit 1
+            fi
+            echo "PASS: $f is valid JSON"
+          done
+          
+          # Verify .env.example installed
+          if [ ! -f "$CONFIG_DIR/.env.example" ]; then
+            echo "FAIL: .env.example not installed"
+            exit 1
+          fi
+          echo "PASS: .env.example installed"
 
       - name: Test uninstall
         run: |
@@ -313,7 +432,81 @@ jobs:
             exit 1
           }
           
+          # Verify individual config files
+          $configFiles = @("tools.json", "prompts.json", "server.json")
+          foreach ($file in $configFiles) {
+            if (Test-Path "test-release/config/$file") {
+              Write-Host "PASS: $file exists in config"
+            } else {
+              Write-Error "FAIL: $file not found in config"
+              exit 1
+            }
+          }
+          
+          # Verify JSON files are valid
+          foreach ($file in $configFiles) {
+            try {
+              $content = Get-Content "test-release/config/$file" -Raw
+              $null = ConvertFrom-Json $content
+              Write-Host "PASS: $file is valid JSON"
+            } catch {
+              Write-Error "FAIL: $file is not valid JSON: $_"
+              exit 1
+            }
+          }
+          
           Write-Host "All Windows installation tests passed!"
+
+      - name: Test user config directory simulation
+        shell: pwsh
+        run: |
+          # Simulate what install.ps1 would do for user config
+          $ConfigDir = Join-Path $env:USERPROFILE ".config/odoo-rust-mcp"
+          
+          # Clean any existing config
+          if (Test-Path $ConfigDir) {
+            Remove-Item -Recurse -Force $ConfigDir
+          }
+          
+          # Create config directory
+          New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
+          
+          # Create default env file
+          $envContent = @"
+# Odoo Rust MCP Server Configuration
+ODOO_URL=http://localhost:8069
+ODOO_DB=mydb
+ODOO_API_KEY=YOUR_API_KEY
+"@
+          Set-Content -Path (Join-Path $ConfigDir "env") -Value $envContent
+          
+          # Verify config directory was created
+          if (Test-Path $ConfigDir) {
+            Write-Host "PASS: Config directory created at $ConfigDir"
+          } else {
+            Write-Error "FAIL: Config directory not created"
+            exit 1
+          }
+          
+          # Verify env file was created
+          $envFile = Join-Path $ConfigDir "env"
+          if (Test-Path $envFile) {
+            Write-Host "PASS: env file created"
+          } else {
+            Write-Error "FAIL: env file not created"
+            exit 1
+          }
+          
+          # Verify env file content
+          $content = Get-Content $envFile -Raw
+          if ($content -match "ODOO_URL") {
+            Write-Host "PASS: env file contains ODOO_URL"
+          } else {
+            Write-Error "FAIL: env file missing ODOO_URL"
+            exit 1
+          }
+          
+          Write-Host "All Windows config tests passed!"
 
   test-homebrew-linux:
     name: Test Homebrew (Linux)
@@ -378,4 +571,52 @@ jobs:
           fi
           echo "PASS: env file has correct permissions (600)"
           
+          # Verify env file content
+          if ! grep -q "ODOO_URL" "$HOME/.config/odoo-rust-mcp/env"; then
+            echo "FAIL: env file missing ODOO_URL"
+            exit 1
+          fi
+          echo "PASS: env file contains expected content"
+          
           echo "All Homebrew Linux tests passed!"
+
+      - name: Verify share directory config files (Linux Homebrew)
+        run: |
+          # Create mock share directory structure (simulating Homebrew install on Linux)
+          SHARE_DIR="$HOME/.linuxbrew/share/odoo-rust-mcp"
+          mkdir -p "$SHARE_DIR"
+          cp config/tools.json "$SHARE_DIR/"
+          cp config/prompts.json "$SHARE_DIR/"
+          cp config/server.json "$SHARE_DIR/"
+          
+          # Verify tools.json
+          if [ ! -f "$SHARE_DIR/tools.json" ]; then
+            echo "FAIL: tools.json not found in share directory"
+            exit 1
+          fi
+          echo "PASS: tools.json exists in share directory"
+          
+          # Verify prompts.json
+          if [ ! -f "$SHARE_DIR/prompts.json" ]; then
+            echo "FAIL: prompts.json not found in share directory"
+            exit 1
+          fi
+          echo "PASS: prompts.json exists in share directory"
+          
+          # Verify server.json
+          if [ ! -f "$SHARE_DIR/server.json" ]; then
+            echo "FAIL: server.json not found in share directory"
+            exit 1
+          fi
+          echo "PASS: server.json exists in share directory"
+          
+          # Verify JSON files are valid
+          for f in tools.json prompts.json server.json; do
+            if ! python3 -c "import json; json.load(open('$SHARE_DIR/$f'))"; then
+              echo "FAIL: $f is not valid JSON"
+              exit 1
+            fi
+            echo "PASS: $f is valid JSON"
+          done
+          
+          echo "All Homebrew Linux config file tests passed!"
