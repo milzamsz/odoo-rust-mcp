@@ -115,6 +115,31 @@ jobs:
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Generate SHA256 checksums
+        id: checksums
+        run: |
+          cd artifacts
+          
+          # Generate checksums for each artifact
+          for dir in */; do
+            for file in "$dir"*.tar.gz "$dir"*.zip; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                sha256=$(sha256sum "$file" | cut -d' ' -f1)
+                echo "Checksum for $filename: $sha256"
+                
+                # Set outputs based on target
+                if [[ "$filename" == *"aarch64-apple-darwin"* ]]; then
+                  echo "sha256_macos_arm64=$sha256" >> $GITHUB_OUTPUT
+                elif [[ "$filename" == *"x86_64-apple-darwin"* ]]; then
+                  echo "sha256_macos_x64=$sha256" >> $GITHUB_OUTPUT
+                elif [[ "$filename" == *"x86_64-unknown-linux-gnu"* ]]; then
+                  echo "sha256_linux_x64=$sha256" >> $GITHUB_OUTPUT
+                fi
+              fi
+            done
+          done
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -127,3 +152,91 @@ jobs:
             artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew:
+    name: Update Homebrew Formula
+    needs: release
+    runs-on: ubuntu-latest
+    # Only run if HOMEBREW_TAP_TOKEN secret is set
+    if: ${{ vars.HOMEBREW_TAP_REPO != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Get tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "version=${{ github.event.inputs.tag }}" | sed 's/^v//' >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate checksums and update formula
+        run: |
+          cd artifacts
+          
+          # Generate checksums
+          SHA256_MACOS_ARM64=""
+          SHA256_MACOS_X64=""
+          SHA256_LINUX_X64=""
+          
+          for dir in */; do
+            for file in "$dir"*.tar.gz; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                sha256=$(sha256sum "$file" | cut -d' ' -f1)
+                
+                if [[ "$filename" == *"aarch64-apple-darwin"* ]]; then
+                  SHA256_MACOS_ARM64=$sha256
+                elif [[ "$filename" == *"x86_64-apple-darwin"* ]]; then
+                  SHA256_MACOS_X64=$sha256
+                elif [[ "$filename" == *"x86_64-unknown-linux-gnu"* ]]; then
+                  SHA256_LINUX_X64=$sha256
+                fi
+              fi
+            done
+          done
+          
+          cd ..
+          
+          # Update formula with new version and checksums
+          sed -i "s/version \".*\"/version \"${{ steps.tag.outputs.version }}\"/" homebrew/Formula/rust-mcp.rb
+          sed -i "s/PLACEHOLDER_SHA256_MACOS_ARM64/$SHA256_MACOS_ARM64/" homebrew/Formula/rust-mcp.rb
+          sed -i "s/PLACEHOLDER_SHA256_MACOS_X64/$SHA256_MACOS_X64/" homebrew/Formula/rust-mcp.rb
+          sed -i "s/PLACEHOLDER_SHA256_LINUX_X64/$SHA256_LINUX_X64/" homebrew/Formula/rust-mcp.rb
+          
+          # Also update any existing checksums (for subsequent releases)
+          sed -i "s/sha256 \"[a-f0-9]\{64\}\"  # macos-arm64/sha256 \"$SHA256_MACOS_ARM64\"  # macos-arm64/" homebrew/Formula/rust-mcp.rb
+          sed -i "s/sha256 \"[a-f0-9]\{64\}\"  # macos-x64/sha256 \"$SHA256_MACOS_X64\"  # macos-x64/" homebrew/Formula/rust-mcp.rb
+          sed -i "s/sha256 \"[a-f0-9]\{64\}\"  # linux-x64/sha256 \"$SHA256_LINUX_X64\"  # linux-x64/" homebrew/Formula/rust-mcp.rb
+          
+          echo "Updated formula:"
+          cat homebrew/Formula/rust-mcp.rb
+
+      - name: Push to Homebrew tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_TAP_REPO: ${{ vars.HOMEBREW_TAP_REPO }}
+        run: |
+          # Clone the homebrew tap repo
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${HOMEBREW_TAP_REPO}.git homebrew-tap
+          
+          # Copy updated formula
+          mkdir -p homebrew-tap/Formula
+          cp homebrew/Formula/rust-mcp.rb homebrew-tap/Formula/
+          
+          # Commit and push
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Update rust-mcp to ${{ steps.tag.outputs.tag }}" || echo "No changes to commit"
+          git push

@@ -147,7 +147,23 @@ Seed defaults (used only when files are missing):
 
 ### Installation
 
-#### Option 1: Download and install (recommended)
+#### Option 1: Homebrew (macOS/Linux)
+
+```bash
+# Add the tap
+brew tap rachmataditiya/odoo-rust-mcp
+
+# Install
+brew install rust-mcp
+```
+
+Or install directly:
+
+```bash
+brew install rachmataditiya/odoo-rust-mcp/rust-mcp
+```
+
+#### Option 2: Download and install
 
 Download the latest release for your platform from [GitHub Releases](https://github.com/rachmataditiya/odoo-rust-mcp/releases):
 
@@ -210,7 +226,7 @@ The release archive includes:
 - `.env.example` - example environment variables
 - `install.sh` (Linux/macOS) or `install.ps1` (Windows) - installer script
 
-#### Option 2: Build from source
+#### Option 3: Build from source
 
 ```bash
 cd rust-mcp

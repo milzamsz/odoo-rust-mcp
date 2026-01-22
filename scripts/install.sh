@@ -188,6 +188,8 @@ install_launchd_service() {
     local plist_path="$HOME/Library/LaunchAgents/com.odoo.rust-mcp.plist"
     local user_config_dir="$HOME/.config/odoo-rust-mcp"
     local user_env_file="$user_config_dir/env"
+    local service_name="com.odoo.rust-mcp"
+    local uid=$(id -u)
 
     # Create user config directory
     mkdir -p "$user_config_dir"
@@ -251,14 +253,27 @@ ENVEOF
 </plist>
 PLISTEOF
 
-    launchctl unload "$plist_path" 2>/dev/null || true
-    launchctl load "$plist_path"
-    info "Launchd service installed and started"
+    # Stop existing service if running (using modern syntax, fallback to legacy)
+    launchctl bootout gui/$uid/$service_name 2>/dev/null || \
+        launchctl unload "$plist_path" 2>/dev/null || true
+
+    # Start service (using modern syntax, fallback to legacy for older macOS)
+    if launchctl bootstrap gui/$uid "$plist_path" 2>/dev/null; then
+        info "Launchd service installed and started (using bootstrap)"
+    elif launchctl load "$plist_path" 2>/dev/null; then
+        info "Launchd service installed and started (using legacy load)"
+    else
+        error "Failed to start launchd service"
+    fi
+
     echo ""
     echo "Commands:"
-    echo "  Start:   launchctl load $plist_path"
-    echo "  Stop:    launchctl unload $plist_path"
+    echo "  Start:   launchctl bootstrap gui/$uid $plist_path"
+    echo "  Stop:    launchctl bootout gui/$uid/$service_name"
+    echo "  Status:  launchctl print gui/$uid/$service_name"
     echo "  Logs:    tail -f $user_config_dir/stdout.log"
+    echo ""
+    echo "Note: On older macOS, use 'launchctl load/unload' instead."
     echo ""
     echo "Service listens on: http://127.0.0.1:8787/mcp"
     warn "Don't forget to edit $user_env_file with your Odoo credentials!"
@@ -268,7 +283,13 @@ PLISTEOF
 uninstall_launchd_service() {
     info "Removing launchd service..."
     local plist_path="$HOME/Library/LaunchAgents/com.odoo.rust-mcp.plist"
-    launchctl unload "$plist_path" 2>/dev/null || true
+    local service_name="com.odoo.rust-mcp"
+    local uid=$(id -u)
+
+    # Stop service (using modern syntax, fallback to legacy)
+    launchctl bootout gui/$uid/$service_name 2>/dev/null || \
+        launchctl unload "$plist_path" 2>/dev/null || true
+
     rm -f "$plist_path"
     info "Launchd service removed"
 }
