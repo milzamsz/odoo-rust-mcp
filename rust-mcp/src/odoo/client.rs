@@ -299,13 +299,38 @@ impl OdooHttpClient {
         context: Option<Value>,
     ) -> OdooResult<i64> {
         // Odoo signature is create(vals_list)
-        let mut body = json!({ "vals_list": values });
+        // vals_list should be an array of objects, but we accept a single object for convenience
+        let vals_list = if values.is_array() {
+            values
+        } else {
+            json!([values])
+        };
+        let mut body = json!({ "vals_list": vals_list });
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
         let v = self.post_json2_raw(model, "create", body).await?;
-        serde_json::from_value(v).map_err(|e| {
-            OdooError::InvalidResponse(format!("Expected created id (number) from create: {e}"))
+        
+        // Odoo v19 /json/2/ create returns an array of IDs, e.g. [42]
+        // We handle both array and single integer for compatibility
+        if let Some(arr) = v.as_array() {
+            if let Some(first) = arr.first() {
+                return first.as_i64().ok_or_else(|| {
+                    OdooError::InvalidResponse(format!(
+                        "Expected created id (number) in array from create, got: {v}"
+                    ))
+                });
+            }
+            return Err(OdooError::InvalidResponse(
+                "create returned empty array".to_string(),
+            ));
+        }
+        
+        // Fallback: try to parse as single integer (for potential future API changes)
+        serde_json::from_value(v.clone()).map_err(|e| {
+            OdooError::InvalidResponse(format!(
+                "Expected created id (number or array) from create: {e}. Got: {v}"
+            ))
         })
     }
 
@@ -498,8 +523,23 @@ impl OdooHttpClient {
             body["default"] = d;
         }
         let v = self.post_json2_raw(model, "copy", body).await?;
-        serde_json::from_value(v)
-            .map_err(|e| OdooError::InvalidResponse(format!("Expected id from copy: {e}")))
+        
+        // Handle both array and single integer response
+        if let Some(arr) = v.as_array() {
+            if let Some(first) = arr.first() {
+                return first.as_i64().ok_or_else(|| {
+                    OdooError::InvalidResponse(format!(
+                        "Expected id (number) in array from copy, got: {v}"
+                    ))
+                });
+            }
+            return Err(OdooError::InvalidResponse(
+                "copy returned empty array".to_string(),
+            ));
+        }
+        
+        serde_json::from_value(v.clone())
+            .map_err(|e| OdooError::InvalidResponse(format!("Expected id from copy: {e}. Got: {v}")))
     }
 
     /// onchange - Simulate form onchange behavior
