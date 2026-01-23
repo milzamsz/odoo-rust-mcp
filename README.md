@@ -38,7 +38,9 @@ Notes: For Odoo 19+, access to JSON-2 external API is only available on **Custom
 
 #### Multi-instance (recommended)
 
-Set `ODOO_INSTANCES` to JSON:
+**Option A: JSON file (recommended for readability)**
+
+Create `~/.config/odoo-rust-mcp/instances.json`:
 
 ```json
 {
@@ -60,6 +62,31 @@ Set `ODOO_INSTANCES` to JSON:
   }
 }
 ```
+
+Then in `~/.config/odoo-rust-mcp/env`:
+
+```bash
+ODOO_INSTANCES_JSON=/path/to/instances.json
+```
+
+**Option B: Inline JSON (single line)**
+
+Set `ODOO_INSTANCES` directly in env file (must be single line):
+
+```bash
+ODOO_INSTANCES={"production":{"url":"https://mycompany.example.com","apiKey":"xxx"},"staging":{"url":"https://staging.example.com","apiKey":"yyy"}}
+```
+
+**Instance configuration fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `url` | Yes | Odoo server URL |
+| `db` | Odoo < 19 | Database name (required for legacy, optional for 19+) |
+| `apiKey` | Odoo 19+ | API key for authentication |
+| `version` | No | Odoo version (e.g., "17", "18"). If < 19, uses username/password |
+| `username` | Odoo < 19 | Username for JSON-RPC authentication |
+| `password` | Odoo < 19 | Password for JSON-RPC authentication |
 
 Notes:
 - `db` is optional for Odoo 19+ (only needed when Host header isn't enough to select DB).
