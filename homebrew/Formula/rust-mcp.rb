@@ -1,25 +1,25 @@
 class RustMcp < Formula
   desc "Odoo MCP Server - Model Context Protocol server for Odoo integration"
   homepage "https://github.com/rachmataditiya/odoo-rust-mcp"
-  version "0.2.0"
+  version "0.2.5"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-aarch64-apple-darwin.tar.gz"
-      sha256 "dfbc02b8ea02bd2ca585e984008691555e5c87aa8202090057fa1974c77a1ac4"
+      sha256 "7af005e77974b194ea378a2357f69ac3ccc4f23e8cc4313e36b6a0e78814e6b4"
     end
 
     if Hardware::CPU.intel?
       url "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-x86_64-apple-darwin.tar.gz"
-      sha256 "a79b086ba7a5e5917e797391ad18785dcb432085c2283652a6efd30d273978a6"
+      sha256 "3f3fac8a94ba8d004470f6ddec6e524e8ae358c03172f26a4c17dc0ae45a002c"
     end
   end
 
   on_linux do
     if Hardware::CPU.intel?
       url "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "6934407c1d2ff4c691cd45f4c8316c9d739dc8387256758e47f625d40a534ceb"
+      sha256 "1da0a6c504f5a4889ffad4cfb90ec7861d043b42f6adc403f19f33d0fda37f79"
     end
   end
 
@@ -89,8 +89,10 @@ ENVEOF
   end
 
   # Service configuration for `brew services start rust-mcp`
+  # Service uses binary directly (v0.2.5+ auto-loads config)
+  # Supports ODOO_INSTANCES_JSON file for readable multi-instance config
   service do
-    run [opt_bin/"rust-mcp-service", "--transport", "http", "--listen", "127.0.0.1:8787"]
+    run [opt_bin/"rust-mcp", "--transport", "http", "--listen", "127.0.0.1:8787"]
     keep_alive true
     log_path var/"log/rust-mcp.log"
     error_log_path var/"log/rust-mcp.log"
