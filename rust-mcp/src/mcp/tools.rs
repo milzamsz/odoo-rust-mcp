@@ -740,46 +740,70 @@ async fn op_check_access(
         .await
         .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
 
-    // Check model-level access rights
-    let mut params = serde_json::Map::new();
-    params.insert("operation".to_string(), json!(operation));
+    // Odoo 19+ uses check_access() which combines both model and record level checks
+    // Odoo < 19 uses deprecated check_access_rights() and check_access_rule()
+    if !client.is_legacy() {
+        // Modern Odoo 19+ API: use check_access()
+        let mut params = serde_json::Map::new();
+        params.insert("operation".to_string(), json!(operation));
+        if let Some(record_ids) = ids {
+            params.insert("ids".to_string(), json!(record_ids));
+        }
 
-    let access_result = client
-        .call_named(
-            &model,
-            "check_access_rights",
-            None,
-            params.clone(),
-            context.clone(),
-        )
-        .await?;
+        let access_result = client
+            .call_named(&model, "check_access", None, params, context)
+            .await?;
 
-    // If IDs provided, also check record-level access rules
-    let record_result = if let Some(record_ids) = ids {
-        let ids_array: Vec<i64> = record_ids.clone();
-        client
+        let result = json!({
+            "has_access": true,
+            "model": model,
+            "operation": operation,
+            "access_result": access_result
+        });
+
+        Ok(ok_text(result))
+    } else {
+        // Legacy Odoo < 19: use deprecated methods for backward compatibility
+        let mut params = serde_json::Map::new();
+        params.insert("operation".to_string(), json!(operation));
+
+        let access_result = client
             .call_named(
                 &model,
-                "check_access_rule",
-                Some(ids_array),
-                params,
-                context,
+                "check_access_rights",
+                None,
+                params.clone(),
+                context.clone(),
             )
-            .await
-            .ok()
-    } else {
-        None
-    };
+            .await?;
 
-    let result = json!({
-        "has_access": true,
-        "model": model,
-        "operation": operation,
-        "model_level": access_result,
-        "record_level": record_result
-    });
+        // If IDs provided, also check record-level access rules
+        let record_result = if let Some(record_ids) = ids {
+            let ids_array: Vec<i64> = record_ids.clone();
+            client
+                .call_named(
+                    &model,
+                    "check_access_rule",
+                    Some(ids_array),
+                    params,
+                    context,
+                )
+                .await
+                .ok()
+        } else {
+            None
+        };
 
-    Ok(ok_text(result))
+        let result = json!({
+            "has_access": true,
+            "model": model,
+            "operation": operation,
+            "model_level": access_result,
+            "record_level": record_result
+        });
+
+        Ok(ok_text(result))
+    }
 }
 
 async fn op_create_batch(
