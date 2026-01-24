@@ -38,7 +38,7 @@ maintainers:
 
 # Annotations for Artifact Hub and other registries
 annotations:
-  artifacthub.io/license: MIT
+  artifacthub.io/license: AGPL-3.0-only
   artifacthub.io/category: integration
   artifacthub.io/signKey: |
     fingerprint: ""
