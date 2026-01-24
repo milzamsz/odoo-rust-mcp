@@ -95,7 +95,7 @@ services:
     # Container labels for service discovery
     labels:
       - "app=odoo-rust-mcp"
-      - "version=0.2.5"
+      - "version=0.2.11"
       # Traefik reverse proxy (optional)
       - "traefik.enable=true"
       - "traefik.http.routers.odoo-mcp.rule=Host(`mcp.localhost`)"

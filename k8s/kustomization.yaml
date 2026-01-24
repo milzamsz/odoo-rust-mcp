@@ -35,7 +35,7 @@ resources:
 # Image customization
 images:
   - name: ghcr.io/rachmataditiya/odoo-rust-mcp
-    newTag: "0.2.5"
+    newTag: "0.2.11"
 
 # ConfigMap generator (alternative to static configmap.yaml)
 # Generates ConfigMap with hash suffix for automatic rollout on config changes

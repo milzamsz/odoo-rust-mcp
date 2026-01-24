@@ -9,7 +9,7 @@ type: application
 version: 0.1.0
 
 # Application version - matches the Rust binary version
-appVersion: "0.2.5"
+appVersion: "0.2.11"
 
 # Keywords for discoverability
 keywords:

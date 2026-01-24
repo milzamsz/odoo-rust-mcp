@@ -10,7 +10,7 @@ metadata:
   labels:
     app.kubernetes.io/name: odoo-rust-mcp
     app.kubernetes.io/component: mcp-server
-    app.kubernetes.io/version: "0.2.5"
+    app.kubernetes.io/version: "0.2.11"
 spec:
   replicas: 2
   selector:
@@ -48,7 +48,7 @@ spec:
       
       containers:
         - name: odoo-mcp
-          image: ghcr.io/rachmataditiya/odoo-rust-mcp:0.2.5
+          image: ghcr.io/rachmataditiya/odoo-rust-mcp:0.2.11
           imagePullPolicy: IfNotPresent
           
           # Container ports
