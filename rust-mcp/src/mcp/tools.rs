@@ -1045,4 +1045,329 @@ mod tests {
         let result = opt_vec_i64(&args, &op, "ids").unwrap();
         assert_eq!(result, Some(vec![]));
     }
+
+    #[test]
+    fn test_opt_vec_i64_single_element() {
+        let args = json!({"ids": [42]});
+        let mut map = HashMap::new();
+        map.insert("ids".to_string(), "/ids".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_i64(&args, &op, "ids").unwrap();
+        assert_eq!(result, Some(vec![42]));
+    }
+
+    #[test]
+    fn test_opt_vec_i64_large_numbers() {
+        let args = json!({"ids": [9223372036854775807i64, -9223372036854775808i64]});
+        let mut map = HashMap::new();
+        map.insert("ids".to_string(), "/ids".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_i64(&args, &op, "ids").unwrap();
+        assert_eq!(result, Some(vec![9223372036854775807i64, -9223372036854775808i64]));
+    }
+
+    #[test]
+    fn test_opt_vec_i64_negative_numbers() {
+        let args = json!({"ids": [-1, -100, -999]});
+        let mut map = HashMap::new();
+        map.insert("ids".to_string(), "/ids".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_i64(&args, &op, "ids").unwrap();
+        assert_eq!(result, Some(vec![-1, -100, -999]));
+    }
+
+    #[test]
+    fn test_opt_vec_i64_mixed_signs() {
+        let args = json!({"ids": [-5, 0, 10, -100, 100]});
+        let mut map = HashMap::new();
+        map.insert("ids".to_string(), "/ids".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_i64(&args, &op, "ids").unwrap();
+        assert_eq!(result, Some(vec![-5, 0, 10, -100, 100]));
+    }
+
+    #[test]
+    fn test_opt_vec_i64_float_item_error() {
+        let args = json!({"ids": [1, 2.5, 3]});
+        let mut map = HashMap::new();
+        map.insert("ids".to_string(), "/ids".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_i64(&args, &op, "ids");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_opt_vec_i64_boolean_item_error() {
+        let args = json!({"ids": [1, true, 3]});
+        let mut map = HashMap::new();
+        map.insert("ids".to_string(), "/ids".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_i64(&args, &op, "ids");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_opt_vec_i64_nested_array_error() {
+        let args = json!({"ids": [1, [2, 3], 4]});
+        let mut map = HashMap::new();
+        map.insert("ids".to_string(), "/ids".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_i64(&args, &op, "ids");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_opt_vec_i64_object_item_error() {
+        let args = json!({"ids": [1, {"id": 2}, 3]});
+        let mut map = HashMap::new();
+        map.insert("ids".to_string(), "/ids".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_i64(&args, &op, "ids");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_opt_vec_i64_large_array() {
+        let ids: Vec<i64> = (0..1000).collect();
+        let args = json!({"ids": ids.clone()});
+        let mut map = HashMap::new();
+        map.insert("ids".to_string(), "/ids".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_i64(&args, &op, "ids").unwrap();
+        assert_eq!(result, Some(ids));
+    }
+
+    #[test]
+    fn test_opt_vec_string_success() {
+        let args = json!({"names": ["Alice", "Bob", "Charlie"]});
+        let mut map = HashMap::new();
+        map.insert("names".to_string(), "/names".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_string(&args, &op, "names").unwrap();
+        assert_eq!(result, Some(vec!["Alice".to_string(), "Bob".to_string(), "Charlie".to_string()]));
+    }
+
+    #[test]
+    fn test_opt_vec_string_missing() {
+        let args = json!({});
+        let op = make_op(HashMap::new());
+
+        let result = opt_vec_string(&args, &op, "names").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_opt_vec_string_null() {
+        let args = json!({"names": null});
+        let mut map = HashMap::new();
+        map.insert("names".to_string(), "/names".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_string(&args, &op, "names").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_opt_vec_string_with_empty_string() {
+        let args = json!({"names": ["", "test", ""]});
+        let mut map = HashMap::new();
+        map.insert("names".to_string(), "/names".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_string(&args, &op, "names").unwrap();
+        assert_eq!(result, Some(vec!["".to_string(), "test".to_string(), "".to_string()]));
+    }
+
+    #[test]
+    fn test_opt_vec_string_with_unicode() {
+        let args = json!({"names": ["Alice", "Müller", "日本", "🚀"]});
+        let mut map = HashMap::new();
+        map.insert("names".to_string(), "/names".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_string(&args, &op, "names").unwrap();
+        assert_eq!(result, Some(vec!["Alice".to_string(), "Müller".to_string(), "日本".to_string(), "🚀".to_string()]));
+    }
+
+    #[test]
+    fn test_opt_vec_string_integer_item_error() {
+        let args = json!({"names": ["Alice", 123, "Bob"]});
+        let mut map = HashMap::new();
+        map.insert("names".to_string(), "/names".to_string());
+        let op = make_op(map);
+
+        let result = opt_vec_string(&args, &op, "names");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_ok_text_with_complex_json() {
+        let data = json!({
+            "records": [
+                {"id": 1, "name": "Test"},
+                {"id": 2, "name": "Another"}
+            ],
+            "count": 2
+        });
+        let result = ok_text(data);
+        assert!(result.is_object());
+        assert!(result.get("content").is_some());
+        let content = result["content"].as_array().unwrap();
+        assert_eq!(content.len(), 1);
+        assert_eq!(content[0]["type"], "text");
+        let text = content[0]["text"].as_str().unwrap();
+        assert!(text.contains("records"));
+        assert!(text.contains("Test"));
+    }
+
+    #[test]
+    fn test_ok_text_with_nested_json() {
+        let data = json!({
+            "nested": {
+                "deeply": {
+                    "value": "found"
+                }
+            }
+        });
+        let result = ok_text(data);
+        let text = result["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("deeply"));
+    }
+
+    #[test]
+    fn test_ok_text_with_array() {
+        let data = json!([1, 2, 3, 4, 5]);
+        let result = ok_text(data);
+        let text = result["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("1"));
+    }
+
+    #[test]
+    fn test_ok_text_with_string_value() {
+        let data = json!("test string");
+        let result = ok_text(data);
+        let text = result["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("test string"));
+    }
+
+    #[test]
+    fn test_ok_text_with_number() {
+        let data = json!(42);
+        let result = ok_text(data);
+        let text = result["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("42"));
+    }
+
+    #[test]
+    fn test_ok_text_with_boolean() {
+        let data = json!(true);
+        let result = ok_text(data);
+        let text = result["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("true"));
+    }
+
+    #[test]
+    fn test_ok_text_with_null() {
+        let data = json!(null);
+        let result = ok_text(data);
+        let text = result["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("null"));
+    }
+
+    #[test]
+    fn test_req_str_with_empty_string() {
+        let args = json!({"name": ""});
+        let mut map = HashMap::new();
+        map.insert("name".to_string(), "/name".to_string());
+        let op = make_op(map);
+
+        let result = req_str(&args, &op, "name").unwrap();
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_opt_i64_zero() {
+        let args = json!({"count": 0});
+        let mut map = HashMap::new();
+        map.insert("count".to_string(), "/count".to_string());
+        let op = make_op(map);
+
+        let result = opt_i64(&args, &op, "count").unwrap();
+        assert_eq!(result, Some(0));
+    }
+
+    #[test]
+    fn test_opt_i64_negative() {
+        let args = json!({"count": -100});
+        let mut map = HashMap::new();
+        map.insert("count".to_string(), "/count".to_string());
+        let op = make_op(map);
+
+        let result = opt_i64(&args, &op, "count").unwrap();
+        assert_eq!(result, Some(-100));
+    }
+
+    #[test]
+    fn test_opt_bool_true() {
+        let args = json!({"active": true});
+        let mut map = HashMap::new();
+        map.insert("active".to_string(), "/active".to_string());
+        let op = make_op(map);
+
+        let result = opt_bool(&args, &op, "active").unwrap();
+        assert_eq!(result, Some(true));
+    }
+
+    #[test]
+    fn test_opt_bool_false() {
+        let args = json!({"active": false});
+        let mut map = HashMap::new();
+        map.insert("active".to_string(), "/active".to_string());
+        let op = make_op(map);
+
+        let result = opt_bool(&args, &op, "active").unwrap();
+        assert_eq!(result, Some(false));
+    }
+
+    #[test]
+    fn test_ptr_with_nested_path() {
+        let args = json!({
+            "data": {
+                "user": {
+                    "profile": {
+                        "name": "John"
+                    }
+                }
+            }
+        });
+        let mut map = HashMap::new();
+        map.insert("key".to_string(), "/data/user/profile/name".to_string());
+        let op = make_op(map);
+
+        let result = ptr(&args, &op, "key");
+        assert_eq!(result, Some(&json!("John")));
+    }
+
+    #[test]
+    fn test_ptr_with_array_index() {
+        let args = json!({
+            "items": ["a", "b", "c"]
+        });
+        let mut map = HashMap::new();
+        map.insert("key".to_string(), "/items/1".to_string());
+        let op = make_op(map);
+
+        let result = ptr(&args, &op, "key");
+        assert_eq!(result, Some(&json!("b")));
+    }
 }

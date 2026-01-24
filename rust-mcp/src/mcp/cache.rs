@@ -168,4 +168,175 @@ mod tests {
         assert_eq!(cache.len().await, 1);
         assert_eq!(cache.get("instance1", "model2").await, Some(serde_json::json!({"test": "data2"})));
     }
+
+    #[tokio::test]
+    async fn test_cache_multiple_instances() {
+        let cache = MetadataCache::new();
+        let value1 = serde_json::json!({"instance": 1});
+        let value2 = serde_json::json!({"instance": 2});
+
+        cache.insert("instance1", "model", value1.clone(), 300).await;
+        cache.insert("instance2", "model", value2.clone(), 300).await;
+
+        assert_eq!(cache.get("instance1", "model").await, Some(value1));
+        assert_eq!(cache.get("instance2", "model").await, Some(value2));
+        assert_eq!(cache.len().await, 2);
+    }
+
+    #[tokio::test]
+    async fn test_cache_same_model_different_instances() {
+        let cache = MetadataCache::new();
+        let value = serde_json::json!({"data": "test"});
+
+        // Same model name, different instances
+        cache.insert("prod", "res.partner", value.clone(), 300).await;
+        cache.insert("staging", "res.partner", value.clone(), 300).await;
+
+        assert_eq!(cache.get("prod", "res.partner").await, Some(value.clone()));
+        assert_eq!(cache.get("staging", "res.partner").await, Some(value.clone()));
+    }
+
+    #[tokio::test]
+    async fn test_cache_overwrite_existing() {
+        let cache = MetadataCache::new();
+        let value1 = serde_json::json!({"version": 1});
+        let value2 = serde_json::json!({"version": 2});
+
+        cache.insert("instance1", "model1", value1.clone(), 300).await;
+        assert_eq!(cache.get("instance1", "model1").await, Some(value1));
+
+        cache.insert("instance1", "model1", value2.clone(), 300).await;
+        assert_eq!(cache.get("instance1", "model1").await, Some(value2));
+    }
+
+    #[tokio::test]
+    async fn test_cache_large_json_value() {
+        let cache = MetadataCache::new();
+        let large_value = serde_json::json!({
+            "fields": {
+                "name": {"type": "char", "string": "Name"},
+                "email": {"type": "char", "string": "Email"},
+                "active": {"type": "boolean", "string": "Active"},
+                "phone": {"type": "char", "string": "Phone"},
+            },
+            "metadata": {
+                "description": "A test model with multiple fields"
+            }
+        });
+
+        cache.insert("instance1", "model1", large_value.clone(), 300).await;
+        assert_eq!(cache.get("instance1", "model1").await, Some(large_value));
+    }
+
+    #[tokio::test]
+    async fn test_cache_default_constructor() {
+        let cache = MetadataCache::default();
+        assert_eq!(cache.len().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_cache_clone_independent() {
+        let cache1 = MetadataCache::new();
+        let cache2 = cache1.clone();
+        let value = serde_json::json!({"test": "data"});
+
+        cache1.insert("instance1", "model1", value.clone(), 300).await;
+
+        // Both should have the value (they share the same Arc)
+        assert_eq!(cache1.get("instance1", "model1").await, Some(value.clone()));
+        assert_eq!(cache2.get("instance1", "model1").await, Some(value));
+    }
+
+    #[tokio::test]
+    async fn test_cache_special_characters_in_keys() {
+        let cache = MetadataCache::new();
+        let value = serde_json::json!({"test": "data"});
+
+        // Test with special characters in instance and model names
+        cache.insert("prod-db_v2", "module.model.subtype", value.clone(), 300).await;
+        assert_eq!(cache.get("prod-db_v2", "module.model.subtype").await, Some(value));
+    }
+
+    #[tokio::test]
+    async fn test_cache_zero_ttl() {
+        let cache = MetadataCache::new();
+        let value = serde_json::json!({"test": "data"});
+
+        // Insert with 0 second TTL - should expire immediately
+        cache.insert("instance1", "model1", value, 0).await;
+
+        // A tiny sleep to ensure time passes
+        tokio::time::sleep(Duration::from_millis(1)).await;
+
+        // Should be expired
+        assert_eq!(cache.get("instance1", "model1").await, None);
+    }
+
+    #[tokio::test]
+    async fn test_cache_concurrent_reads() {
+        let cache = MetadataCache::new();
+        let value = serde_json::json!({"test": "data"});
+
+        cache.insert("instance1", "model1", value.clone(), 300).await;
+
+        let cache1 = cache.clone();
+        let cache2 = cache.clone();
+        let cache3 = cache.clone();
+
+        let handles = vec![
+            tokio::spawn(async move {
+                cache1.get("instance1", "model1").await
+            }),
+            tokio::spawn(async move {
+                cache2.get("instance1", "model1").await
+            }),
+            tokio::spawn(async move {
+                cache3.get("instance1", "model1").await
+            }),
+        ];
+
+        for handle in handles {
+            let result = handle.await.unwrap();
+            assert_eq!(result, Some(value.clone()));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cache_concurrent_writes() {
+        let cache = MetadataCache::new();
+
+        let handles: Vec<_> = (0..5)
+            .map(|i| {
+                let cache_clone = cache.clone();
+                tokio::spawn(async move {
+                    let value = serde_json::json!({"id": i});
+                    cache_clone.insert("instance", &format!("model{}", i), value, 300).await;
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            handle.await.unwrap();
+        }
+
+        assert_eq!(cache.len().await, 5);
+    }
+
+    #[tokio::test]
+    async fn test_cache_json_null_value() {
+        let cache = MetadataCache::new();
+        let null_value = serde_json::json!(null);
+
+        cache.insert("instance1", "model1", null_value.clone(), 300).await;
+        assert_eq!(cache.get("instance1", "model1").await, Some(null_value));
+    }
+
+    #[tokio::test]
+    async fn test_cache_empty_json_object() {
+        let cache = MetadataCache::new();
+        let empty_value = serde_json::json!({});
+
+        cache.insert("instance1", "model1", empty_value.clone(), 300).await;
+        assert_eq!(cache.get("instance1", "model1").await, Some(empty_value));
+    }
 }

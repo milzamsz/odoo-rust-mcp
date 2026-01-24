@@ -338,4 +338,180 @@ mod tests {
         let parsed = ResourceUri::parse(uri).unwrap();
         assert_eq!(parsed.to_uri(), uri);
     }
+
+    #[test]
+    fn test_parse_models_hyphenated_instance() {
+        let uri = ResourceUri::parse("odoo://prod-db/models").unwrap();
+        assert_eq!(
+            uri,
+            ResourceUri::Models {
+                instance: "prod-db".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_metadata_underscore_instance() {
+        let uri = ResourceUri::parse("odoo://prod_db/metadata/res.partner").unwrap();
+        assert_eq!(
+            uri,
+            ResourceUri::Metadata {
+                instance: "prod_db".to_string(),
+                model: "res.partner".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_metadata_complex_model_name() {
+        let uri = ResourceUri::parse("odoo://prod/metadata/account.invoice.line.tax").unwrap();
+        assert_eq!(
+            uri,
+            ResourceUri::Metadata {
+                instance: "prod".to_string(),
+                model: "account.invoice.line.tax".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_empty_string() {
+        let result = ResourceUri::parse("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_just_odoo_prefix() {
+        let result = ResourceUri::parse("odoo://");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_case_sensitive_scheme() {
+        let result = ResourceUri::parse("ODOO://instances");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_case_sensitive_instances() {
+        let result = ResourceUri::parse("odoo://Instances");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_whitespace_in_uri() {
+        let result = ResourceUri::parse("odoo://prod /models");
+        // This should parse but with spaces in instance name
+        match result {
+            Ok(ResourceUri::Models { instance }) => {
+                assert_eq!(instance, "prod ");
+            }
+            _ => panic!("Expected Models variant"),
+        }
+    }
+
+    #[test]
+    fn test_parse_double_slash_in_model() {
+        let result = ResourceUri::parse("odoo://prod/metadata/model//name");
+        // This parses with the full remainder as model name
+        match result {
+            Ok(ResourceUri::Metadata { model, .. }) => {
+                assert_eq!(model, "model//name");
+            }
+            _ => panic!("Expected Metadata variant"),
+        }
+    }
+
+    #[test]
+    fn test_resource_uri_debug() {
+        let uri = ResourceUri::Instances;
+        let debug_str = format!("{:?}", uri);
+        assert!(debug_str.contains("Instances"));
+    }
+
+    #[test]
+    fn test_resource_uri_clone() {
+        let uri1 = ResourceUri::Metadata {
+            instance: "prod".to_string(),
+            model: "sale.order".to_string(),
+        };
+        let uri2 = uri1.clone();
+        assert_eq!(uri1, uri2);
+    }
+
+    #[test]
+    fn test_resource_uri_eq() {
+        let uri1 = ResourceUri::Models {
+            instance: "prod".to_string(),
+        };
+        let uri2 = ResourceUri::Models {
+            instance: "prod".to_string(),
+        };
+        assert_eq!(uri1, uri2);
+    }
+
+    #[test]
+    fn test_resource_uri_ne() {
+        let uri1 = ResourceUri::Models {
+            instance: "prod".to_string(),
+        };
+        let uri2 = ResourceUri::Models {
+            instance: "staging".to_string(),
+        };
+        assert_ne!(uri1, uri2);
+    }
+
+    #[test]
+    fn test_multiple_metadata_calls() {
+        let uri1 = "odoo://prod/metadata/sale.order";
+        let uri2 = "odoo://staging/metadata/sale.order";
+        
+        let parsed1 = ResourceUri::parse(uri1).unwrap();
+        let parsed2 = ResourceUri::parse(uri2).unwrap();
+        
+        assert_ne!(parsed1, parsed2);
+        assert_eq!(parsed1.to_uri(), uri1);
+        assert_eq!(parsed2.to_uri(), uri2);
+    }
+
+    #[test]
+    fn test_numeric_instance_name() {
+        let uri = ResourceUri::parse("odoo://123/models").unwrap();
+        match uri {
+            ResourceUri::Models { instance } => {
+                assert_eq!(instance, "123");
+            }
+            _ => panic!("Expected Models variant"),
+        }
+    }
+
+    #[test]
+    fn test_alphanumeric_model_name() {
+        let uri = ResourceUri::parse("odoo://prod/metadata/model123v2").unwrap();
+        match uri {
+            ResourceUri::Metadata { model, .. } => {
+                assert_eq!(model, "model123v2");
+            }
+            _ => panic!("Expected Metadata variant"),
+        }
+    }
+
+    #[test]
+    fn test_parse_models_extra_slash() {
+        let result = ResourceUri::parse("odoo://prod/models/");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_all_resource_types_to_uri() {
+        let uris = vec![
+            ("odoo://instances", ResourceUri::Instances),
+            ("odoo://prod/models", ResourceUri::Models { instance: "prod".to_string() }),
+            ("odoo://prod/metadata/res.partner", ResourceUri::Metadata { instance: "prod".to_string(), model: "res.partner".to_string() }),
+        ];
+
+        for (original, parsed) in uris {
+            assert_eq!(parsed.to_uri(), original);
+        }
+    }
 }
