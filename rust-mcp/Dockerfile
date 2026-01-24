@@ -22,6 +22,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY tests ./tests
 COPY config-defaults ./config-defaults
+COPY openapi ./openapi
 
 # Build release binary
 RUN cargo build --release
