@@ -475,7 +475,7 @@ cd rust-mcp
 ./target/release/rust-mcp --transport ws --listen 127.0.0.1:8787
 ```
 
-### Run with Docker Compose (.env)
+### Run with Docker Compose
 
 Create `.env` in the repo root (example in `dotenv.example`), then:
 
@@ -485,10 +485,163 @@ docker compose up --build
 
 By default, the container runs **HTTP** transport and exposes `http://localhost:8787/mcp`.
 
-If you want JSON-driven tools/prompts/server metadata in Docker, either bake the files into the image or mount them and set:
-- `MCP_TOOLS_JSON`
-- `MCP_PROMPTS_JSON`
-- `MCP_SERVER_JSON`
+**Features:**
+
+- Custom network `mcp-network` for integration with other containers (n8n, dify, etc.)
+- Health check for container orchestration
+- Volume mounts for config files
+- Support for `ODOO_INSTANCES_JSON` for multi-instance setup
+- Resource limits and labels for service discovery
+
+**Multi-instance configuration:**
+
+1. Create `instances.json` with your Odoo instances:
+```json
+{
+  "production": {"url": "https://odoo.example.com", "db": "prod", "apiKey": "xxx"},
+  "staging": {"url": "https://staging.example.com", "db": "staging", "apiKey": "yyy"}
+}
+```
+
+2. Mount and configure in `.env`:
+```bash
+ODOO_INSTANCES_JSON=/config/instances.json
+```
+
+3. Uncomment the volume mount in `docker-compose.yml`:
+```yaml
+volumes:
+  - ./instances.json:/config/instances.json:ro
+```
+
+**Integration with other containers:**
+
+The MCP server runs on the `mcp-network` network. Other containers can connect using:
+
+```yaml
+# In your other service's docker-compose.yml
+services:
+  n8n:
+    networks:
+      - mcp-network
+    environment:
+      MCP_URL: "http://odoo-mcp:8787/mcp"
+
+networks:
+  mcp-network:
+    external: true
+```
+
+See `docker-compose.override.example.yml` for more integration examples.
+
+### Run with Kubernetes
+
+The project includes Kubernetes manifests in `k8s/` for production deployments.
+
+**Quick start with raw manifests:**
+
+```bash
+# Apply all manifests
+kubectl apply -k k8s/
+
+# Or apply individually
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/secret.yaml    # Edit first with your credentials!
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml   # Optional, for external access
+```
+
+**Verify deployment:**
+
+```bash
+kubectl -n odoo-mcp get pods
+kubectl -n odoo-mcp logs -f deployment/odoo-mcp
+```
+
+**Port-forward for local testing:**
+
+```bash
+kubectl -n odoo-mcp port-forward svc/odoo-mcp 8787:8787
+# Access: http://127.0.0.1:8787/mcp
+```
+
+**Features:**
+
+- Namespace isolation
+- ConfigMap for MCP configuration files
+- Secret for Odoo credentials
+- Deployment with:
+  - Resource limits/requests
+  - Liveness/readiness/startup probes
+  - Pod anti-affinity for high availability
+  - Non-root security context
+- ClusterIP Service for internal access
+- Ingress for external access with TLS
+- Kustomization for environment management
+
+### Run with Helm
+
+For more flexible deployments, use the Helm chart in `helm/odoo-rust-mcp/`.
+
+**Install:**
+
+```bash
+# Add your values (see helm/odoo-rust-mcp/values.yaml for all options)
+cat > my-values.yaml <<EOF
+odoo:
+  url: "http://odoo-service:8069"
+  db: "mydb"
+  apiKey: "your-api-key"
+
+mcp:
+  authToken: "your-secure-token"
+
+ingress:
+  enabled: true
+  hosts:
+    - host: mcp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+EOF
+
+# Install
+helm install odoo-mcp ./helm/odoo-rust-mcp -f my-values.yaml -n odoo-mcp --create-namespace
+```
+
+**Upgrade:**
+
+```bash
+helm upgrade odoo-mcp ./helm/odoo-rust-mcp -f my-values.yaml -n odoo-mcp
+```
+
+**Uninstall:**
+
+```bash
+helm uninstall odoo-mcp -n odoo-mcp
+```
+
+**Key configuration options:**
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `replicaCount` | Number of replicas | `2` |
+| `odoo.url` | Odoo server URL | `http://odoo-service:8069` |
+| `odoo.apiKey` | API key for Odoo 19+ | `""` |
+| `odooInstances.json` | Multi-instance JSON config | `""` |
+| `mcp.authToken` | HTTP auth token (recommended) | `""` |
+| `ingress.enabled` | Enable ingress | `false` |
+| `autoscaling.enabled` | Enable HPA | `false` |
+
+**Production recommendations:**
+
+1. **Always set `mcp.authToken`** for HTTP authentication
+2. **Use external secrets** (Vault, AWS Secrets Manager) instead of storing credentials in values.yaml
+3. **Enable pod disruption budgets** for zero-downtime updates
+4. **Configure resource limits** based on your workload
+5. **Use Ingress with TLS** for external access
 
 ### Cleanup tools (disabled by default)
 

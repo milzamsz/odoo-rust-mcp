@@ -1,0 +1,50 @@
+Odoo Rust MCP Server has been deployed!
+
+{{- if .Values.ingress.enabled }}
+1. Access the MCP server at:
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+1. Get the NodePort:
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "odoo-rust-mcp.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo "MCP Server: http://$NODE_IP:$NODE_PORT/mcp"
+{{- else if contains "LoadBalancer" .Values.service.type }}
+1. Get the LoadBalancer IP:
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+  watch kubectl get --namespace {{ .Release.Namespace }} svc {{ include "odoo-rust-mcp.fullname" . }}
+  export LB_IP=$(kubectl get --namespace {{ .Release.Namespace }} svc {{ include "odoo-rust-mcp.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  echo "MCP Server: http://$LB_IP:{{ .Values.service.port }}/mcp"
+{{- else if contains "ClusterIP" .Values.service.type }}
+1. Port-forward to access the MCP server:
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "odoo-rust-mcp.fullname" . }} 8787:{{ .Values.service.port }}
+  echo "MCP Server: http://127.0.0.1:8787/mcp"
+{{- end }}
+
+2. For n8n/Dify integration, use the internal service URL:
+  http://{{ include "odoo-rust-mcp.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}/mcp
+
+3. Verify the deployment:
+  kubectl --namespace {{ .Release.Namespace }} get pods -l "app.kubernetes.io/name={{ include "odoo-rust-mcp.name" . }}"
+
+4. View logs:
+  kubectl --namespace {{ .Release.Namespace }} logs -f deployment/{{ include "odoo-rust-mcp.fullname" . }}
+
+{{- if not .Values.mcp.authToken }}
+
+WARNING: MCP_AUTH_TOKEN is not set. 
+For production deployments, set mcp.authToken in values.yaml.
+Generate a token: openssl rand -hex 32
+{{- end }}
+
+{{- if and (not .Values.odoo.apiKey) (not .Values.odoo.password) (not .Values.odooInstances.json) }}
+
+WARNING: No Odoo credentials configured.
+Set one of the following in values.yaml:
+- odoo.apiKey (for Odoo 19+)
+- odoo.username + odoo.password (for Odoo < 19)
+- odooInstances.json (for multi-instance setup)
+{{- end }}

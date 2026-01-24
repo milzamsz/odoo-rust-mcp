@@ -1,0 +1,272 @@
+# Kubernetes ConfigMap for MCP Configuration
+# Contains tools.json, prompts.json, and server.json
+#
+# Apply: kubectl apply -f configmap.yaml -n odoo-mcp
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: odoo-mcp-config
+  namespace: odoo-mcp
+  labels:
+    app.kubernetes.io/name: odoo-rust-mcp
+    app.kubernetes.io/component: config
+data:
+  server.json: |
+    {
+      "serverName": "odoo-rust-mcp",
+      "instructions": "Odoo MCP server (Rust). Tools & prompts are fully configurable via JSON files. Use tools/* and prompts/* to interact with Odoo via JSON-2 API.",
+      "protocolVersionDefault": "2025-11-05"
+    }
+  
+  tools.json: |
+    {
+      "tools": [
+        {
+          "name": "odoo_search",
+          "description": "Search for Odoo records with domain filters. Returns record IDs matching the criteria.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "instance": { "type": "string" },
+              "model": { "type": "string" },
+              "domain": { "type": "array", "items": {} },
+              "fields": { "type": "array", "items": { "type": "string" } },
+              "limit": { "type": "integer" },
+              "offset": { "type": "integer" },
+              "order": { "type": "string" },
+              "context": { "type": "object" }
+            },
+            "required": ["instance", "model"],
+            "additionalProperties": false
+          },
+          "op": {
+            "type": "search",
+            "map": {
+              "instance": "/instance",
+              "model": "/model",
+              "domain": "/domain",
+              "limit": "/limit",
+              "offset": "/offset",
+              "order": "/order",
+              "context": "/context"
+            }
+          }
+        },
+        {
+          "name": "odoo_search_read",
+          "description": "Search and read Odoo records in one operation. Returns full record data.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "instance": { "type": "string" },
+              "model": { "type": "string" },
+              "domain": { "type": "array", "items": {} },
+              "fields": { "type": "array", "items": { "type": "string" } },
+              "limit": { "type": "integer" },
+              "offset": { "type": "integer" },
+              "order": { "type": "string" },
+              "context": { "type": "object" }
+            },
+            "required": ["instance", "model"],
+            "additionalProperties": false
+          },
+          "op": {
+            "type": "search_read",
+            "map": {
+              "instance": "/instance",
+              "model": "/model",
+              "domain": "/domain",
+              "fields": "/fields",
+              "limit": "/limit",
+              "offset": "/offset",
+              "order": "/order",
+              "context": "/context"
+            }
+          }
+        },
+        {
+          "name": "odoo_read",
+          "description": "Read specific Odoo records by IDs. Returns detailed field values.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "instance": { "type": "string" },
+              "model": { "type": "string" },
+              "ids": { "type": "array", "items": { "type": "integer" } },
+              "fields": { "type": "array", "items": { "type": "string" } },
+              "context": { "type": "object" }
+            },
+            "required": ["instance", "model", "ids"],
+            "additionalProperties": false
+          },
+          "op": {
+            "type": "read",
+            "map": {
+              "instance": "/instance",
+              "model": "/model",
+              "ids": "/ids",
+              "fields": "/fields",
+              "context": "/context"
+            }
+          }
+        },
+        {
+          "name": "odoo_create",
+          "description": "Create a new Odoo record. Returns the ID of the created record.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "instance": { "type": "string" },
+              "model": { "type": "string" },
+              "values": { "type": "object" },
+              "context": { "type": "object" }
+            },
+            "required": ["instance", "model", "values"],
+            "additionalProperties": false
+          },
+          "op": {
+            "type": "create",
+            "map": {
+              "instance": "/instance",
+              "model": "/model",
+              "values": "/values",
+              "context": "/context"
+            }
+          }
+        },
+        {
+          "name": "odoo_update",
+          "description": "Update existing Odoo records. Returns true on success.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "instance": { "type": "string" },
+              "model": { "type": "string" },
+              "ids": { "type": "array", "items": { "type": "integer" } },
+              "values": { "type": "object" },
+              "context": { "type": "object" }
+            },
+            "required": ["instance", "model", "ids", "values"],
+            "additionalProperties": false
+          },
+          "op": {
+            "type": "write",
+            "map": {
+              "instance": "/instance",
+              "model": "/model",
+              "ids": "/ids",
+              "values": "/values",
+              "context": "/context"
+            }
+          }
+        },
+        {
+          "name": "odoo_delete",
+          "description": "Delete Odoo records. Returns true on success. Use with caution!",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "instance": { "type": "string" },
+              "model": { "type": "string" },
+              "ids": { "type": "array", "items": { "type": "integer" } },
+              "context": { "type": "object" }
+            },
+            "required": ["instance", "model", "ids"],
+            "additionalProperties": false
+          },
+          "op": {
+            "type": "unlink",
+            "map": {
+              "instance": "/instance",
+              "model": "/model",
+              "ids": "/ids",
+              "context": "/context"
+            }
+          }
+        },
+        {
+          "name": "odoo_count",
+          "description": "Count records matching domain filters. Returns the total count.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "instance": { "type": "string" },
+              "model": { "type": "string" },
+              "domain": { "type": "array", "items": {} },
+              "context": { "type": "object" }
+            },
+            "required": ["instance", "model"],
+            "additionalProperties": false
+          },
+          "op": {
+            "type": "search_count",
+            "map": {
+              "instance": "/instance",
+              "model": "/model",
+              "domain": "/domain",
+              "context": "/context"
+            }
+          }
+        },
+        {
+          "name": "odoo_execute",
+          "description": "Execute arbitrary method on Odoo model. For advanced operations and custom methods.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "instance": { "type": "string" },
+              "model": { "type": "string" },
+              "method": { "type": "string" },
+              "args": { "type": "array", "items": {} },
+              "kwargs": { "type": "object" },
+              "context": { "type": "object" }
+            },
+            "required": ["instance", "model", "method"],
+            "additionalProperties": false
+          },
+          "op": {
+            "type": "execute",
+            "map": {
+              "instance": "/instance",
+              "model": "/model",
+              "method": "/method",
+              "args": "/args",
+              "kwargs": "/kwargs",
+              "context": "/context"
+            }
+          }
+        }
+      ]
+    }
+  
+  prompts.json: |
+    {
+      "prompts": [
+        {
+          "name": "odoo_common_models",
+          "description": "List of commonly used Odoo models",
+          "content": "# Common Odoo Models\n\n## Sales & CRM\n- sale.order - Sales Orders\n- crm.lead - CRM Leads/Opportunities\n\n## Accounting\n- account.move - Invoices & Bills\n- account.payment - Payments\n\n## Inventory\n- stock.picking - Transfers\n- product.product - Products\n\n## Partners\n- res.partner - Contacts\n- res.users - Users"
+        },
+        {
+          "name": "odoo_domain_filters",
+          "description": "Guide for Odoo domain filter syntax",
+          "content": "# Odoo Domain Filters\n\n## Operators\n- = != > >= < <=\n- like ilike (contains)\n- in, not in (list)\n\n## Examples\n- [['state', '=', 'sale']]\n- [['name', 'ilike', 'test']]\n- ['&', ['state', '=', 'draft'], ['amount', '>', 100]]"
+        }
+      ]
+    }
+  
+  # Optional: instances.json for multi-instance configuration
+  # Uncomment and configure as needed
+  # instances.json: |
+  #   {
+  #     "production": {
+  #       "url": "http://odoo-service:8069",
+  #       "db": "production",
+  #       "apiKey": "${ODOO_PROD_API_KEY}"
+  #     },
+  #     "staging": {
+  #       "url": "http://odoo-staging:8069",
+  #       "db": "staging",
+  #       "apiKey": "${ODOO_STAGING_API_KEY}"
+  #     }
+  #   }

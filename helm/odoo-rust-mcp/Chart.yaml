@@ -1,0 +1,45 @@
+apiVersion: v2
+name: odoo-rust-mcp
+description: A Helm chart for deploying Odoo Rust MCP Server on Kubernetes
+
+# Chart type: application (default) or library
+type: application
+
+# Chart version - increment this for chart changes
+version: 0.1.0
+
+# Application version - matches the Rust binary version
+appVersion: "0.2.5"
+
+# Keywords for discoverability
+keywords:
+  - odoo
+  - mcp
+  - model-context-protocol
+  - ai
+  - llm
+  - rust
+
+# Project links
+home: https://github.com/rachmataditiya/odoo-rust-mcp
+sources:
+  - https://github.com/rachmataditiya/odoo-rust-mcp
+
+# Maintainers
+maintainers:
+  - name: Rachmat Aditiya
+    url: https://github.com/rachmataditiya
+
+# Optional: Chart dependencies
+# dependencies:
+#   - name: common
+#     version: "1.x.x"
+#     repository: "https://charts.bitnami.com/bitnami"
+
+# Annotations for Artifact Hub and other registries
+annotations:
+  artifacthub.io/license: MIT
+  artifacthub.io/category: integration
+  artifacthub.io/signKey: |
+    fingerprint: ""
+    url: ""

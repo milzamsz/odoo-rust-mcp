@@ -1,0 +1,40 @@
+# Kubernetes Service for Odoo MCP Server
+# Exposes the MCP server within the cluster
+#
+# Apply: kubectl apply -f service.yaml -n odoo-mcp
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo-mcp
+  namespace: odoo-mcp
+  labels:
+    app.kubernetes.io/name: odoo-rust-mcp
+    app.kubernetes.io/component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8787
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: odoo-rust-mcp
+
+---
+# Optional: Headless service for StatefulSet or direct pod access
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: odoo-mcp-headless
+#   namespace: odoo-mcp
+#   labels:
+#     app.kubernetes.io/name: odoo-rust-mcp
+# spec:
+#   type: ClusterIP
+#   clusterIP: None
+#   ports:
+#     - name: http
+#       port: 8787
+#       targetPort: http
+#   selector:
+#     app.kubernetes.io/name: odoo-rust-mcp

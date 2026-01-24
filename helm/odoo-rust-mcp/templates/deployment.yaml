@@ -1,0 +1,165 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "odoo-rust-mcp.fullname" . }}
+  labels:
+    {{- include "odoo-rust-mcp.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "odoo-rust-mcp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "odoo-rust-mcp.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "odoo-rust-mcp.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.podAntiAffinity.enabled }}
+      affinity:
+        podAntiAffinity:
+          {{- if eq .Values.podAntiAffinity.type "required" }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "odoo-rust-mcp.selectorLabels" . | nindent 18 }}
+              topologyKey: kubernetes.io/hostname
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "odoo-rust-mcp.selectorLabels" . | nindent 20 }}
+                topologyKey: kubernetes.io/hostname
+          {{- end }}
+        {{- with .Values.affinity }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- else }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ include "odoo-rust-mcp.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8787
+              protocol: TCP
+          env:
+            # Odoo Configuration
+            {{- if .Values.odoo.url }}
+            - name: ODOO_URL
+              value: {{ .Values.odoo.url | quote }}
+            {{- end }}
+            {{- if .Values.odoo.db }}
+            - name: ODOO_DB
+              value: {{ .Values.odoo.db | quote }}
+            {{- end }}
+            {{- if .Values.odoo.version }}
+            - name: ODOO_VERSION
+              value: {{ .Values.odoo.version | quote }}
+            {{- end }}
+            # Credentials from Secret
+            {{- if .Values.odoo.apiKey }}
+            - name: ODOO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "odoo-rust-mcp.fullname" . }}
+                  key: ODOO_API_KEY
+            {{- end }}
+            {{- if .Values.odoo.username }}
+            - name: ODOO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "odoo-rust-mcp.fullname" . }}
+                  key: ODOO_USERNAME
+            {{- end }}
+            {{- if .Values.odoo.password }}
+            - name: ODOO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "odoo-rust-mcp.fullname" . }}
+                  key: ODOO_PASSWORD
+            {{- end }}
+            # Multi-instance configuration
+            {{- if .Values.odooInstances.json }}
+            - name: ODOO_INSTANCES
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "odoo-rust-mcp.fullname" . }}
+                  key: ODOO_INSTANCES
+            {{- end }}
+            {{- if .Values.odooInstances.jsonFilePath }}
+            - name: ODOO_INSTANCES_JSON
+              value: {{ .Values.odooInstances.jsonFilePath | quote }}
+            {{- end }}
+            # MCP Configuration
+            - name: MCP_TOOLS_JSON
+              value: "/config/tools.json"
+            - name: MCP_PROMPTS_JSON
+              value: "/config/prompts.json"
+            - name: MCP_SERVER_JSON
+              value: "/config/server.json"
+            {{- if .Values.mcp.authToken }}
+            - name: MCP_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "odoo-rust-mcp.fullname" . }}
+                  key: MCP_AUTH_TOKEN
+            {{- end }}
+            - name: RUST_LOG
+              value: {{ .Values.mcp.logLevel | quote }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "odoo-rust-mcp.fullname" . }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

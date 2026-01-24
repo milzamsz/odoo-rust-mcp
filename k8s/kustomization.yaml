@@ -1,0 +1,82 @@
+# Kustomize configuration for Odoo MCP Server
+# Enables environment-specific customization without duplicating manifests
+#
+# Usage:
+#   kubectl apply -k k8s/                    # Apply base configuration
+#   kubectl apply -k k8s/overlays/production # Apply production overlay
+#
+# Create environment overlays:
+#   k8s/overlays/staging/kustomization.yaml
+#   k8s/overlays/production/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: odoo-mcp
+
+# Namespace to apply resources
+namespace: odoo-mcp
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: odoo-rust-mcp
+  app.kubernetes.io/managed-by: kustomize
+
+# Resources to include
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - deployment.yaml
+  - service.yaml
+  # Uncomment for external access
+  # - ingress.yaml
+
+# Image customization
+images:
+  - name: ghcr.io/rachmataditiya/odoo-rust-mcp
+    newTag: "0.2.5"
+
+# ConfigMap generator (alternative to static configmap.yaml)
+# Generates ConfigMap with hash suffix for automatic rollout on config changes
+# configMapGenerator:
+#   - name: odoo-mcp-config
+#     files:
+#       - config/tools.json
+#       - config/prompts.json
+#       - config/server.json
+
+# Secret generator (for development only - use external secrets in production)
+# secretGenerator:
+#   - name: odoo-mcp-secrets
+#     literals:
+#       - ODOO_API_KEY=dev-api-key
+#       - MCP_AUTH_TOKEN=dev-auth-token
+
+# Patches for environment-specific customization
+# Example: Override replica count
+# patches:
+#   - patch: |-
+#       - op: replace
+#         path: /spec/replicas
+#         value: 3
+#     target:
+#       kind: Deployment
+#       name: odoo-mcp
+
+# Example: Add resource limits
+# patchesStrategicMerge:
+#   - |-
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     metadata:
+#       name: odoo-mcp
+#     spec:
+#       template:
+#         spec:
+#           containers:
+#             - name: odoo-mcp
+#               resources:
+#                 limits:
+#                   cpu: "1"
+#                   memory: 512Mi

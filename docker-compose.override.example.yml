@@ -1,0 +1,133 @@
+# Docker Compose Override Example
+# Copy this file to docker-compose.override.yml to customize your setup.
+# This file shows how to integrate with other containers (n8n, dify, etc.)
+#
+# Usage:
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+#   docker compose up -d
+
+networks:
+  mcp-network:
+    external: true
+    name: mcp-network
+
+services:
+  # =========================================================================
+  # EXAMPLE: n8n Integration
+  # =========================================================================
+  # n8n:
+  #   image: n8nio/n8n:latest
+  #   container_name: n8n
+  #   ports:
+  #     - "5678:5678"
+  #   networks:
+  #     - mcp-network
+  #   environment:
+  #     # Connect to MCP server using container network
+  #     ODOO_MCP_URL: "http://odoo-mcp:8787/mcp"
+  #   volumes:
+  #     - n8n_data:/home/node/.n8n
+  #   depends_on:
+  #     odoo-mcp:
+  #       condition: service_healthy
+  
+  # =========================================================================
+  # EXAMPLE: Dify Integration
+  # =========================================================================
+  # dify-api:
+  #   image: langgenius/dify-api:latest
+  #   container_name: dify-api
+  #   networks:
+  #     - mcp-network
+  #   environment:
+  #     # Configure MCP server endpoint
+  #     MCP_SERVER_URL: "http://odoo-mcp:8787/mcp"
+  #   depends_on:
+  #     odoo-mcp:
+  #       condition: service_healthy
+  
+  # =========================================================================
+  # EXAMPLE: Odoo Container (same network)
+  # =========================================================================
+  # odoo:
+  #   image: odoo:18.0
+  #   container_name: odoo
+  #   ports:
+  #     - "8069:8069"
+  #   networks:
+  #     - mcp-network
+  #   environment:
+  #     HOST: db
+  #     USER: odoo
+  #     PASSWORD: odoo
+  #   volumes:
+  #     - odoo_data:/var/lib/odoo
+  #     - odoo_addons:/mnt/extra-addons
+  #   depends_on:
+  #     - db
+  
+  # db:
+  #   image: postgres:15
+  #   container_name: odoo-db
+  #   networks:
+  #     - mcp-network
+  #   environment:
+  #     POSTGRES_DB: postgres
+  #     POSTGRES_USER: odoo
+  #     POSTGRES_PASSWORD: odoo
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+
+  # =========================================================================
+  # EXAMPLE: Traefik Reverse Proxy
+  # =========================================================================
+  # traefik:
+  #   image: traefik:v3
+  #   container_name: traefik
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #     - "8080:8080"  # Dashboard
+  #   networks:
+  #     - mcp-network
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #     - traefik_certs:/letsencrypt
+  #   command:
+  #     - "--api.insecure=true"
+  #     - "--providers.docker=true"
+  #     - "--providers.docker.exposedbydefault=false"
+  #     - "--entrypoints.web.address=:80"
+  #     - "--entrypoints.websecure.address=:443"
+  
+  # =========================================================================
+  # EXAMPLE: MCP Server with Development Overrides
+  # =========================================================================
+  odoo-mcp:
+    # Override for development
+    build:
+      context: ./rust-mcp
+      dockerfile: Dockerfile
+    # Use local source for hot-reload development
+    volumes:
+      - ./rust-mcp/src:/app/src:ro
+      - ./config:/config:ro
+      # Mount instances.json for multi-instance config
+      - ./instances.json:/config/instances.json:ro
+    environment:
+      # Enable debug logging
+      RUST_LOG: "debug"
+      # Use multi-instance config from file
+      ODOO_INSTANCES_JSON: "/config/instances.json"
+    # Override command for development
+    # command: ["rust-mcp", "--transport", "http", "--listen", "0.0.0.0:8787"]
+
+# =========================================================================
+# VOLUMES
+# =========================================================================
+# volumes:
+#   n8n_data:
+#   odoo_data:
+#   odoo_addons:
+#   postgres_data:
+#   traefik_certs:

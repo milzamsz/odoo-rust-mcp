@@ -1,0 +1,202 @@
+# Default values for odoo-rust-mcp
+# Override these values during helm install/upgrade:
+#   helm install odoo-mcp ./helm/odoo-rust-mcp -f my-values.yaml
+
+# =============================================================================
+# Image Configuration
+# =============================================================================
+image:
+  repository: ghcr.io/rachmataditiya/odoo-rust-mcp
+  pullPolicy: IfNotPresent
+  # Overrides appVersion from Chart.yaml
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# =============================================================================
+# Replicas & Scaling
+# =============================================================================
+replicaCount: 2
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# =============================================================================
+# Odoo Instance Configuration
+# =============================================================================
+# Single instance mode
+odoo:
+  # URL of Odoo server (use K8s service name for in-cluster)
+  url: "http://odoo-service:8069"
+  db: ""
+  # For Odoo 19+ with API Key (preferred)
+  apiKey: ""
+  # For Odoo < 19 with Username/Password
+  version: ""
+  username: ""
+  password: ""
+
+# Multi-instance mode (advanced)
+# Set either inline JSON or file path
+odooInstances:
+  # Inline JSON configuration (single line in final config)
+  json: ""
+  # Or use a separate file (create ConfigMap with instances.json)
+  jsonFilePath: ""
+
+# =============================================================================
+# MCP Configuration
+# =============================================================================
+mcp:
+  # HTTP transport authentication token
+  # STRONGLY RECOMMENDED for production
+  # Generate: openssl rand -hex 32
+  authToken: ""
+  
+  # Log level: trace, debug, info, warn, error
+  logLevel: "info"
+
+# Custom MCP configuration files
+# If not provided, uses built-in defaults
+config:
+  # Override tools.json
+  tools: ""
+  # Override prompts.json
+  prompts: ""
+  # Override server.json
+  server: ""
+
+# =============================================================================
+# Service Configuration
+# =============================================================================
+service:
+  type: ClusterIP
+  port: 8787
+  annotations: {}
+
+# =============================================================================
+# Ingress Configuration
+# =============================================================================
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: mcp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: odoo-mcp-tls
+      hosts:
+        - mcp.example.com
+
+# =============================================================================
+# Resource Limits
+# =============================================================================
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 64Mi
+
+# =============================================================================
+# Pod Configuration
+# =============================================================================
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# =============================================================================
+# Probes Configuration
+# =============================================================================
+livenessProbe:
+  httpGet:
+    path: /mcp
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /mcp
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /mcp
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 6
+
+# =============================================================================
+# Node Scheduling
+# =============================================================================
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Pod anti-affinity for HA (enabled by default)
+podAntiAffinity:
+  enabled: true
+  # preferred or required
+  type: preferred
+
+# =============================================================================
+# Service Account
+# =============================================================================
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# =============================================================================
+# Extra Environment Variables
+# =============================================================================
+# Add custom environment variables
+extraEnv: []
+#   - name: CUSTOM_VAR
+#     value: "custom-value"
+#   - name: SECRET_VAR
+#     valueFrom:
+#       secretKeyRef:
+#         name: my-secret
+#         key: secret-key
+
+# =============================================================================
+# Extra Volumes and Volume Mounts
+# =============================================================================
+extraVolumes: []
+extraVolumeMounts: []

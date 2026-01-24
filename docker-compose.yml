@@ -1,41 +1,118 @@
+# Odoo Rust MCP Server - Docker Compose Configuration
+# 
+# Quick start:
+#   1. Copy dotenv.example to .env and configure
+#   2. docker compose up -d
+#
+# For integration with other containers (n8n, dify, etc.):
+#   - Use the 'mcp-network' network
+#   - Connect to http://odoo-mcp:8787/mcp from other containers
+
+networks:
+  mcp-network:
+    driver: bridge
+    name: mcp-network
+
 services:
   odoo-mcp:
     build:
       context: ./rust-mcp
       dockerfile: Dockerfile
+    image: ghcr.io/rachmataditiya/odoo-rust-mcp:latest
+    container_name: odoo-mcp
     ports:
       - "8787:8787"
-    # Mount JSON configs so they always exist and can be edited without rebuilding.
-    # Use :rw so the server can rewrite defaults if needed.
+    networks:
+      - mcp-network
+    
+    # Health check for container orchestration
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8787/mcp", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Mount config files
     volumes:
-      - ./rust-mcp/config/tools.json:/config/tools.json:rw
-      - ./rust-mcp/config/prompts.json:/config/prompts.json:rw
-      - ./rust-mcp/config/server.json:/config/server.json:rw
+      # MCP configuration files
+      - ./config/tools.json:/config/tools.json:ro
+      - ./config/prompts.json:/config/prompts.json:ro
+      - ./config/server.json:/config/server.json:ro
+      # Optional: Multi-instance configuration file
+      # - ./instances.json:/config/instances.json:ro
+    
+    # Environment file
     env_file:
       - .env
+    
     environment:
-      # IMPORTANT:
-      # - If Odoo runs on your HOST at localhost:8069, containers must use host.docker.internal:8069 (Mac/Windows).
-      # - On Linux, we add extra_hosts below so host.docker.internal resolves to the host gateway.
+      # =========================================================================
+      # Single Instance Configuration (simple setup)
+      # =========================================================================
+      # For Odoo running on host machine, use host.docker.internal
       ODOO_URL: "${ODOO_URL:-http://host.docker.internal:8069}"
       ODOO_DB: "${ODOO_DB:-}"
+      
       # Odoo 19+ (JSON-2 API with API Key)
       ODOO_API_KEY: "${ODOO_API_KEY:-}"
+      
       # Odoo < 19 (JSON-RPC with Username/Password)
       ODOO_VERSION: "${ODOO_VERSION:-}"
       ODOO_USERNAME: "${ODOO_USERNAME:-}"
       ODOO_PASSWORD: "${ODOO_PASSWORD:-}"
-      # MCP JSON config paths (inside container)
+      
+      # =========================================================================
+      # Multi-Instance Configuration (advanced setup)
+      # =========================================================================
+      # Option 1: JSON file path (recommended for readability)
+      ODOO_INSTANCES_JSON: "${ODOO_INSTANCES_JSON:-}"
+      
+      # Option 2: Inline JSON (set in .env file)
+      ODOO_INSTANCES: "${ODOO_INSTANCES:-}"
+      
+      # =========================================================================
+      # MCP Configuration
+      # =========================================================================
       MCP_TOOLS_JSON: "/config/tools.json"
       MCP_PROMPTS_JSON: "/config/prompts.json"
       MCP_SERVER_JSON: "/config/server.json"
-      # Optional:
+      
+      # HTTP transport authentication (recommended for production)
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN:-}"
+      
+      # =========================================================================
+      # Optional Settings
+      # =========================================================================
       # ODOO_ENABLE_CLEANUP_TOOLS: "true"
       # ODOO_TIMEOUT_MS: "30000"
       # ODOO_MAX_RETRIES: "2"
+    
+    # Linux host: resolve host.docker.internal to host gateway
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    
+    # Container labels for service discovery
+    labels:
+      - "app=odoo-rust-mcp"
+      - "version=0.2.5"
+      # Traefik reverse proxy (optional)
+      - "traefik.enable=true"
+      - "traefik.http.routers.odoo-mcp.rule=Host(`mcp.localhost`)"
+      - "traefik.http.services.odoo-mcp.loadbalancer.server.port=8787"
+    
     restart: unless-stopped
-    # Default CMD is HTTP (`/mcp`). To force other transports, uncomment:
+    
+    # Resource limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+    
+    # Default: HTTP transport on port 8787
+    # Override for other transports:
     # command: ["rust-mcp", "--transport", "ws", "--listen", "0.0.0.0:8787"]
-

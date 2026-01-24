@@ -1,0 +1,91 @@
+# Kubernetes Ingress for Odoo MCP Server
+# Exposes the MCP server externally with TLS
+#
+# Prerequisites:
+# - Ingress controller installed (nginx, traefik, etc.)
+# - cert-manager for TLS (optional)
+#
+# Apply: kubectl apply -f ingress.yaml -n odoo-mcp
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: odoo-mcp
+  namespace: odoo-mcp
+  labels:
+    app.kubernetes.io/name: odoo-rust-mcp
+    app.kubernetes.io/component: ingress
+  annotations:
+    # nginx ingress controller annotations
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    
+    # WebSocket support (for WS transport)
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
+    
+    # cert-manager for automatic TLS
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    
+    # Rate limiting (optional)
+    # nginx.ingress.kubernetes.io/limit-rps: "100"
+    # nginx.ingress.kubernetes.io/limit-connections: "50"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - mcp.example.com
+      secretName: odoo-mcp-tls
+  rules:
+    - host: mcp.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: odoo-mcp
+                port:
+                  number: 8787
+
+---
+# Alternative: Traefik IngressRoute (if using Traefik)
+# apiVersion: traefik.io/v1alpha1
+# kind: IngressRoute
+# metadata:
+#   name: odoo-mcp
+#   namespace: odoo-mcp
+# spec:
+#   entryPoints:
+#     - websecure
+#   routes:
+#     - match: Host(`mcp.example.com`)
+#       kind: Rule
+#       services:
+#         - name: odoo-mcp
+#           port: 8787
+#   tls:
+#     certResolver: letsencrypt
+
+---
+# Alternative: Gateway API (newer standard)
+# apiVersion: gateway.networking.k8s.io/v1
+# kind: HTTPRoute
+# metadata:
+#   name: odoo-mcp
+#   namespace: odoo-mcp
+# spec:
+#   parentRefs:
+#     - name: main-gateway
+#       namespace: gateway-system
+#   hostnames:
+#     - "mcp.example.com"
+#   rules:
+#     - matches:
+#         - path:
+#             type: PathPrefix
+#             value: /
+#       backendRefs:
+#         - name: odoo-mcp
+#           port: 8787

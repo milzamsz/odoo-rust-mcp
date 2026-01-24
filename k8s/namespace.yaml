@@ -1,0 +1,11 @@
+# Kubernetes Namespace for Odoo MCP Server
+# Creates an isolated namespace for the MCP server deployment
+#
+# Apply: kubectl apply -f namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: odoo-mcp
+  labels:
+    app.kubernetes.io/name: odoo-rust-mcp
+    app.kubernetes.io/component: mcp-server

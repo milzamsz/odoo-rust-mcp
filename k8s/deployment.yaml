@@ -1,0 +1,187 @@
+# Kubernetes Deployment for Odoo MCP Server
+# Features: Resource limits, probes, anti-affinity, config volumes
+#
+# Apply: kubectl apply -f deployment.yaml -n odoo-mcp
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odoo-mcp
+  namespace: odoo-mcp
+  labels:
+    app.kubernetes.io/name: odoo-rust-mcp
+    app.kubernetes.io/component: mcp-server
+    app.kubernetes.io/version: "0.2.5"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: odoo-rust-mcp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: odoo-rust-mcp
+        app.kubernetes.io/component: mcp-server
+      annotations:
+        # Force pod restart when config changes - update this value manually after ConfigMap changes
+        checksum/config: "change-me-to-trigger-rollout"
+    spec:
+      # Security context for non-root execution
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      
+      # Pod anti-affinity for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: odoo-rust-mcp
+                topologyKey: kubernetes.io/hostname
+      
+      # Graceful termination
+      terminationGracePeriodSeconds: 30
+      
+      containers:
+        - name: odoo-mcp
+          image: ghcr.io/rachmataditiya/odoo-rust-mcp:0.2.5
+          imagePullPolicy: IfNotPresent
+          
+          # Container ports
+          ports:
+            - name: http
+              containerPort: 8787
+              protocol: TCP
+          
+          # Environment variables
+          env:
+            # =========================================================================
+            # Single Instance Configuration
+            # =========================================================================
+            - name: ODOO_URL
+              value: "http://odoo-service:8069"
+            - name: ODOO_DB
+              value: "production"
+            
+            # API Key from Secret
+            - name: ODOO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-mcp-secrets
+                  key: ODOO_API_KEY
+                  optional: true
+            
+            # =========================================================================
+            # Multi-Instance Configuration (optional)
+            # =========================================================================
+            # Point to instances.json file if using multi-instance
+            # - name: ODOO_INSTANCES_JSON
+            #   value: "/config/instances.json"
+            
+            # =========================================================================
+            # MCP Configuration Paths
+            # =========================================================================
+            - name: MCP_TOOLS_JSON
+              value: "/config/tools.json"
+            - name: MCP_PROMPTS_JSON
+              value: "/config/prompts.json"
+            - name: MCP_SERVER_JSON
+              value: "/config/server.json"
+            
+            # =========================================================================
+            # HTTP Authentication
+            # =========================================================================
+            - name: MCP_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-mcp-secrets
+                  key: MCP_AUTH_TOKEN
+                  optional: true
+            
+            # =========================================================================
+            # Logging
+            # =========================================================================
+            - name: RUST_LOG
+              value: "info"
+          
+          # Volume mounts for config files
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          
+          # Resource limits and requests
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          
+          # Liveness probe - container is alive
+          livenessProbe:
+            httpGet:
+              path: /mcp
+              port: http
+              httpHeaders:
+                - name: Content-Type
+                  value: application/json
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          # Readiness probe - container is ready to serve traffic
+          readinessProbe:
+            httpGet:
+              path: /mcp
+              port: http
+              httpHeaders:
+                - name: Content-Type
+                  value: application/json
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          # Startup probe - for slow-starting containers
+          startupProbe:
+            httpGet:
+              path: /mcp
+              port: http
+              httpHeaders:
+                - name: Content-Type
+                  value: application/json
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 6
+          
+          # Security context for container
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      
+      # Volumes
+      volumes:
+        - name: config
+          configMap:
+            name: odoo-mcp-config
+            items:
+              - key: tools.json
+                path: tools.json
+              - key: prompts.json
+                path: prompts.json
+              - key: server.json
+                path: server.json
+              # Uncomment if using instances.json for multi-instance
+              # - key: instances.json
+              #   path: instances.json

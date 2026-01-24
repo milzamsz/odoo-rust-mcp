@@ -1,53 +1,102 @@
-## Copy to .env (do not commit .env)
-#
+# Odoo Rust MCP Server - Environment Configuration
+# Copy this file to .env and configure your settings
+# DO NOT commit .env to version control!
+
 # =============================================================================
-# Odoo 19+ (JSON-2 API with API Key)
+# SINGLE INSTANCE CONFIGURATION (Simple Setup)
 # =============================================================================
-# ODOO_URL=http://host.docker.internal:8069
-# ODOO_DB=v19_pos
-# ODOO_API_KEY=YOUR_API_KEY
-#
-# =============================================================================
-# Odoo < 19 (JSON-RPC with Username/Password)
-# =============================================================================
-# Set ODOO_VERSION to your Odoo major version (e.g., "18", "17", "16")
-# This enables legacy JSON-RPC authentication with username/password
-#
+# Use this for connecting to a single Odoo instance.
+# For multiple instances, see MULTI-INSTANCE section below.
+
+# Odoo Server URL
+# - For Docker: use host.docker.internal for Odoo on host machine
+# - For Kubernetes: use the Odoo service name (e.g., odoo.namespace.svc.cluster.local)
 ODOO_URL=http://host.docker.internal:8069
 ODOO_DB=mydb
+
+# -----------------------------------------------------------------------------
+# Odoo 19+ (JSON-2 API with API Key)
+# -----------------------------------------------------------------------------
+# ODOO_API_KEY=YOUR_API_KEY
+
+# -----------------------------------------------------------------------------
+# Odoo < 19 (JSON-RPC with Username/Password)
+# -----------------------------------------------------------------------------
+# Set ODOO_VERSION to enable legacy mode
 ODOO_VERSION=18
 ODOO_USERNAME=admin
 ODOO_PASSWORD=admin
-#
+
 # =============================================================================
-# Optional settings
+# MULTI-INSTANCE CONFIGURATION (Advanced Setup)
 # =============================================================================
-# ODOO_ENABLE_CLEANUP_TOOLS=true
-# ODOO_TIMEOUT_MS=30000
-# ODOO_MAX_RETRIES=2
-#
+# Use this for connecting to multiple Odoo instances.
+# Each instance can be accessed by name in tool calls: {"instance": "production", ...}
+
+# Option 1: JSON File Path (Recommended - easier to read and edit)
+# Create a JSON file with your instances configuration:
+# {
+#   "production": {"url": "https://odoo.example.com", "db": "prod", "apiKey": "xxx"},
+#   "staging": {"url": "https://staging.example.com", "db": "staging", "apiKey": "yyy"}
+# }
+# ODOO_INSTANCES_JSON=/config/instances.json
+
+# Option 2: Inline JSON (for simple setups or environment-only config)
+# Must be a single line!
+# ODOO_INSTANCES={"production":{"url":"https://odoo.example.com","db":"prod","apiKey":"xxx"},"staging":{"url":"https://staging.example.com","db":"staging","apiKey":"yyy"}}
+
 # =============================================================================
-# MCP Authentication (HTTP transport only)
+# MCP AUTHENTICATION (HTTP Transport)
 # =============================================================================
 # Set MCP_AUTH_TOKEN to enable Bearer token authentication for HTTP transport.
 # Clients must include "Authorization: Bearer <token>" header in all requests.
-# If not set, authentication is disabled (not recommended for production).
+# STRONGLY RECOMMENDED for production deployments!
 #
+# Generate a secure token: openssl rand -hex 32
 # MCP_AUTH_TOKEN=your-secure-random-token-here
-#
-# =============================================================================
-# MCP tool/prompt config (IMPORTANT for stdio transport)
-# =============================================================================
-# When using stdio transport (e.g., Cursor), the binary runs from a different
-# working directory, so you MUST use absolute paths for config files.
-#
-# Example (adjust path to your installation):
-# MCP_TOOLS_JSON=/Users/yourname/path/to/odoo-rust-mcp/rust-mcp/config/tools.json
-# MCP_PROMPTS_JSON=/Users/yourname/path/to/odoo-rust-mcp/rust-mcp/config/prompts.json
-# MCP_SERVER_JSON=/Users/yourname/path/to/odoo-rust-mcp/rust-mcp/config/server.json
-#
-# For HTTP/WS transport or Docker, relative paths work fine:
-# MCP_TOOLS_JSON=config/tools.json
-# MCP_PROMPTS_JSON=config/prompts.json
-# MCP_SERVER_JSON=config/server.json
 
+# =============================================================================
+# MCP CONFIGURATION PATHS
+# =============================================================================
+# For Docker/Kubernetes, these are set automatically via environment.
+# For local development with stdio transport, use absolute paths!
+#
+# MCP_TOOLS_JSON=/config/tools.json
+# MCP_PROMPTS_JSON=/config/prompts.json
+# MCP_SERVER_JSON=/config/server.json
+
+# =============================================================================
+# OPTIONAL SETTINGS
+# =============================================================================
+# Enable destructive cleanup tools (database cleanup, deep cleanup)
+# ODOO_ENABLE_CLEANUP_TOOLS=true
+
+# Request timeout in milliseconds
+# ODOO_TIMEOUT_MS=30000
+
+# Maximum retry attempts for failed requests
+# ODOO_MAX_RETRIES=2
+
+# =============================================================================
+# EXAMPLES FOR DIFFERENT DEPLOYMENTS
+# =============================================================================
+
+# --- Docker Compose (Odoo on host) ---
+# ODOO_URL=http://host.docker.internal:8069
+# ODOO_DB=mydb
+# ODOO_API_KEY=your-api-key
+
+# --- Docker Compose (Odoo in same network) ---
+# ODOO_URL=http://odoo:8069
+# ODOO_DB=mydb
+# ODOO_API_KEY=your-api-key
+
+# --- Kubernetes (Odoo in same namespace) ---
+# ODOO_URL=http://odoo-service:8069
+# ODOO_DB=mydb
+# ODOO_API_KEY=your-api-key
+
+# --- Kubernetes (Odoo in different namespace) ---
+# ODOO_URL=http://odoo-service.odoo-namespace.svc.cluster.local:8069
+# ODOO_DB=mydb
+# ODOO_API_KEY=your-api-key
