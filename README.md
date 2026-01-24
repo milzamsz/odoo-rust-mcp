@@ -189,6 +189,118 @@ Seed defaults (used only when files are missing):
 - `rust-mcp/config-defaults/prompts.json`
 - `rust-mcp/config-defaults/server.json`
 
+#### Disabling Tools
+
+To disable specific tools (e.g., create and update operations for read-only access), you have two options:
+
+**Option 1: Remove tools from the array (recommended)**
+
+Simply remove the tool entries from the `tools` array in `tools.json`. For example, to disable `odoo_create` and `odoo_update`:
+
+```json
+{
+  "tools": [
+    {
+      "name": "odoo_search",
+      ...
+    },
+    {
+      "name": "odoo_search_read",
+      ...
+    },
+    {
+      "name": "odoo_read",
+      ...
+    }
+    // odoo_create and odoo_update are removed - they won't be available
+  ]
+}
+```
+
+**Option 2: Use guards for conditional disabling**
+
+Use `guards` with `requiresEnvTrue` to conditionally enable/disable tools based on environment variables:
+
+```json
+{
+  "tools": [
+    {
+      "name": "odoo_create",
+      "description": "Create a new Odoo record...",
+      "guards": {
+        "requiresEnvTrue": "ODOO_ENABLE_WRITE_OPERATIONS"
+      },
+      "inputSchema": { ... },
+      "op": { ... }
+    },
+    {
+      "name": "odoo_update",
+      "description": "Update existing Odoo records...",
+      "guards": {
+        "requiresEnvTrue": "ODOO_ENABLE_WRITE_OPERATIONS"
+      },
+      "inputSchema": { ... },
+      "op": { ... }
+    }
+  ]
+}
+```
+
+Then set the environment variable to enable:
+```bash
+export ODOO_ENABLE_WRITE_OPERATIONS=true
+```
+
+**Example: Read-only configuration**
+
+Here's a minimal `tools.json` for read-only access (no create, update, delete, or batch operations):
+
+```json
+{
+  "tools": [
+    {
+      "name": "odoo_search",
+      "description": "Search for Odoo records...",
+      "inputSchema": { ... },
+      "op": { "type": "search", "map": { ... } }
+    },
+    {
+      "name": "odoo_search_read",
+      "description": "Search and read Odoo records...",
+      "inputSchema": { ... },
+      "op": { "type": "search_read", "map": { ... } }
+    },
+    {
+      "name": "odoo_read",
+      "description": "Read specific Odoo records...",
+      "inputSchema": { ... },
+      "op": { "type": "read", "map": { ... } }
+    },
+    {
+      "name": "odoo_count",
+      "description": "Count records matching domain...",
+      "inputSchema": { ... },
+      "op": { "type": "search_count", "map": { ... } }
+    },
+    {
+      "name": "odoo_get_model_metadata",
+      "description": "Get model metadata...",
+      "inputSchema": { ... },
+      "op": { "type": "get_model_metadata", "map": { ... } }
+    },
+    {
+      "name": "odoo_list_models",
+      "description": "List available Odoo models...",
+      "inputSchema": { ... },
+      "op": { "type": "list_models", "map": { ... } }
+    }
+    // Note: odoo_create, odoo_update, odoo_delete, odoo_create_batch are excluded
+  ]
+}
+```
+
+After modifying `tools.json`, the server will automatically reload the configuration (no restart needed).
+
 
 ### Advanced Features
 
