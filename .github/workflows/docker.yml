@@ -51,16 +51,14 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # For releases, use the version tag
+            # For releases, use the version tag (e.g., 0.2.11, 0.2, 0)
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            # For main branch, use 'latest'
+            # For main branch push, use 'latest' only
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             # For workflow dispatch, use the provided tag
-            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
-            # Always include the SHA
-            type=sha,prefix=
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != 'latest' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
