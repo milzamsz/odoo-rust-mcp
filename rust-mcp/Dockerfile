@@ -34,6 +34,9 @@ COPY rust-mcp/openapi ./openapi
 # Create static directory structure
 RUN mkdir -p ./static
 
+# Copy any static assets from build context (just .gitkeep, but structure matters)
+COPY rust-mcp/static/ ./static/
+
 # Build React UI
 WORKDIR /app/config-ui
 COPY config-ui/package.json config-ui/package-lock.json* ./
@@ -42,16 +45,18 @@ RUN npm ci || npm install
 COPY config-ui ./
 RUN npm run build
 
-# Copy React UI build output to Rust static directory
+# React UI is now built at /app/rust-mcp/static/dist
+
+# Verify UI build output
 RUN if [ -d /app/rust-mcp/static/dist ] && [ "$(ls -A /app/rust-mcp/static/dist 2>/dev/null)" ]; then \
         echo "✓ UI build output found at /app/rust-mcp/static/dist"; \
+        find /app/rust-mcp/static/dist -type f | head -5; \
     else \
         echo "⚠ Warning: UI build output not found at expected location"; \
     fi
 
 # Back to Rust directory for final build
 WORKDIR /app/rust-mcp
-COPY rust-mcp/static/ ./static/
 
 # Build release binary
 RUN cargo build --release
