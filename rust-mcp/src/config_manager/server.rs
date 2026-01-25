@@ -28,11 +28,70 @@ pub async fn start_config_server(port: u16, config_dir: std::path::PathBuf) -> a
     };
 
     // Serve static files from dist directory (React app)
-    // If dist doesn't exist, show a helpful error message
+    // Try multiple paths: relative to current dir, relative to executable, and absolute
+    let mut static_dir_abs = None;
+
+    // Try 1: Relative to current working directory
     let static_dir = std::path::Path::new("static/dist");
-    if !static_dir.exists() || !static_dir.is_dir() {
+    if static_dir.exists() && static_dir.is_dir() {
+        if let Ok(canonical) = static_dir.canonicalize() {
+            static_dir_abs = Some(canonical);
+        }
+    }
+
+    // Try 2: Relative to executable location (for installed binaries)
+    if static_dir_abs.is_none() {
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let candidate = exe_dir.join("static/dist");
+                if candidate.exists() && candidate.is_dir() {
+                    if let Ok(canonical) = candidate.canonicalize() {
+                        static_dir_abs = Some(canonical);
+                    }
+                }
+            }
+        }
+    }
+
+    // Try 3: Homebrew share directory
+    if static_dir_abs.is_none() {
+        let candidates = [
+            "/opt/homebrew/share/rust-mcp/static/dist",
+            "/usr/local/share/rust-mcp/static/dist",
+            "/usr/share/rust-mcp/static/dist",
+        ];
+        for candidate_str in &candidates {
+            let candidate = std::path::Path::new(candidate_str);
+            if candidate.exists() && candidate.is_dir() {
+                static_dir_abs = Some(candidate.to_path_buf());
+                break;
+            }
+        }
+    }
+
+    // Try 4: Relative to project root (for development)
+    if static_dir_abs.is_none() {
+        if let Ok(current_dir) = std::env::current_dir() {
+            let candidate = current_dir.join("rust-mcp/static/dist");
+            if candidate.exists() && candidate.is_dir() {
+                if let Ok(canonical) = candidate.canonicalize() {
+                    static_dir_abs = Some(canonical);
+                }
+            }
+        }
+    }
+
+    let static_dir_final = static_dir_abs.unwrap_or_else(|| {
+        warn!("static/dist directory not found in any location. Please build the React UI first with: cd config-ui && npm run build");
+        std::path::PathBuf::from("static/dist")
+    });
+
+    if static_dir_final.exists() && static_dir_final.is_dir() {
+        info!("Serving static files from: {:?}", static_dir_final);
+    } else {
         warn!(
-            "static/dist directory not found. Please build the React UI first with: cd config-ui && npm run build"
+            "static/dist directory not found at {:?}. Please build the React UI first with: cd config-ui && npm run build",
+            static_dir_final
         );
     }
 
@@ -51,8 +110,8 @@ pub async fn start_config_server(port: u16, config_dir: std::path::PathBuf) -> a
         // Server endpoints
         .route("/api/config/server", get(get_server))
         .route("/api/config/server", post(update_server))
-        // Serve static files (React app)
-        .nest_service("/", ServeDir::new("static/dist"))
+        // Serve static files (React app) - use fallback_service for root path
+        .fallback_service(ServeDir::new(&static_dir_final))
         .layer(CorsLayer::permissive())
         .with_state(state);
 
