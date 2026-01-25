@@ -188,13 +188,15 @@ jobs:
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
+        continue-on-error: true
         with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.version }}
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           artifact-name: sbom-docker.spdx.json
           output-file: ./sbom-docker.spdx.json
 
       - name: Upload SBOM
         uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: sbom-docker
           path: ./sbom-docker.spdx.json
