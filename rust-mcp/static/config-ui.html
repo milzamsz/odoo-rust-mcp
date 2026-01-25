@@ -758,14 +758,11 @@
             element.className = `status show ${type}`;
         }
 
-        // Load instances on page load
-        window.addEventListener('load', () => {
-            loadInstances();
-        });
-
-        // Update tool categories when tools tab is shown
+        // Store original switchTab
         const originalSwitchTab = switchTab;
-        switchTab = function(tabName) {
+        
+        // Override switchTab to update tool categories
+        window.switchTab = function(tabName) {
             originalSwitchTab(tabName);
             if (tabName === 'tools') {
                 setTimeout(() => {
@@ -773,6 +770,11 @@
                 }, 100);
             }
         };
+
+        // Load instances on page load
+        window.addEventListener('load', () => {
+            loadInstances();
+        });
     </script>
 </body>
 </html>
