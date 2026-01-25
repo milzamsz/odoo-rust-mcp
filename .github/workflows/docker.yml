@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'rust-mcp/**'
+      - 'config-ui/**'
       - 'config/**'
       - 'docker-compose.yml'
       - 'Dockerfile'
@@ -63,7 +64,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ./rust-mcp
+          context: .
           file: ./rust-mcp/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
