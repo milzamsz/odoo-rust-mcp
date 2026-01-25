@@ -262,19 +262,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v7
-        with:
-          path: artifacts
-        continue-on-error: true
-
-      - name: Download build artifacts (fallback)
+      - name: Download binary artifacts
         uses: actions/download-artifact@v7
         with:
           pattern: rust-mcp-*
-          path: artifacts
+          path: release-assets
           merge-multiple: true
-        continue-on-error: true
+
+      - name: List downloaded artifacts
+        run: |
+          echo "=== Downloaded artifacts ==="
+          find release-assets -type f 2>/dev/null || echo "No artifacts found"
+          ls -laR release-assets 2>/dev/null || true
 
       - name: Get tag name
         id: tag
@@ -288,23 +287,24 @@ jobs:
       - name: Generate SHA256 checksums
         id: checksums
         run: |
-          cd artifacts
-          for dir in */; do
-            for file in "$dir"*.tar.gz "$dir"*.zip; do
-              if [ -f "$file" ]; then
-                filename=$(basename "$file")
-                sha256=$(sha256sum "$file" | cut -d' ' -f1)
-                echo "Checksum for $filename: $sha256"
-                if [[ "$filename" == *"aarch64-apple-darwin"* ]]; then
-                  echo "sha256_macos_arm64=$sha256" >> $GITHUB_OUTPUT
-                elif [[ "$filename" == *"x86_64-apple-darwin"* ]]; then
-                  echo "sha256_macos_x64=$sha256" >> $GITHUB_OUTPUT
-                elif [[ "$filename" == *"x86_64-unknown-linux-gnu"* ]]; then
-                  echo "sha256_linux_x64=$sha256" >> $GITHUB_OUTPUT
-                fi
+          cd release-assets
+          echo "=== Generating checksums ==="
+          for file in *.tar.gz *.zip *.deb 2>/dev/null; do
+            if [ -f "$file" ]; then
+              sha256=$(sha256sum "$file" | cut -d' ' -f1)
+              echo "Checksum for $file: $sha256"
+              if [[ "$file" == *"aarch64-apple-darwin"* ]]; then
+                echo "sha256_macos_arm64=$sha256" >> $GITHUB_OUTPUT
+              elif [[ "$file" == *"x86_64-apple-darwin"* ]]; then
+                echo "sha256_macos_x64=$sha256" >> $GITHUB_OUTPUT
+              elif [[ "$file" == *"x86_64-unknown-linux-gnu"* ]]; then
+                echo "sha256_linux_x64=$sha256" >> $GITHUB_OUTPUT
               fi
-            done
+            fi
           done
+          # Generate checksums file
+          sha256sum *.tar.gz *.zip *.deb 2>/dev/null > SHA256SUMS.txt || true
+          cat SHA256SUMS.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -315,7 +315,7 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            artifacts/**/*
+            release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -334,10 +334,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download all artifacts
+      - name: Download binary artifacts
         uses: actions/download-artifact@v7
         with:
-          path: artifacts
+          pattern: rust-mcp-*
+          path: release-assets
+          merge-multiple: true
 
       - name: Get tag name
         id: tag
@@ -354,25 +356,22 @@ jobs:
 
       - name: Generate checksums and update formula
         run: |
-          cd artifacts
+          cd release-assets
           SHA256_MACOS_ARM64=""
           SHA256_MACOS_X64=""
           SHA256_LINUX_X64=""
           
-          for dir in */; do
-            for file in "$dir"*.tar.gz; do
-              if [ -f "$file" ]; then
-                filename=$(basename "$file")
-                sha256=$(sha256sum "$file" | cut -d' ' -f1)
-                if [[ "$filename" == *"aarch64-apple-darwin"* ]]; then
-                  SHA256_MACOS_ARM64=$sha256
-                elif [[ "$filename" == *"x86_64-apple-darwin"* ]]; then
-                  SHA256_MACOS_X64=$sha256
-                elif [[ "$filename" == *"x86_64-unknown-linux-gnu"* ]]; then
-                  SHA256_LINUX_X64=$sha256
-                fi
+          for file in *.tar.gz; do
+            if [ -f "$file" ]; then
+              sha256=$(sha256sum "$file" | cut -d' ' -f1)
+              if [[ "$file" == *"aarch64-apple-darwin"* ]]; then
+                SHA256_MACOS_ARM64=$sha256
+              elif [[ "$file" == *"x86_64-apple-darwin"* ]]; then
+                SHA256_MACOS_X64=$sha256
+              elif [[ "$file" == *"x86_64-unknown-linux-gnu"* ]]; then
+                SHA256_LINUX_X64=$sha256
               fi
-            done
+            fi
           done
           
           cd ..
