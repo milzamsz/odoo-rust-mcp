@@ -54,11 +54,13 @@ pub async fn start_config_server(port: u16, config_dir: std::path::PathBuf) -> a
         }
     }
 
-    // Try 3: Homebrew share directory
+    // Try 3: Homebrew/system share directory
     if static_dir_abs.is_none() {
         let candidates = [
-            "/opt/homebrew/share/rust-mcp/static/dist",
-            "/usr/local/share/rust-mcp/static/dist",
+            // Homebrew paths (odoo-rust-mcp is the share folder name)
+            "/opt/homebrew/share/odoo-rust-mcp/static/dist",
+            "/usr/local/share/odoo-rust-mcp/static/dist",
+            // Debian/APT paths (rust-mcp is the package name)
             "/usr/share/rust-mcp/static/dist",
         ];
         for candidate_str in &candidates {
