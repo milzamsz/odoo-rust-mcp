@@ -94,14 +94,18 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /app/target/release/rust-mcp /usr/local/bin/rust-mcp
 
+# Copy static files (React UI) from builder
+# Note: Working directory is /app, so static/dist will be at /app/static/dist
+COPY --from=builder --chown=mcp:mcp /app/rust-mcp/static /app/static
+
 # Copy default config files
 COPY --chown=mcp:mcp config /config
 
 # Switch to non-root user
 USER mcp
 
-# Expose HTTP port
-EXPOSE 8787
+# Expose HTTP ports (MCP server and config server)
+EXPOSE 8787 3008
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
