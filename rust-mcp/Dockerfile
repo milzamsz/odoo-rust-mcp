@@ -37,11 +37,22 @@ COPY rust-mcp/Cargo.toml rust-mcp/Cargo.lock ./
 COPY rust-mcp/src ./src
 COPY rust-mcp/tests ./tests
 COPY rust-mcp/config-defaults ./config-defaults
+# Copy openapi directory (required for include_str! in code)
 COPY rust-mcp/openapi ./openapi
+# Copy static directory
 COPY rust-mcp/static ./static
 
-# Copy built UI to static/dist (Vite outputs to ../rust-mcp/static/dist from config-ui)
-RUN mkdir -p static/dist && cp -r ../rust-mcp/static/dist/* static/dist/ 2>/dev/null || echo "Note: UI build output should be at rust-mcp/static/dist"
+# Copy built UI to static/dist (Vite outputs to rust-mcp/static/dist from config-ui)
+# The UI is already built in previous step and should be at rust-mcp/static/dist
+RUN mkdir -p static/dist && \
+    if [ -d ../rust-mcp/static/dist ] && [ "$(ls -A ../rust-mcp/static/dist 2>/dev/null)" ]; then \
+        cp -r ../rust-mcp/static/dist/* static/dist/; \
+        echo "✓ Copied UI from build output"; \
+    elif [ -d static/dist ] && [ "$(ls -A static/dist 2>/dev/null)" ]; then \
+        echo "✓ UI already in static/dist"; \
+    else \
+        echo "⚠ Warning: UI build output not found, server will use fallback"; \
+    fi
 
 # Build release binary
 RUN cargo build --release
