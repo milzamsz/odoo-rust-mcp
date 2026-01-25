@@ -216,7 +216,7 @@ jobs:
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./rust-mcp
+          context: .
           file: ./rust-mcp/Dockerfile
           push: false
           cache-from: type=gha
