@@ -100,6 +100,7 @@ jobs:
           mkdir -p release
           cp rust-mcp/target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} release/
           cp -r config release/
+          cp -r rust-mcp/static/dist release/static/dist 2>/dev/null || echo "No static/dist folder"
           cp README.md release/
           cp LICENSE release/ 2>/dev/null || echo "No LICENSE file"
           cp dotenv.example release/.env.example
@@ -115,6 +116,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path release
           Copy-Item "rust-mcp/target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}.exe" -Destination release/
           Copy-Item -Recurse config -Destination release/
+          if (Test-Path "rust-mcp/static/dist") {
+            Copy-Item -Recurse "rust-mcp/static/dist" -Destination "release/static/dist"
+          }
           Copy-Item README.md -Destination release/
           Copy-Item LICENSE -Destination release/ -ErrorAction SilentlyContinue
           Copy-Item dotenv.example -Destination release/.env.example
