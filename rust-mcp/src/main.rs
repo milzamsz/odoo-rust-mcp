@@ -247,7 +247,10 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    info!("Config server will start on port {} (inspired by Peugeot 3008)", cli.config_server_port);
+    info!(
+        "Config server will start on port {} (inspired by Peugeot 3008)",
+        cli.config_server_port
+    );
 
     match cli.transport {
         TransportMode::Stdio => run_stdio(handler).await?,
