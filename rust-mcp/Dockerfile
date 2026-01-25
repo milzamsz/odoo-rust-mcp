@@ -61,6 +61,9 @@ WORKDIR /app/rust-mcp
 # Build release binary
 RUN cargo build --release
 
+# Verify binary exists before proceeding to next stage
+RUN test -f /app/target/release/rust-mcp || (echo "ERROR: Binary not built!"; ls -la /app/target/release/; exit 1)
+
 # =============================================================================
 # Stage 2: Runtime
 # =============================================================================

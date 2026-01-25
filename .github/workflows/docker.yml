@@ -71,6 +71,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          no-cache: false
           # Build only for linux/amd64 for now
           # Multi-platform Rust builds require cross-compilation setup
           platforms: linux/amd64
