@@ -1378,3 +1378,55 @@ prompts/list: odoo_common_models, odoo_domain_filters
 
 - Do **not** commit `.env` or any file containing API keys/passwords.
 - Prefer using dedicated bot users with minimal access rights in Odoo for automation.
+
+## Release Process
+
+Untuk membuat release baru, ada **2 file yang harus di-update versinya**:
+
+1. `rust-mcp/Cargo.toml` - field `version`
+2. `config-ui/package.json` - field `version`
+
+### Quick Release (Recommended)
+
+Gunakan script helper yang sudah disediakan:
+
+```bash
+# Bump version, commit, push, dan create tag sekaligus
+./scripts/release.sh 0.3.15
+```
+
+Script ini akan:
+- Update version di `Cargo.toml` dan `package.json`
+- Commit perubahan
+- Push ke remote
+- Create dan push git tag (yang akan trigger GitHub Actions release workflow)
+
+### Manual Release
+
+Jika ingin manual:
+
+```bash
+# 1. Update version di 2 file
+# Edit rust-mcp/Cargo.toml: version = "0.3.15"
+# Edit config-ui/package.json: "version": "0.3.15"
+
+# 2. Commit dan push
+git add rust-mcp/Cargo.toml config-ui/package.json
+git commit -m "chore: bump version to 0.3.15"
+git push
+
+# 3. Create dan push tag (akan trigger GitHub Actions)
+git tag v0.3.15
+git push origin v0.3.15
+```
+
+### GitHub Actions akan otomatis:
+
+- Build binaries untuk semua platform (Linux, macOS, Windows)
+- Build Docker image
+- Build Debian package
+- Create GitHub release dengan artifacts
+- Update Homebrew formula
+- Update APT repository
+
+Monitor progress: https://github.com/rachmataditiya/odoo-rust-mcp/actions
