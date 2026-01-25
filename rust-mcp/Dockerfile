@@ -62,6 +62,17 @@ WORKDIR /app/rust-mcp
 # Note: cargo builds to target/release/ by default
 RUN cargo build --release --verbose 2>&1 | tail -100
 
+# Verify binary exists
+RUN if [ ! -f /app/rust-mcp/target/release/rust-mcp ]; then \
+        echo "ERROR: Binary not found at /app/rust-mcp/target/release/rust-mcp"; \
+        echo "Contents of /app/rust-mcp/target/release:"; \
+        ls -la /app/rust-mcp/target/release/ 2>/dev/null || echo "Directory does not exist"; \
+        exit 1; \
+    else \
+        echo "✓ Binary found at /app/rust-mcp/target/release/rust-mcp"; \
+        ls -lh /app/rust-mcp/target/release/rust-mcp; \
+    fi
+
 # Let Docker fail with a clear error if binary doesn't exist
 # This will help diagnose the issue
 
@@ -92,7 +103,8 @@ RUN mkdir -p /config && chown mcp:mcp /config
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/rust-mcp /usr/local/bin/rust-mcp
+# Note: Binary is built in /app/rust-mcp/target/release/rust-mcp (not /app/target/release/rust-mcp)
+COPY --from=builder /app/rust-mcp/target/release/rust-mcp /usr/local/bin/rust-mcp
 
 # Copy static files (React UI) from builder
 # Note: Working directory is /app, so static/dist will be at /app/static/dist
