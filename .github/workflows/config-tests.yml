@@ -97,9 +97,11 @@ jobs:
       - name: Start config server (background)
         run: |
           ODOO_CONFIG_SERVER_PORT=3000 \
+          ODOO_CONFIG_DIR=/tmp/test-config \
           RUST_LOG=info \
-          timeout 60 /root/rust-mcp/target/release/rust-mcp \
-            --transport http --listen 0.0.0.0:8787 &
+          timeout 60 ./rust-mcp/target/release/rust-mcp \
+            --transport http --listen 0.0.0.0:8787 \
+            --config-dir /tmp/test-config &
           sleep 3
 
       - name: Test config API endpoints

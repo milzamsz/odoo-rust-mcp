@@ -189,6 +189,10 @@ struct Cli {
     /// Enable config server on separate port (e.g., 3000)
     #[arg(long, env = "ODOO_CONFIG_SERVER_PORT")]
     config_server_port: Option<u16>,
+
+    /// Config directory for config server (defaults to ~/.config/odoo-rust-mcp/)
+    #[arg(long, env = "ODOO_CONFIG_DIR")]
+    config_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Parser)]
@@ -234,8 +238,9 @@ async fn main() -> anyhow::Result<()> {
 
     // Start config server if requested
     if let Some(port) = cli.config_server_port {
-        let config_dir =
-            get_config_dir().unwrap_or_else(|| std::path::PathBuf::from("~/.config/odoo-rust-mcp"));
+        let config_dir = cli.config_dir.clone().unwrap_or_else(|| {
+            get_config_dir().unwrap_or_else(|| std::path::PathBuf::from("~/.config/odoo-rust-mcp"))
+        });
 
         tokio::spawn(async move {
             if let Err(e) = start_config_server(port, config_dir).await {
