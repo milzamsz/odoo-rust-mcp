@@ -116,20 +116,4 @@ export const InstancesTab: React.FC = () => {
       )}
     </div>
   );
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-slate-100 mb-1">{name}</h4>
-                    <p className="text-slate-400 font-mono text-xs break-all line-clamp-2 hover:line-clamp-none transition-all">
-                      {instanceConfig.url || 'No URL configured'}
-                    </p>
-                  </div>
-                  <span className="text-xl ml-3 flex-shrink-0">🏢</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-    </div>
-  );
 };
