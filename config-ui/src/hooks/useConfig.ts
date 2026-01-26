@@ -1,96 +1,77 @@
 import { useState, useCallback } from 'react';
-import type { ConfigType, StatusMessage } from '../types';
+import type { ConfigType, StatusMessage, InstanceConfig, ServerConfig, ToolConfig, PromptConfig } from '../types';
 
-const API_BASE = '/api/config';
+type ConfigData = InstanceConfig | ServerConfig | ToolConfig[] | PromptConfig[];
 
 export function useConfig(type: ConfigType) {
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const showStatus = useCallback((message: string, type: StatusMessage['type']) => {
-    setStatus({ message, type });
-    if (type === 'success') {
-      setTimeout(() => setStatus(null), 3000);
-    } else if (type === 'loading') {
-      // Keep loading status visible
-    }
-  }, []);
-
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<ConfigData> => {
     setLoading(true);
-    showStatus('⏳ Loading...', 'loading');
-    
+    setStatus({ message: `Loading ${type}...`, type: 'loading' });
+
     try {
-      const response = await fetch(`${API_BASE}/${type}`);
+      const response = await fetch(`/api/config/${type}`);
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Failed to load ${type}`);
       }
 
-      let data = await response.json();
-      
-      // For tools and prompts, extract array from object if needed
-      if ((type === 'tools' || type === 'prompts') && data && !Array.isArray(data)) {
-        const key = type === 'tools' ? 'tools' : 'prompts';
-        if (data[key] && Array.isArray(data[key])) {
-          data = data[key];
-        }
+      const data = await response.json();
+
+      let normalizedData: ConfigData;
+      if (type === 'tools' || type === 'prompts') {
+        normalizedData = Array.isArray(data) ? data : (data[type] || []);
+      } else {
+        normalizedData = data;
       }
 
-      showStatus('✅ Loaded successfully', 'success');
-      return data;
+      setStatus({ message: `${type.charAt(0).toUpperCase() + type.slice(1)} loaded successfully`, type: 'success' });
+      setTimeout(() => setStatus(null), 3000);
+
+      return normalizedData;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      showStatus(`❌ Error: ${message}`, 'error');
+      const message = error instanceof Error ? error.message : `Failed to load ${type}`;
+      setStatus({ message, type: 'error' });
       throw error;
     } finally {
       setLoading(false);
     }
-  }, [type, showStatus]);
+  }, [type]);
 
-  const save = useCallback(async (config: any) => {
+  const save = useCallback(async (config: ConfigData): Promise<void> => {
     setLoading(true);
-    showStatus('⏳ Saving...', 'loading');
+    setStatus({ message: `Saving ${type}...`, type: 'loading' });
 
     try {
-      // For tools and prompts, ensure we send array directly
-      let payload = config;
-      if (type === 'tools' || type === 'prompts') {
-        if (!Array.isArray(config)) {
-          const key = type === 'tools' ? 'tools' : 'prompts';
-          if (config[key] && Array.isArray(config[key])) {
-            payload = config[key];
-          } else {
-            throw new Error(`${type} must be an array`);
-          }
-        }
-      }
-
-      const response = await fetch(`${API_BASE}/${type}`, {
+      const response = await fetch(`/api/config/${type}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(config),
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-        throw new Error(error.error || `HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Failed to save ${type}`);
       }
 
-      showStatus('✅ Saved successfully! Hot reload applied.', 'success');
-      return true;
+      setStatus({
+        message: `${type.charAt(0).toUpperCase() + type.slice(1)} saved successfully. Hot reload applied.`,
+        type: 'success'
+      });
+      setTimeout(() => setStatus(null), 3000);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      showStatus(`❌ Error: ${message}`, 'error');
+      const message = error instanceof Error ? error.message : `Failed to save ${type}`;
+      setStatus({ message, type: 'error' });
       throw error;
     } finally {
       setLoading(false);
     }
-  }, [type, showStatus]);
+  }, [type]);
 
-  return {
-    load,
-    save,
-    status,
-    loading,
-  };
+  return { load, save, status, loading };
 }

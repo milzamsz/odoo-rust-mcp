@@ -1,18 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import JSONEditor, { type JSONEditorOptions } from 'jsoneditor';
-import 'jsoneditor/dist/jsoneditor.min.css';
+import JSONEditor, { JSONEditorOptions } from 'jsoneditor';
+import 'jsoneditor/dist/jsoneditor.css';
 
 interface JsonEditorProps {
   value: any;
   onChange: (value: any) => void;
-  mode?: 'tree' | 'code' | 'view' | 'form' | 'text';
+  mode?: 'tree' | 'code' | 'form' | 'text' | 'view';
 }
 
-export const JsonEditor: React.FC<JsonEditorProps> = ({ 
-  value, 
-  onChange, 
-  mode = 'tree' 
-}) => {
+export function JsonEditor({ value, onChange, mode = 'code' }: JsonEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<JSONEditor | null>(null);
 
@@ -21,26 +17,24 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
 
     const options: JSONEditorOptions = {
       mode,
-      modes: ['code', 'tree', 'view', 'form', 'text'],
-      onError: (err) => {
-        console.error('JSONEditor error:', err);
-      },
-      onModeChange: (newMode) => {
-        console.log('Mode changed to:', newMode);
-      },
+      modes: ['code', 'tree'],
       onChange: () => {
         try {
-          const json = editorRef.current?.get();
-          if (json !== undefined) {
-            onChange(json);
+          if (editorRef.current) {
+            const updatedJson = editorRef.current.get();
+            onChange(updatedJson);
           }
-        } catch (e) {
-          console.error('Error getting JSON from editor:', e);
+        } catch (error) {
+          console.error('Invalid JSON:', error);
         }
+      },
+      onError: (error) => {
+        console.error('JSON Editor error:', error);
       },
     };
 
     editorRef.current = new JSONEditor(containerRef.current, options);
+    editorRef.current.set(value);
 
     return () => {
       if (editorRef.current) {
@@ -48,27 +42,20 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
         editorRef.current = null;
       }
     };
-  }, [mode, onChange]);
+  }, []);
 
   useEffect(() => {
-    if (editorRef.current && value !== undefined) {
+    if (editorRef.current) {
       try {
+        const currentJson = editorRef.current.get();
+        if (JSON.stringify(currentJson) !== JSON.stringify(value)) {
+          editorRef.current.update(value);
+        }
+      } catch (error) {
         editorRef.current.set(value);
-      } catch (e) {
-        console.error('Error setting JSON in editor:', e);
       }
     }
   }, [value]);
 
-  return (
-    <div 
-      ref={containerRef}
-      className="w-full rounded-lg overflow-hidden border border-slate-700 bg-slate-900 shadow-xl"
-      style={{ 
-        height: '450px',
-        backgroundColor: '#1e293b',
-        borderColor: '#475569'
-      }}
-    />
-  );
-};
+  return <div ref={containerRef} className="json-editor-container w-full h-[500px]" />;
+}

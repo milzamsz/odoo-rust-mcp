@@ -48,3 +48,5 @@ export interface ToolCategory {
   tools: string[];
   envVar: string;
 }
+
+export type TabType = 'instances' | 'server' | 'tools' | 'prompts';
