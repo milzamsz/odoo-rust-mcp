@@ -57,21 +57,22 @@ export const InstancesTab: React.FC = () => {
         title="Instances Configuration"
         description="Configure Odoo instances that this MCP server can connect to. Changes are applied immediately."
       >
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block mb-3 font-medium text-slate-200 text-sm">
+            <label className="block text-sm font-semibold text-slate-200 mb-3">
               Configuration (JSON)
             </label>
             <JsonEditor value={config} onChange={setConfig} />
           </div>
           
-          <StatusMessage status={status} />
+          {status && <StatusMessage status={status} />}
           
-          <div className="flex gap-3 flex-wrap pt-4">
+          <div className="flex gap-3 flex-wrap pt-2">
             <Button
               onClick={handleSave}
               disabled={loading}
               icon="💾"
+              size="md"
             >
               Save Instances
             </Button>
@@ -80,6 +81,7 @@ export const InstancesTab: React.FC = () => {
               disabled={loading}
               variant="secondary"
               icon="🔄"
+              size="md"
             >
               Refresh
             </Button>
@@ -90,14 +92,30 @@ export const InstancesTab: React.FC = () => {
       {Object.keys(instances).length > 0 && (
         <Card 
           title="Active Instances"
-          description={`${Object.keys(instances).length} instance${Object.keys(instances).length !== 1 ? 's' : ''} configured`}
+          description={`${Object.keys(instances).length} instance${Object.keys(instances).length !== 1 ? 's' : ''} currently configured`}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {Object.entries(instances).map(([name, instanceConfig]) => (
               <div
                 key={name}
-                className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-blue-500 hover:shadow-lg hover:shadow-blue-900/20 transition-all duration-200"
+                className="bg-slate-700/30 backdrop-blur-sm p-4 rounded-lg border border-slate-700/60 hover:border-blue-500/60 hover:shadow-lg hover:shadow-blue-900/20 transition-all duration-300 group"
               >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-slate-100 mb-1.5 group-hover:text-blue-300 transition-colors">{name}</h4>
+                    <p className="text-slate-400 font-mono text-xs break-all line-clamp-1 group-hover:line-clamp-2">
+                      {instanceConfig.url || 'No URL configured'}
+                    </p>
+                  </div>
+                  <span className="text-2xl flex-shrink-0">🏢</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-slate-100 mb-1">{name}</h4>

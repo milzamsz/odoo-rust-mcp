@@ -122,21 +122,22 @@ export const ToolsTab: React.FC = () => {
         title="Tools Configuration"
         description="Define available tools that clients can call. Enable/disable tools by category for better security control."
       >
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block mb-3 font-medium text-slate-200 text-sm">
+            <label className="block text-sm font-semibold text-slate-200 mb-3">
               Configuration (JSON Array)
             </label>
             <JsonEditor value={config} onChange={setConfig} />
           </div>
           
-          <StatusMessage status={status} />
+          {status && <StatusMessage status={status} />}
           
-          <div className="flex gap-3 flex-wrap pt-4">
+          <div className="flex gap-3 flex-wrap pt-2">
             <Button
               onClick={handleSave}
               disabled={loading}
               icon="💾"
+              size="md"
             >
               Save Tools
             </Button>
@@ -145,6 +146,7 @@ export const ToolsTab: React.FC = () => {
               disabled={loading}
               variant="secondary"
               icon="🔄"
+              size="md"
             >
               Refresh
             </Button>
@@ -163,36 +165,35 @@ export const ToolsTab: React.FC = () => {
                 <div className="flex items-start gap-4 flex-1">
                   <span className="text-3xl flex-shrink-0">{category.icon}</span>
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-2 mb-2">
                       <h4 className="font-bold text-slate-100">{category.name}</h4>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold text-white transition-all ${
-                          isEnabled ? 'bg-green-600 shadow-lg shadow-green-600/30' : 'bg-slate-600'
-                        }`}
-                      >
-                        {isEnabled ? '● ENABLED' : '○ DISABLED'}
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold tracking-wide transition-all ${isEnabled ? 'bg-green-500/30 text-green-300 border border-green-500/50' : 'bg-slate-700/50 text-slate-400 border border-slate-600/50'}`}>
+                        {isEnabled ? 'ENABLED' : 'DISABLED'}
                       </span>
                     </div>
-                    <p className="text-slate-400 text-sm mb-3">{category.description}</p>
+                    <p className="text-sm text-slate-400 mb-4">{category.description}</p>
                     
-                    <div className="flex flex-wrap gap-2">
-                      {categoryTools.map((t) => (
-                        <span key={t.name} className="bg-slate-700/50 text-slate-300 px-2 py-1 rounded text-xs font-mono border border-slate-600 hover:border-slate-500">
-                          {t.name}
-                        </span>
-                      ))}
-                    </div>
+                    {categoryTools.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {categoryTools.map((t) => (
+                          <span key={t.name} className="bg-slate-700/40 text-slate-300 px-2.5 py-1.5 rounded text-xs font-mono border border-slate-600/50 transition-all hover:border-slate-500">
+                            {t.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <label className="flex items-center gap-3 flex-shrink-0 mt-1 cursor-pointer">
-                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isEnabled ? 'bg-green-600' : 'bg-slate-600'}`}>
+                <label className="flex items-center flex-shrink-0 mt-1 cursor-pointer group">
+                  <div className="relative">
                     <input
                       type="checkbox"
                       checked={isEnabled}
                       onChange={(e) => updateToolsGuards(envVar, e.target.checked)}
                       className="sr-only"
                     />
-                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                    <div className={`h-6 w-11 rounded-full transition-all duration-200 ${isEnabled ? 'bg-green-500/40 border border-green-500/50' : 'bg-slate-700/40 border border-slate-600/50'}`} />
+                    <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white/90 shadow-md transition-all duration-200 transform ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                   </div>
                 </label>
               </div>

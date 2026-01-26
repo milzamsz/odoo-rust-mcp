@@ -39,23 +39,24 @@ export const ServerTab: React.FC = () => {
     <div className="space-y-6">
       <Card 
         title="Server Configuration"
-        description="Configure server metadata and behavior settings. These affect how the MCP server is presented to clients."
+        description="Configure server metadata and behavior settings that affect how the MCP server is presented to clients."
       >
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block mb-3 font-medium text-slate-200 text-sm">
+            <label className="block text-sm font-semibold text-slate-200 mb-3">
               Configuration (JSON)
             </label>
             <JsonEditor value={config} onChange={setConfig} />
           </div>
           
-          <StatusMessage status={status} />
+          {status && <StatusMessage status={status} />}
           
-          <div className="flex gap-3 flex-wrap pt-4">
+          <div className="flex gap-3 flex-wrap pt-2">
             <Button
               onClick={handleSave}
               disabled={loading}
               icon="💾"
+              size="md"
             >
               Save Configuration
             </Button>
@@ -64,6 +65,7 @@ export const ServerTab: React.FC = () => {
               disabled={loading}
               variant="secondary"
               icon="🔄"
+              size="md"
             >
               Refresh
             </Button>
@@ -72,27 +74,27 @@ export const ServerTab: React.FC = () => {
       </Card>
 
       <Card 
-        title="Configuration Reference"
-        description="Common server configuration fields"
+        title="Configuration Fields"
+        description="Reference for common server configuration options"
       >
-        <div className="space-y-3 text-sm">
-          <div className="space-y-1">
-            <p className="text-slate-300">
-              <span className="bg-slate-700 px-2 py-1 rounded text-blue-300 font-mono text-xs">serverName</span>
-            </p>
-            <p className="text-slate-400">Name shown to MCP clients</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <code className="bg-slate-700/50 text-blue-300 px-2.5 py-1.5 rounded font-mono text-xs">serverName</code>
+            </div>
+            <p className="text-sm text-slate-400">Name shown to MCP clients</p>
           </div>
-          <div className="space-y-1">
-            <p className="text-slate-300">
-              <span className="bg-slate-700 px-2 py-1 rounded text-blue-300 font-mono text-xs">instructions</span>
-            </p>
-            <p className="text-slate-400">System instructions for the AI</p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <code className="bg-slate-700/50 text-blue-300 px-2.5 py-1.5 rounded font-mono text-xs">instructions</code>
+            </div>
+            <p className="text-sm text-slate-400">System instructions for the AI</p>
           </div>
-          <div className="space-y-1">
-            <p className="text-slate-300">
-              <span className="bg-slate-700 px-2 py-1 rounded text-blue-300 font-mono text-xs">protocolVersionDefault</span>
-            </p>
-            <p className="text-slate-400">Default MCP protocol version</p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <code className="bg-slate-700/50 text-blue-300 px-2.5 py-1.5 rounded font-mono text-xs">protocolVersionDefault</code>
+            </div>
+            <p className="text-sm text-slate-400">Default MCP protocol version</p>
           </div>
         </div>
       </Card>

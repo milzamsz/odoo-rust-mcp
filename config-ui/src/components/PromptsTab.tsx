@@ -41,21 +41,22 @@ export const PromptsTab: React.FC = () => {
         title="Prompts Configuration"
         description="Define system prompts that guide the MCP server's behavior and responses."
       >
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block mb-3 font-medium text-slate-200 text-sm">
+            <label className="block text-sm font-semibold text-slate-200 mb-3">
               Configuration (JSON Array)
             </label>
             <JsonEditor value={config} onChange={setConfig} />
           </div>
           
-          <StatusMessage status={status} />
+          {status && <StatusMessage status={status} />}
           
-          <div className="flex gap-3 flex-wrap pt-4">
+          <div className="flex gap-3 flex-wrap pt-2">
             <Button
               onClick={handleSave}
               disabled={loading}
               icon="💾"
+              size="md"
             >
               Save Prompts
             </Button>
@@ -64,6 +65,7 @@ export const PromptsTab: React.FC = () => {
               disabled={loading}
               variant="secondary"
               icon="🔄"
+              size="md"
             >
               Refresh
             </Button>
