@@ -150,6 +150,15 @@ impl ServerHandler for McpOdooHandler {
                     .ok_or_else(|| protocol_err("resources/read missing 'uri'"))?;
                 resources::read_resource(&self.pool, uri).await
             }
+            // MCP ping method for health check / keep-alive
+            "ping" => Ok(json!({})),
+            // Handle notifications gracefully (no response needed, but return empty if called as request)
+            "notifications/cancelled" => Ok(json!({})),
+            "notifications/progress" => Ok(json!({})),
+            "notifications/message" => Ok(json!({})),
+            "notifications/resources/list_changed" => Ok(json!({})),
+            "notifications/tools/list_changed" => Ok(json!({})),
+            "notifications/prompts/list_changed" => Ok(json!({})),
             _ => Err(protocol_err(format!("Unknown method: {method}"))),
         }
     }
