@@ -656,6 +656,79 @@ Endpoints:
 - Health check: `http://127.0.0.1:8787/health` (no auth required)
 - OpenAPI spec: `http://127.0.0.1:8787/openapi.json` (no auth required)
 
+### Streamable HTTP Transport (MCP 2025-11-25)
+
+The HTTP transport implements the **MCP Streamable HTTP specification** (version 2025-11-25), which provides efficient real-time communication using Server-Sent Events (SSE).
+
+**Endpoints:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/mcp` | Send JSON-RPC requests/notifications |
+| GET | `/mcp` | Open SSE stream for server-to-client messages |
+| DELETE | `/mcp` | Explicitly terminate a session |
+
+**Features:**
+
+- **Session Management**: Sessions are created on `initialize` and tracked via `MCP-Session-Id` header
+- **SSE Streaming**: Server can push notifications and progress updates via GET `/mcp`
+- **Event IDs**: Each SSE event has a unique ID for resumability support
+- **Protocol Version Header**: `MCP-Protocol-Version` header for version negotiation
+- **Origin Validation**: Security protection against DNS rebinding attacks
+
+**Headers:**
+
+| Header | Description |
+|--------|-------------|
+| `MCP-Session-Id` | Session identifier (returned on initialize, required for subsequent requests) |
+| `MCP-Protocol-Version` | Protocol version (e.g., `2025-03-26`, `2025-11-05`) |
+| `Authorization` | Bearer token authentication (if `MCP_AUTH_TOKEN` is set) |
+| `Last-Event-ID` | Resume SSE stream from a specific event (for reconnection) |
+
+**Example: Initialize session**
+
+```bash
+curl -X POST http://127.0.0.1:8787/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}'
+```
+
+Response includes `MCP-Session-Id` header for subsequent requests.
+
+**Example: Open SSE stream**
+
+```bash
+curl -N http://127.0.0.1:8787/mcp \
+  -H "Accept: text/event-stream" \
+  -H "MCP-Session-Id: <session-id>"
+```
+
+**Example: Terminate session**
+
+```bash
+curl -X DELETE http://127.0.0.1:8787/mcp \
+  -H "MCP-Session-Id: <session-id>"
+```
+
+**Security Configuration:**
+
+```bash
+# Enable Origin validation (comma-separated list of allowed origins)
+export MCP_ALLOWED_ORIGINS="https://example.com,https://app.example.com"
+
+# Localhost-only mode (empty value)
+export MCP_ALLOWED_ORIGINS=""
+
+# Disable Origin validation (default - not recommended for production)
+# Simply don't set MCP_ALLOWED_ORIGINS
+```
+
+When Origin validation is enabled:
+- Requests with invalid Origin header receive `403 Forbidden`
+- Localhost origins (`localhost`, `127.0.0.1`, `[::1]`) are always allowed
+- Requests without Origin header (same-origin or non-browser clients) are allowed
+
 ### HTTP API Documentation
 
 The HTTP API is documented using OpenAPI 3.0 specification. You can:

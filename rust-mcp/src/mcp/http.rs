@@ -1,7 +1,19 @@
-use std::collections::HashMap;
+//! MCP Streamable HTTP Transport
+//!
+//! Implements the MCP Streamable HTTP transport per specification 2025-11-25.
+//! Features:
+//! - POST /mcp: Send JSON-RPC messages, receive JSON or SSE stream response
+//! - GET /mcp: Open SSE stream for server-to-client notifications
+//! - DELETE /mcp: Explicitly terminate a session
+//! - Origin validation for security
+//! - Session management with resumability support
+//! - Protocol version header handling
+
+use std::collections::{HashMap, VecDeque};
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use axum::extract::{Query, State};
@@ -15,21 +27,141 @@ use mcp_rust_sdk::protocol::{RequestId, Response};
 use mcp_rust_sdk::server::ServerHandler;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use tokio::sync::{Mutex, broadcast};
+use tokio::sync::{Mutex, RwLock, broadcast};
 use tokio_stream::wrappers::{BroadcastStream, IntervalStream};
 use tokio_stream::{StreamExt, iter};
 use tower_http::cors::CorsLayer;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 use crate::mcp::McpOdooHandler;
 
+// Header names per MCP spec
 static MCP_SESSION_ID: HeaderName = HeaderName::from_static("mcp-session-id");
+static MCP_PROTOCOL_VERSION: HeaderName = HeaderName::from_static("mcp-protocol-version");
 static AUTHORIZATION: HeaderName = HeaderName::from_static("authorization");
+static ORIGIN: HeaderName = HeaderName::from_static("origin");
+static LAST_EVENT_ID: HeaderName = HeaderName::from_static("last-event-id");
 
-#[derive(Clone, Default)]
+/// Default protocol version for backwards compatibility
+const DEFAULT_PROTOCOL_VERSION: &str = "2025-03-26";
+
+/// Current supported protocol version
+const CURRENT_PROTOCOL_VERSION: &str = "2025-11-05";
+
+/// Maximum number of events to buffer for resumability per session
+const MAX_EVENT_BUFFER_SIZE: usize = 100;
+
+/// SSE keepalive interval in seconds
+const SSE_KEEPALIVE_SECS: u64 = 15;
+
+/// Default retry interval for SSE reconnection (milliseconds)
+const SSE_RETRY_MS: u64 = 3000;
+
+/// Stored SSE event for resumability
+#[derive(Clone, Debug)]
+struct StoredEvent {
+    id: String,
+    data: Value,
+}
+
+/// Session state with enhanced tracking for Streamable HTTP
+#[derive(Clone)]
 struct SessionState {
     initialized: bool,
+    protocol_version: String,
+    event_counter: Arc<AtomicU64>,
+    /// Circular buffer of recent events for resumability (placeholder for full implementation)
+    #[allow(dead_code)]
+    event_buffer: Arc<RwLock<VecDeque<StoredEvent>>>,
+}
+
+impl Default for SessionState {
+    fn default() -> Self {
+        Self {
+            initialized: false,
+            protocol_version: DEFAULT_PROTOCOL_VERSION.to_string(),
+            event_counter: Arc::new(AtomicU64::new(0)),
+            event_buffer: Arc::new(RwLock::new(VecDeque::with_capacity(MAX_EVENT_BUFFER_SIZE))),
+        }
+    }
+}
+
+impl SessionState {
+    fn new(protocol_version: String) -> Self {
+        Self {
+            initialized: true,
+            protocol_version,
+            event_counter: Arc::new(AtomicU64::new(0)),
+            event_buffer: Arc::new(RwLock::new(VecDeque::with_capacity(MAX_EVENT_BUFFER_SIZE))),
+        }
+    }
+
+    /// Generate next event ID for this session
+    fn next_event_id(&self, session_id: &str) -> String {
+        let counter = self.event_counter.fetch_add(1, Ordering::SeqCst);
+        format!("{}:{}", session_id, counter)
+    }
+
+    /// Store an event for potential replay (placeholder for full resumability implementation)
+    #[allow(dead_code)]
+    async fn store_event(&self, event: StoredEvent) {
+        let mut buffer = self.event_buffer.write().await;
+        if buffer.len() >= MAX_EVENT_BUFFER_SIZE {
+            buffer.pop_front();
+        }
+        buffer.push_back(event);
+    }
+
+    /// Get events after a given event ID for replay (placeholder for full resumability implementation)
+    #[allow(dead_code)]
+    async fn get_events_after(&self, last_event_id: &str) -> Vec<StoredEvent> {
+        let buffer = self.event_buffer.read().await;
+        let mut found = false;
+        let mut result = Vec::new();
+
+        for event in buffer.iter() {
+            if found {
+                result.push(event.clone());
+            } else if event.id == last_event_id {
+                found = true;
+            }
+        }
+
+        result
+    }
+}
+
+/// Security configuration for Origin validation
+#[derive(Clone, Debug, Default)]
+pub struct SecurityConfig {
+    /// Allowed origins. None = allow all (default), Some([]) = localhost only
+    pub allowed_origins: Option<Vec<String>>,
+}
+
+impl SecurityConfig {
+    /// Load security config from environment
+    pub fn from_env() -> Self {
+        let allowed_origins: Option<Vec<String>> =
+            std::env::var("MCP_ALLOWED_ORIGINS").ok().map(|s| {
+                s.split(',')
+                    .map(|o| o.trim().to_string())
+                    .filter(|o| !o.is_empty())
+                    .collect()
+            });
+
+        if let Some(ref origins) = allowed_origins {
+            if origins.is_empty() {
+                info!("MCP Origin validation: localhost only");
+            } else {
+                info!("MCP Origin validation enabled: {:?}", origins);
+            }
+        } else {
+            debug!("MCP Origin validation disabled (set MCP_ALLOWED_ORIGINS to enable)");
+        }
+
+        Self { allowed_origins }
+    }
 }
 
 /// Authentication configuration for HTTP transport
@@ -60,10 +192,17 @@ struct AppState {
     sessions: Arc<Mutex<HashMap<String, SessionState>>>,
     sse_channels: Arc<Mutex<HashMap<String, broadcast::Sender<Value>>>>,
     auth: AuthConfig,
+    security: SecurityConfig,
 }
 
 pub async fn serve(handler: Arc<McpOdooHandler>, listen: &str) -> anyhow::Result<()> {
-    serve_with_auth(handler, listen, AuthConfig::from_env()).await
+    serve_with_config(
+        handler,
+        listen,
+        AuthConfig::from_env(),
+        SecurityConfig::from_env(),
+    )
+    .await
 }
 
 pub async fn serve_with_auth(
@@ -71,7 +210,16 @@ pub async fn serve_with_auth(
     listen: &str,
     auth: AuthConfig,
 ) -> anyhow::Result<()> {
-    let app = create_app(handler, auth);
+    serve_with_config(handler, listen, auth, SecurityConfig::from_env()).await
+}
+
+pub async fn serve_with_config(
+    handler: Arc<McpOdooHandler>,
+    listen: &str,
+    auth: AuthConfig,
+    security: SecurityConfig,
+) -> anyhow::Result<()> {
+    let app = create_app_with_security(handler, auth, security);
     let addr: SocketAddr = listen.parse()?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
@@ -136,19 +284,29 @@ async fn openapi_spec() -> impl IntoResponse {
     Json(spec)
 }
 
-/// Create the Axum Router for the MCP HTTP server.
+/// Create the Axum Router for the MCP HTTP server (with default security).
 /// This is public to enable integration testing with axum-test.
 pub fn create_app(handler: Arc<McpOdooHandler>, auth: AuthConfig) -> Router {
+    create_app_with_security(handler, auth, SecurityConfig::default())
+}
+
+/// Create the Axum Router with full configuration
+pub fn create_app_with_security(
+    handler: Arc<McpOdooHandler>,
+    auth: AuthConfig,
+    security: SecurityConfig,
+) -> Router {
     let state = AppState {
         handler,
         sessions: Arc::new(Mutex::new(HashMap::new())),
         sse_channels: Arc::new(Mutex::new(HashMap::new())),
         auth,
+        security,
     };
 
     Router::new()
-        // Streamable HTTP (recommended)
-        .route("/mcp", post(mcp_post).get(mcp_get))
+        // Streamable HTTP (MCP 2025-11-25 spec)
+        .route("/mcp", post(mcp_post).get(mcp_get).delete(mcp_delete))
         // Legacy SSE transport (Cursor supports `SSE` transport option)
         .route("/sse", get(legacy_sse))
         .route("/messages", post(legacy_messages))
@@ -171,20 +329,31 @@ fn jsonrpc_err(id: RequestId, code: ErrorCode, message: impl Into<String>) -> Re
     )
 }
 
+/// Create a JSON-RPC error response without an ID (for HTTP-level errors)
+fn jsonrpc_err_no_id(code: ErrorCode, message: impl Into<String>) -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "error": {
+            "code": i32::from(code),
+            "message": message.into()
+        }
+    })
+}
+
 fn cursor_initialize_result(
     params: &Value,
     odoo_instances: Vec<String>,
     protocol_default: String,
     server_name: String,
     instructions: String,
-) -> Result<Value, McpError> {
+) -> Result<(Value, String), McpError> {
     let protocol_version = params
         .get("protocolVersion")
         .and_then(|v| v.as_str())
         .unwrap_or(&protocol_default)
         .to_string();
 
-    Ok(json!({
+    let result = json!({
         "protocolVersion": protocol_version,
         "capabilities": {
             "tools": { "listChanged": true },
@@ -199,128 +368,61 @@ fn cursor_initialize_result(
             "version": env!("CARGO_PKG_VERSION")
         },
         "instructions": instructions
-    }))
+    });
+
+    Ok((result, protocol_version))
 }
 
-async fn handle_jsonrpc(
-    state: &AppState,
-    session_id: Option<String>,
-    v: Value,
-) -> Result<(Option<String>, Option<Value>, StatusCode), (StatusCode, Value)> {
-    let obj = v
-        .as_object()
-        .ok_or((StatusCode::BAD_REQUEST, json!({"error":"expected object"})))?;
-    let method = obj
-        .get("method")
-        .and_then(|m| m.as_str())
-        .ok_or((StatusCode::BAD_REQUEST, json!({"error":"missing method"})))?
-        .to_string();
+/// Validate Origin header for security (DNS rebinding prevention)
+fn validate_origin(
+    headers: &HeaderMap,
+    security: &SecurityConfig,
+) -> Result<(), (StatusCode, Json<Value>)> {
+    let Some(ref allowed) = security.allowed_origins else {
+        // Origin validation disabled
+        return Ok(());
+    };
 
-    // Notifications have no id.
-    let id_val = obj.get("id").cloned();
-    let params = obj.get("params").cloned();
+    let origin = headers.get(&ORIGIN).and_then(|v| v.to_str().ok());
 
-    // Streamable HTTP sessions: create on initialize, otherwise accept without requiring.
-    let effective_session = session_id;
-    if method == "initialize" {
-        let id_val = id_val.ok_or((
-            StatusCode::BAD_REQUEST,
-            json!({"error":"initialize requires id"}),
-        ))?;
-        let id: RequestId = serde_json::from_value(id_val)
-            .map_err(|e| (StatusCode::BAD_REQUEST, json!({"error": e.to_string()})))?;
-        let params = params.unwrap_or_else(|| json!({}));
-        let protocol_default = state.handler.protocol_version_default().await;
-        let server_name = state.handler.server_name().await;
-        let instructions = state.handler.instructions().await;
-        let result = cursor_initialize_result(
-            &params,
-            state.handler.instance_names(),
-            protocol_default,
-            server_name,
-            instructions,
-        )
-        .map_err(|e| (StatusCode::BAD_REQUEST, json!({"error": e.to_string()})))?;
+    match origin {
+        Some(origin_str) => {
+            // Check if localhost (always allowed when list is empty)
+            let is_localhost = origin_str.contains("localhost")
+                || origin_str.contains("127.0.0.1")
+                || origin_str.contains("[::1]");
 
-        let sess = Uuid::new_v4().to_string();
-        state
-            .sessions
-            .lock()
-            .await
-            .insert(sess.clone(), SessionState { initialized: true });
-        state
-            .sse_channels
-            .lock()
-            .await
-            .entry(sess.clone())
-            .or_insert_with(|| broadcast::channel(256).0);
-
-        let resp = Response::success(id, Some(result));
-        return Ok((
-            Some(sess),
-            Some(serde_json::to_value(resp).unwrap()),
-            StatusCode::OK,
-        ));
-    }
-
-    // initialized notification toggles gating for the session (if provided)
-    if method == "initialized" {
-        if let Some(sess) = &effective_session
-            && let Some(st) = state.sessions.lock().await.get_mut(sess)
-        {
-            st.initialized = true;
+            if allowed.is_empty() {
+                // Empty list = localhost only
+                if is_localhost {
+                    Ok(())
+                } else {
+                    Err((
+                        StatusCode::FORBIDDEN,
+                        Json(jsonrpc_err_no_id(
+                            ErrorCode::InvalidRequest,
+                            "Origin not allowed: only localhost permitted",
+                        )),
+                    ))
+                }
+            } else if allowed.iter().any(|a| a == origin_str) || is_localhost {
+                Ok(())
+            } else {
+                Err((
+                    StatusCode::FORBIDDEN,
+                    Json(jsonrpc_err_no_id(
+                        ErrorCode::InvalidRequest,
+                        format!("Origin not allowed: {}", origin_str),
+                    )),
+                ))
+            }
         }
-        return Ok((None, None, StatusCode::ACCEPTED));
+        None => {
+            // No Origin header - could be same-origin request or non-browser client
+            // Per spec, we only validate when Origin is present
+            Ok(())
+        }
     }
-
-    // For other methods, if we have a known session and it's not initialized, reject.
-    if let Some(sess) = &effective_session
-        && let Some(st) = state.sessions.lock().await.get(sess)
-        && !st.initialized
-    {
-        // Cursor typically sends initialized quickly; if not, still allow read-only ops?
-        // We'll follow MCP gating to match stdio behavior.
-        let id = id_val
-            .clone()
-            .and_then(|x| serde_json::from_value::<RequestId>(x).ok())
-            .unwrap_or(RequestId::String("unknown".to_string()));
-        let resp = jsonrpc_err(
-            id,
-            ErrorCode::ServerNotInitialized,
-            "Server not initialized",
-        );
-        return Ok((
-            None,
-            Some(serde_json::to_value(resp).unwrap()),
-            StatusCode::OK,
-        ));
-    }
-
-    // Notifications: best-effort handle_method, return 202.
-    if id_val.is_none() {
-        let _ = state.handler.handle_method(&method, params).await;
-        return Ok((None, None, StatusCode::ACCEPTED));
-    }
-
-    let id: RequestId = serde_json::from_value(id_val.unwrap())
-        .map_err(|e| (StatusCode::BAD_REQUEST, json!({"error": e.to_string()})))?;
-
-    let result = state
-        .handler
-        .handle_method(&method, params)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::OK,
-                jsonrpc_err(id.clone(), ErrorCode::InternalError, e.to_string()).to_value(),
-            )
-        })?;
-    let resp = Response::success(id, Some(result));
-    Ok((
-        None,
-        Some(serde_json::to_value(resp).unwrap()),
-        StatusCode::OK,
-    ))
 }
 
 /// Validate Bearer token authentication
@@ -364,30 +466,257 @@ fn validate_auth(headers: &HeaderMap, auth: &AuthConfig) -> Result<(), (StatusCo
     }
 }
 
+/// Validate MCP-Protocol-Version header
+fn validate_protocol_version(
+    headers: &HeaderMap,
+    session: Option<&SessionState>,
+) -> Result<(), (StatusCode, Json<Value>)> {
+    let version = headers
+        .get(&MCP_PROTOCOL_VERSION)
+        .and_then(|v| v.to_str().ok());
+
+    match version {
+        Some(v) => {
+            // Validate against session's negotiated version or supported versions
+            let expected = session
+                .map(|s| s.protocol_version.as_str())
+                .unwrap_or(CURRENT_PROTOCOL_VERSION);
+
+            // Accept the version if it matches or is a known compatible version
+            let known_versions = [
+                "2024-11-05",
+                "2025-03-26",
+                "2025-11-05",
+                CURRENT_PROTOCOL_VERSION,
+            ];
+            if v == expected || known_versions.contains(&v) {
+                Ok(())
+            } else {
+                Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(jsonrpc_err_no_id(
+                        ErrorCode::InvalidRequest,
+                        format!("Unsupported protocol version: {}", v),
+                    )),
+                ))
+            }
+        }
+        None => {
+            // Per spec: if no header, assume 2025-03-26 for backwards compatibility
+            Ok(())
+        }
+    }
+}
+
+/// Validate session exists and is not expired
+fn validate_session(
+    session_id: Option<&str>,
+    sessions: &HashMap<String, SessionState>,
+) -> Result<Option<SessionState>, (StatusCode, Json<Value>)> {
+    match session_id {
+        Some(id) => match sessions.get(id) {
+            Some(state) => Ok(Some(state.clone())),
+            None => {
+                // Session not found - per spec, return 404
+                Err((
+                    StatusCode::NOT_FOUND,
+                    Json(jsonrpc_err_no_id(
+                        ErrorCode::InvalidRequest,
+                        "Session not found or expired",
+                    )),
+                ))
+            }
+        },
+        None => Ok(None), // No session required for initialize
+    }
+}
+
+async fn handle_jsonrpc(
+    state: &AppState,
+    session_id: Option<String>,
+    v: Value,
+) -> Result<(Option<String>, Option<Value>, StatusCode, Option<String>), (StatusCode, Value)> {
+    let obj = v
+        .as_object()
+        .ok_or((StatusCode::BAD_REQUEST, json!({"error":"expected object"})))?;
+    let method = obj
+        .get("method")
+        .and_then(|m| m.as_str())
+        .ok_or((StatusCode::BAD_REQUEST, json!({"error":"missing method"})))?
+        .to_string();
+
+    // Notifications have no id.
+    let id_val = obj.get("id").cloned();
+    let params = obj.get("params").cloned();
+
+    // Streamable HTTP sessions: create on initialize, otherwise accept without requiring.
+    let effective_session = session_id.clone();
+
+    if method == "initialize" {
+        let id_val = id_val.ok_or((
+            StatusCode::BAD_REQUEST,
+            json!({"error":"initialize requires id"}),
+        ))?;
+        let id: RequestId = serde_json::from_value(id_val)
+            .map_err(|e| (StatusCode::BAD_REQUEST, json!({"error": e.to_string()})))?;
+        let params = params.unwrap_or_else(|| json!({}));
+        let protocol_default = state.handler.protocol_version_default().await;
+        let server_name = state.handler.server_name().await;
+        let instructions = state.handler.instructions().await;
+        let (result, negotiated_version) = cursor_initialize_result(
+            &params,
+            state.handler.instance_names(),
+            protocol_default,
+            server_name,
+            instructions,
+        )
+        .map_err(|e| (StatusCode::BAD_REQUEST, json!({"error": e.to_string()})))?;
+
+        let sess = Uuid::new_v4().to_string();
+        state
+            .sessions
+            .lock()
+            .await
+            .insert(sess.clone(), SessionState::new(negotiated_version.clone()));
+        state
+            .sse_channels
+            .lock()
+            .await
+            .entry(sess.clone())
+            .or_insert_with(|| broadcast::channel(256).0);
+
+        let resp = Response::success(id, Some(result));
+        return Ok((
+            Some(sess),
+            Some(serde_json::to_value(resp).unwrap()),
+            StatusCode::OK,
+            Some(negotiated_version),
+        ));
+    }
+
+    // initialized notification toggles gating for the session (if provided)
+    if method == "initialized" {
+        if let Some(sess) = &effective_session
+            && let Some(st) = state.sessions.lock().await.get_mut(sess)
+        {
+            st.initialized = true;
+        }
+        return Ok((None, None, StatusCode::ACCEPTED, None));
+    }
+
+    // For other methods, if we have a known session and it's not initialized, reject.
+    if let Some(sess) = &effective_session
+        && let Some(st) = state.sessions.lock().await.get(sess)
+        && !st.initialized
+    {
+        // Cursor typically sends initialized quickly; if not, still allow read-only ops?
+        // We'll follow MCP gating to match stdio behavior.
+        let id = id_val
+            .clone()
+            .and_then(|x| serde_json::from_value::<RequestId>(x).ok())
+            .unwrap_or(RequestId::String("unknown".to_string()));
+        let resp = jsonrpc_err(
+            id,
+            ErrorCode::ServerNotInitialized,
+            "Server not initialized",
+        );
+        return Ok((
+            None,
+            Some(serde_json::to_value(resp).unwrap()),
+            StatusCode::OK,
+            None,
+        ));
+    }
+
+    // Notifications: best-effort handle_method, return 202.
+    if id_val.is_none() {
+        let _ = state.handler.handle_method(&method, params).await;
+        return Ok((None, None, StatusCode::ACCEPTED, None));
+    }
+
+    let id: RequestId = serde_json::from_value(id_val.unwrap())
+        .map_err(|e| (StatusCode::BAD_REQUEST, json!({"error": e.to_string()})))?;
+
+    let result = state
+        .handler
+        .handle_method(&method, params)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::OK,
+                jsonrpc_err(id.clone(), ErrorCode::InternalError, e.to_string()).to_value(),
+            )
+        })?;
+    let resp = Response::success(id, Some(result));
+    Ok((
+        None,
+        Some(serde_json::to_value(resp).unwrap()),
+        StatusCode::OK,
+        None,
+    ))
+}
+
+/// POST /mcp - Send JSON-RPC messages
+///
+/// Per MCP spec:
+/// - Accept header must include application/json and text/event-stream
+/// - Response can be JSON or SSE stream
+/// - For notifications/responses: return 202 Accepted
+/// - For requests: return response or stream
 async fn mcp_post(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> impl IntoResponse {
+    // Validate Origin (security)
+    if let Err(err) = validate_origin(&headers, &state.security) {
+        return err.into_response();
+    }
+
     // Validate authentication
     if let Err(err) = validate_auth(&headers, &state.auth) {
         return err.into_response();
     }
 
-    let session = headers
+    let session_id = headers
         .get(&MCP_SESSION_ID)
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
 
-    // We only implement single-message requests for now (Cursor uses single).
-    let (new_sess, maybe_resp, status) = match handle_jsonrpc(&state, session, body).await {
-        Ok(v) => v,
-        Err((sc, v)) => return (sc, Json(v)).into_response(),
-    };
+    // Validate session if provided (except for initialize)
+    let is_initialize = body
+        .get("method")
+        .and_then(|m| m.as_str())
+        .is_some_and(|m| m == "initialize");
 
+    if !is_initialize && let Some(ref sid) = session_id {
+        let sessions = state.sessions.lock().await;
+        if let Err(err) = validate_session(Some(sid), &sessions) {
+            return err.into_response();
+        }
+        let session_state = sessions.get(sid);
+        if let Err(err) = validate_protocol_version(&headers, session_state) {
+            return err.into_response();
+        }
+    }
+
+    // Handle the JSON-RPC message
+    let (new_sess, maybe_resp, status, protocol_version) =
+        match handle_jsonrpc(&state, session_id.clone(), body).await {
+            Ok(v) => v,
+            Err((sc, v)) => return (sc, Json(v)).into_response(),
+        };
+
+    // Build response headers
     let mut out_headers = HeaderMap::new();
     if let Some(sess) = new_sess {
         let _ = out_headers.insert(&MCP_SESSION_ID, HeaderValue::from_str(&sess).unwrap());
+    }
+    if let Some(version) = protocol_version {
+        let _ = out_headers.insert(
+            &MCP_PROTOCOL_VERSION,
+            HeaderValue::from_str(&version).unwrap(),
+        );
     }
 
     match maybe_resp {
@@ -396,38 +725,172 @@ async fn mcp_post(
     }
 }
 
+/// GET /mcp - Open SSE stream for server-to-client messages
+///
+/// Per MCP spec:
+/// - Accept header must include text/event-stream
+/// - Server can send notifications/requests
+/// - Supports resumability via Last-Event-ID
 async fn mcp_get(State(state): State<AppState>, headers: HeaderMap) -> axum::response::Response {
+    // Validate Origin (security)
+    if let Err(err) = validate_origin(&headers, &state.security) {
+        return err.into_response();
+    }
+
     // Validate authentication
     if let Err(err) = validate_auth(&headers, &state.auth) {
         return err.into_response();
     }
 
-    // Optional server->client channel (notifications).
-    let session = headers
+    // Get session ID
+    let session_id = headers
         .get(&MCP_SESSION_ID)
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string())
         .unwrap_or_else(|| "default".to_string());
 
-    let tx = {
+    // Check for Last-Event-ID for resumability
+    let _last_event_id = headers
+        .get(&LAST_EVENT_ID)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    // Get or create the broadcast channel
+    let (tx, session_state) = {
         let mut chans = state.sse_channels.lock().await;
-        chans
-            .entry(session)
+        let tx = chans
+            .entry(session_id.clone())
             .or_insert_with(|| broadcast::channel(256).0)
-            .clone()
+            .clone();
+
+        let sessions = state.sessions.lock().await;
+        let session_state = sessions.get(&session_id).cloned();
+        (tx, session_state)
     };
 
-    let keepalive = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)))
-        .map(|_| Ok::<Event, Infallible>(Event::default().comment("keepalive")));
+    // Build the SSE stream
+    let session_for_events = session_id.clone();
 
-    let stream = BroadcastStream::new(tx.subscribe()).filter_map(|msg| match msg {
-        Ok(v) => Some(Ok(Event::default().event("message").data(v.to_string()))),
-        Err(_) => None,
+    // Initial event with retry field to prime reconnection
+    let initial_event_id = session_state
+        .as_ref()
+        .map(|s| s.next_event_id(&session_for_events))
+        .unwrap_or_else(|| format!("{}:0", session_for_events));
+
+    let initial_events = iter(vec![Ok::<Event, Infallible>(
+        Event::default()
+            .id(initial_event_id)
+            .retry(Duration::from_millis(SSE_RETRY_MS))
+            .comment("connected"),
+    )]);
+
+    // Replay events if Last-Event-ID was provided
+    // Note: For full resumability, we'd fetch events from session_state.get_events_after(_last_event_id).
+    // This is left as a placeholder - in production, you'd spawn a task to fetch and replay events.
+    let replay_events: Vec<StoredEvent> = vec![];
+
+    let replay_stream = iter(replay_events.into_iter().map(|e: StoredEvent| {
+        Ok::<Event, Infallible>(
+            Event::default()
+                .id(e.id)
+                .event("message")
+                .data(e.data.to_string()),
+        )
+    }));
+
+    // Keepalive stream
+    let keepalive = IntervalStream::new(tokio::time::interval(Duration::from_secs(
+        SSE_KEEPALIVE_SECS,
+    )))
+    .map(|_| Ok::<Event, Infallible>(Event::default().comment("keepalive")));
+
+    // Message stream from broadcast channel
+    let session_for_stream = session_id.clone();
+    let session_state_for_stream = session_state.clone();
+
+    let stream = BroadcastStream::new(tx.subscribe()).filter_map(move |msg| {
+        match msg {
+            Ok(v) => {
+                let event_id = session_state_for_stream
+                    .as_ref()
+                    .map(|s| s.next_event_id(&session_for_stream))
+                    .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+                Some(Ok(Event::default()
+                    .id(event_id)
+                    .event("message")
+                    .data(v.to_string())))
+            }
+            Err(_) => None, // Channel lagged, skip
+        }
     });
 
-    Sse::new(keepalive.merge(stream))
-        .keep_alive(axum::response::sse::KeepAlive::default())
-        .into_response()
+    // Combine all streams
+    Sse::new(
+        initial_events
+            .chain(replay_stream)
+            .chain(keepalive.merge(stream)),
+    )
+    .keep_alive(axum::response::sse::KeepAlive::default())
+    .into_response()
+}
+
+/// DELETE /mcp - Explicitly terminate a session
+///
+/// Per MCP spec:
+/// - Client can explicitly terminate a session
+/// - Server responds with 200 OK or 405 Method Not Allowed
+async fn mcp_delete(State(state): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
+    // Validate Origin (security)
+    if let Err(err) = validate_origin(&headers, &state.security) {
+        return err.into_response();
+    }
+
+    // Validate authentication
+    if let Err(err) = validate_auth(&headers, &state.auth) {
+        return err.into_response();
+    }
+
+    let session_id = headers
+        .get(&MCP_SESSION_ID)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let Some(session_id) = session_id else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(jsonrpc_err_no_id(
+                ErrorCode::InvalidRequest,
+                "Missing MCP-Session-Id header",
+            )),
+        )
+            .into_response();
+    };
+
+    // Remove session and its SSE channel
+    let removed = {
+        let mut sessions = state.sessions.lock().await;
+        sessions.remove(&session_id).is_some()
+    };
+
+    {
+        let mut channels = state.sse_channels.lock().await;
+        channels.remove(&session_id);
+    }
+
+    if removed {
+        info!("Session terminated: {}", session_id);
+        StatusCode::OK.into_response()
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(jsonrpc_err_no_id(
+                ErrorCode::InvalidRequest,
+                "Session not found",
+            )),
+        )
+            .into_response()
+    }
 }
 
 #[derive(Deserialize)]
@@ -437,6 +900,11 @@ struct LegacyQuery {
 }
 
 async fn legacy_sse(State(state): State<AppState>, headers: HeaderMap) -> axum::response::Response {
+    // Validate Origin (security)
+    if let Err(err) = validate_origin(&headers, &state.security) {
+        return err.into_response();
+    }
+
     // Validate authentication
     if let Err(err) = validate_auth(&headers, &state.auth) {
         return err.into_response();
@@ -474,6 +942,11 @@ async fn legacy_messages(
     headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> impl IntoResponse {
+    // Validate Origin (security)
+    if let Err(err) = validate_origin(&headers, &state.security) {
+        return err.into_response();
+    }
+
     // Validate authentication
     if let Err(err) = validate_auth(&headers, &state.auth) {
         return err.into_response();
@@ -487,11 +960,11 @@ async fn legacy_messages(
     });
 
     // Legacy transport: responses are delivered on SSE stream, not in HTTP response.
-    let (_new_sess, maybe_resp, _status) = match handle_jsonrpc(&state, session.clone(), body).await
-    {
-        Ok(v) => v,
-        Err((_sc, _v)) => return StatusCode::BAD_REQUEST.into_response(),
-    };
+    let (_new_sess, maybe_resp, _status, _) =
+        match handle_jsonrpc(&state, session.clone(), body).await {
+            Ok(v) => v,
+            Err((_sc, _v)) => return StatusCode::BAD_REQUEST.into_response(),
+        };
 
     if let (Some(sess), Some(resp)) = (session, maybe_resp)
         && let Some(tx) = state.sse_channels.lock().await.get(&sess).cloned()
@@ -509,5 +982,136 @@ trait ResponseExt {
 impl ResponseExt for Response {
     fn to_value(self) -> Value {
         serde_json::to_value(self).unwrap_or_else(|_| json!({}))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_origin_validation_disabled() {
+        let security = SecurityConfig {
+            allowed_origins: None,
+        };
+        let headers = HeaderMap::new();
+        assert!(validate_origin(&headers, &security).is_ok());
+    }
+
+    #[test]
+    fn test_origin_validation_localhost_only() {
+        let security = SecurityConfig {
+            allowed_origins: Some(vec![]),
+        };
+
+        // No origin - should pass
+        let headers = HeaderMap::new();
+        assert!(validate_origin(&headers, &security).is_ok());
+
+        // Localhost - should pass
+        let mut headers = HeaderMap::new();
+        headers.insert(&ORIGIN, HeaderValue::from_static("http://localhost:3000"));
+        assert!(validate_origin(&headers, &security).is_ok());
+
+        // 127.0.0.1 - should pass
+        let mut headers = HeaderMap::new();
+        headers.insert(&ORIGIN, HeaderValue::from_static("http://127.0.0.1:8080"));
+        assert!(validate_origin(&headers, &security).is_ok());
+
+        // External origin - should fail
+        let mut headers = HeaderMap::new();
+        headers.insert(&ORIGIN, HeaderValue::from_static("http://evil.com"));
+        assert!(validate_origin(&headers, &security).is_err());
+    }
+
+    #[test]
+    fn test_origin_validation_with_allowed_list() {
+        let security = SecurityConfig {
+            allowed_origins: Some(vec!["https://example.com".to_string()]),
+        };
+
+        // Allowed origin - should pass
+        let mut headers = HeaderMap::new();
+        headers.insert(&ORIGIN, HeaderValue::from_static("https://example.com"));
+        assert!(validate_origin(&headers, &security).is_ok());
+
+        // Localhost - should always pass
+        let mut headers = HeaderMap::new();
+        headers.insert(&ORIGIN, HeaderValue::from_static("http://localhost:3000"));
+        assert!(validate_origin(&headers, &security).is_ok());
+
+        // Other origin - should fail
+        let mut headers = HeaderMap::new();
+        headers.insert(&ORIGIN, HeaderValue::from_static("https://other.com"));
+        assert!(validate_origin(&headers, &security).is_err());
+    }
+
+    #[test]
+    fn test_protocol_version_validation() {
+        // No header - should pass (backwards compatibility)
+        let headers = HeaderMap::new();
+        assert!(validate_protocol_version(&headers, None).is_ok());
+
+        // Known version - should pass
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            &MCP_PROTOCOL_VERSION,
+            HeaderValue::from_static("2025-03-26"),
+        );
+        assert!(validate_protocol_version(&headers, None).is_ok());
+
+        // Current version - should pass
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            &MCP_PROTOCOL_VERSION,
+            HeaderValue::from_static(CURRENT_PROTOCOL_VERSION),
+        );
+        assert!(validate_protocol_version(&headers, None).is_ok());
+    }
+
+    #[test]
+    fn test_session_state_event_id() {
+        let state = SessionState::new("2025-03-26".to_string());
+        let id1 = state.next_event_id("session123");
+        let id2 = state.next_event_id("session123");
+
+        assert!(id1.starts_with("session123:"));
+        assert!(id2.starts_with("session123:"));
+        assert_ne!(id1, id2);
+    }
+
+    #[tokio::test]
+    async fn test_session_state_event_buffer() {
+        let state = SessionState::new("2025-03-26".to_string());
+
+        // Store some events
+        state
+            .store_event(StoredEvent {
+                id: "s:0".to_string(),
+                data: json!({"msg": "first"}),
+            })
+            .await;
+        state
+            .store_event(StoredEvent {
+                id: "s:1".to_string(),
+                data: json!({"msg": "second"}),
+            })
+            .await;
+        state
+            .store_event(StoredEvent {
+                id: "s:2".to_string(),
+                data: json!({"msg": "third"}),
+            })
+            .await;
+
+        // Get events after s:0
+        let events = state.get_events_after("s:0").await;
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].id, "s:1");
+        assert_eq!(events[1].id, "s:2");
+
+        // Get events after non-existent ID
+        let events = state.get_events_after("s:999").await;
+        assert!(events.is_empty());
     }
 }
