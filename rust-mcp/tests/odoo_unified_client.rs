@@ -6,6 +6,5 @@ mod tests {
     fn test_unified_client_module_accessible() {
         // This ensures the module is compiled and accessible
         // OdooClientTrait is the main export from this module
-        assert!(true);
     }
 }
