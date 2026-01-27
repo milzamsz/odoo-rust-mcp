@@ -135,7 +135,7 @@ mod tests {
             body: None,
         };
 
-        let errors = vec![error1, error2, error3, error4];
+        let errors = [error1, error2, error3, error4];
 
         assert_eq!(errors.len(), 4);
         assert!(matches!(errors[0], OdooError::InvalidResponse(_)));
