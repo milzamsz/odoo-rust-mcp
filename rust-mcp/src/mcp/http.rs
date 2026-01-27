@@ -164,16 +164,16 @@ impl SecurityConfig {
     }
 }
 
-/// Authentication configuration for HTTP transport
-#[derive(Clone)]
-pub struct AuthConfig {
+/// Authentication configuration for HTTP transport (inner data)
+#[derive(Clone, Debug)]
+pub struct AuthConfigData {
     /// Bearer token for authentication. If None, authentication is disabled.
     pub bearer_token: Option<String>,
     /// Whether authentication is enabled (MCP_AUTH_ENABLED)
     pub enabled: bool,
 }
 
-impl AuthConfig {
+impl AuthConfigData {
     /// Load auth config from environment variables
     pub fn from_env() -> Self {
         // Check if auth is explicitly enabled
@@ -184,16 +184,6 @@ impl AuthConfig {
         let bearer_token = std::env::var("MCP_AUTH_TOKEN")
             .ok()
             .filter(|s| !s.is_empty());
-
-        if enabled {
-            if bearer_token.is_some() {
-                info!("MCP HTTP authentication enabled (Bearer token)");
-            } else {
-                warn!("MCP HTTP authentication enabled but MCP_AUTH_TOKEN not set!");
-            }
-        } else {
-            debug!("MCP HTTP authentication disabled (set MCP_AUTH_ENABLED=true to enable)");
-        }
 
         Self {
             bearer_token,
@@ -207,6 +197,74 @@ impl AuthConfig {
             bearer_token: None,
             enabled: false,
         }
+    }
+}
+
+/// Authentication configuration wrapper with hot-reload support
+#[derive(Clone)]
+pub struct AuthConfig {
+    inner: Arc<RwLock<AuthConfigData>>,
+}
+
+impl AuthConfig {
+    /// Create from environment variables
+    pub fn from_env() -> Self {
+        let data = AuthConfigData::from_env();
+        if data.enabled {
+            if data.bearer_token.is_some() {
+                info!("MCP HTTP authentication enabled (Bearer token)");
+            } else {
+                warn!("MCP HTTP authentication enabled but MCP_AUTH_TOKEN not set!");
+            }
+        } else {
+            debug!("MCP HTTP authentication disabled (set MCP_AUTH_ENABLED=true to enable)");
+        }
+        Self {
+            inner: Arc::new(RwLock::new(data)),
+        }
+    }
+
+    /// Create a disabled auth config
+    pub fn disabled() -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(AuthConfigData::disabled())),
+        }
+    }
+
+    /// Create auth config with specific settings (for testing)
+    pub fn new(enabled: bool, bearer_token: Option<String>) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(AuthConfigData {
+                enabled,
+                bearer_token,
+            })),
+        }
+    }
+
+    /// Reload configuration from environment variables
+    pub async fn reload(&self) {
+        let new_data = AuthConfigData::from_env();
+        let mut guard = self.inner.write().await;
+        let old_enabled = guard.enabled;
+        let old_token = guard.bearer_token.clone();
+        *guard = new_data.clone();
+
+        // Log changes
+        if old_enabled != new_data.enabled {
+            if new_data.enabled {
+                info!("MCP HTTP authentication ENABLED (hot-reload)");
+            } else {
+                info!("MCP HTTP authentication DISABLED (hot-reload)");
+            }
+        }
+        if old_token != new_data.bearer_token {
+            info!("MCP_AUTH_TOKEN updated (hot-reload)");
+        }
+    }
+
+    /// Get current config snapshot
+    pub async fn get(&self) -> AuthConfigData {
+        self.inner.read().await.clone()
     }
 }
 
@@ -450,7 +508,20 @@ fn validate_origin(
 }
 
 /// Validate Bearer token authentication
-fn validate_auth(headers: &HeaderMap, auth: &AuthConfig) -> Result<(), (StatusCode, Json<Value>)> {
+/// Validate Bearer token authentication (async version for hot-reload support)
+async fn validate_auth_async(
+    headers: &HeaderMap,
+    auth: &AuthConfig,
+) -> Result<(), (StatusCode, Json<Value>)> {
+    let auth_data = auth.get().await;
+    validate_auth_data(headers, &auth_data)
+}
+
+/// Validate Bearer token authentication against config data
+fn validate_auth_data(
+    headers: &HeaderMap,
+    auth: &AuthConfigData,
+) -> Result<(), (StatusCode, Json<Value>)> {
     // Check if auth is enabled
     if !auth.enabled {
         return Ok(());
@@ -708,8 +779,8 @@ async fn mcp_post(
         return err.into_response();
     }
 
-    // Validate authentication
-    if let Err(err) = validate_auth(&headers, &state.auth) {
+    // Validate authentication (async for hot-reload support)
+    if let Err(err) = validate_auth_async(&headers, &state.auth).await {
         return err.into_response();
     }
 
@@ -772,8 +843,8 @@ async fn mcp_get(State(state): State<AppState>, headers: HeaderMap) -> axum::res
         return err.into_response();
     }
 
-    // Validate authentication
-    if let Err(err) = validate_auth(&headers, &state.auth) {
+    // Validate authentication (async for hot-reload support)
+    if let Err(err) = validate_auth_async(&headers, &state.auth).await {
         return err.into_response();
     }
 
@@ -881,8 +952,8 @@ async fn mcp_delete(State(state): State<AppState>, headers: HeaderMap) -> impl I
         return err.into_response();
     }
 
-    // Validate authentication
-    if let Err(err) = validate_auth(&headers, &state.auth) {
+    // Validate authentication (async for hot-reload support)
+    if let Err(err) = validate_auth_async(&headers, &state.auth).await {
         return err.into_response();
     }
 
@@ -940,8 +1011,8 @@ async fn legacy_sse(State(state): State<AppState>, headers: HeaderMap) -> axum::
         return err.into_response();
     }
 
-    // Validate authentication
-    if let Err(err) = validate_auth(&headers, &state.auth) {
+    // Validate authentication (async for hot-reload support)
+    if let Err(err) = validate_auth_async(&headers, &state.auth).await {
         return err.into_response();
     }
 
@@ -982,8 +1053,8 @@ async fn legacy_messages(
         return err.into_response();
     }
 
-    // Validate authentication
-    if let Err(err) = validate_auth(&headers, &state.auth) {
+    // Validate authentication (async for hot-reload support)
+    if let Err(err) = validate_auth_async(&headers, &state.auth).await {
         return err.into_response();
     }
 

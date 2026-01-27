@@ -495,13 +495,24 @@ async fn main() -> anyhow::Result<()> {
     // We keep the CLI flag for compatibility, but it only affects the env var via clap env binding.
     let handler = Arc::new(McpOdooHandler::new(pool, registry));
 
+    // Create shared HTTP auth config (supports hot-reload)
+    let http_auth_config = mcp_http::AuthConfig::from_env();
+
     // Start config server (default port: 3008, inspired by Peugeot 3008)
     let config_dir = cli.config_dir.clone().unwrap_or_else(|| {
         get_config_dir().unwrap_or_else(|| std::path::PathBuf::from("~/.config/odoo-rust-mcp"))
     });
 
+    // Clone auth config for config server to trigger reloads
+    let auth_config_for_config_server = http_auth_config.clone();
     tokio::spawn(async move {
-        if let Err(e) = start_config_server(cli.config_server_port, config_dir).await {
+        if let Err(e) = start_config_server(
+            cli.config_server_port,
+            config_dir,
+            Some(auth_config_for_config_server),
+        )
+        .await
+        {
             error!("Config server error: {}", e);
         }
     });
@@ -514,7 +525,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.transport {
         TransportMode::Stdio => run_stdio(handler).await?,
         TransportMode::Ws => run_ws(handler, &cli.listen).await?,
-        TransportMode::Http => run_http(handler, &cli.listen).await?,
+        TransportMode::Http => run_http_with_auth(handler, &cli.listen, http_auth_config).await?,
     }
 
     Ok(())
@@ -613,7 +624,11 @@ async fn run_ws(handler: Arc<McpOdooHandler>, listen: &str) -> anyhow::Result<()
     }
 }
 
-async fn run_http(handler: Arc<McpOdooHandler>, listen: &str) -> anyhow::Result<()> {
+async fn run_http_with_auth(
+    handler: Arc<McpOdooHandler>,
+    listen: &str,
+    auth: mcp_http::AuthConfig,
+) -> anyhow::Result<()> {
     info!("MCP server listening (http) on {}", listen);
-    mcp_http::serve(handler, listen).await
+    mcp_http::serve_with_auth(handler, listen, auth).await
 }

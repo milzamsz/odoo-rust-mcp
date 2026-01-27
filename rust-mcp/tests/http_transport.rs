@@ -62,15 +62,9 @@ async fn setup_test_server(with_auth: bool) -> (TestServer, TempDir) {
     let handler = Arc::new(McpOdooHandler::new(pool, registry));
 
     let auth = if with_auth {
-        AuthConfig {
-            bearer_token: Some("test_token".to_string()),
-            enabled: true,
-        }
+        AuthConfig::new(true, Some("test_token".to_string()))
     } else {
-        AuthConfig {
-            bearer_token: None,
-            enabled: false,
-        }
+        AuthConfig::disabled()
     };
 
     let app = create_app(handler, auth);

@@ -18,6 +18,7 @@ use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::{error, info, warn};
 
 use super::{ConfigManager, ConfigWatcher};
+use crate::mcp::http::AuthConfig as HttpAuthConfig;
 
 /// Session info stored in memory
 #[derive(Clone)]
@@ -65,6 +66,8 @@ struct AppState {
     sessions: Arc<RwLock<HashMap<String, SessionInfo>>>,
     auth_config: AuthConfig,
     env_file_path: PathBuf,
+    /// HTTP auth config for hot-reload (optional - only when HTTP transport is used)
+    http_auth_config: Option<HttpAuthConfig>,
 }
 
 // Session token validity duration (24 hours)
@@ -123,7 +126,11 @@ async fn auth_middleware(
         .into_response()
 }
 
-pub async fn start_config_server(port: u16, config_dir: std::path::PathBuf) -> anyhow::Result<()> {
+pub async fn start_config_server(
+    port: u16,
+    config_dir: std::path::PathBuf,
+    http_auth_config: Option<HttpAuthConfig>,
+) -> anyhow::Result<()> {
     let config_manager = ConfigManager::new(config_dir.clone());
     let config_watcher = Arc::new(ConfigWatcher::new(config_dir.clone())?);
     let auth_config = AuthConfig::from_env();
@@ -141,6 +148,7 @@ pub async fn start_config_server(port: u16, config_dir: std::path::PathBuf) -> a
         sessions: Arc::new(RwLock::new(HashMap::new())),
         auth_config,
         env_file_path,
+        http_auth_config,
     };
 
     // Serve static files from dist directory (React app)
@@ -488,7 +496,18 @@ async fn set_mcp_auth_enabled(
             .into_response();
     }
 
-    info!("MCP HTTP auth set to: {}", payload.enabled);
+    // Also update the environment variable in memory for hot-reload
+    // SAFETY: Called from async context, but we're the only writer at this point
+    unsafe {
+        std::env::set_var("MCP_AUTH_ENABLED", value);
+    }
+
+    // Trigger hot-reload of HTTP auth config if available
+    if let Some(ref http_auth) = state.http_auth_config {
+        http_auth.reload().await;
+    }
+
+    info!("MCP HTTP auth set to: {} (hot-reloaded)", payload.enabled);
 
     (
         StatusCode::OK,
@@ -515,7 +534,18 @@ async fn generate_mcp_token_endpoint(State(state): State<AppState>) -> impl Into
             .into_response();
     }
 
-    info!("Generated new MCP_AUTH_TOKEN");
+    // Also update the environment variable in memory for hot-reload
+    // SAFETY: Called from async context, but we're the only writer at this point
+    unsafe {
+        std::env::set_var("MCP_AUTH_TOKEN", &new_token);
+    }
+
+    // Trigger hot-reload of HTTP auth config if available
+    if let Some(ref http_auth) = state.http_auth_config {
+        http_auth.reload().await;
+    }
+
+    info!("Generated new MCP_AUTH_TOKEN (hot-reloaded)");
 
     (
         StatusCode::OK,
