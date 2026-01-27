@@ -32,7 +32,10 @@ mod tests {
     fn test_op_spec_with_map_entries() {
         let mut map = HashMap::new();
         map.insert("model".to_string(), "res.partner".to_string());
-        map.insert("domain".to_string(), "[['name', 'ilike', 'acme']]".to_string());
+        map.insert(
+            "domain".to_string(),
+            "[['name', 'ilike', 'acme']]".to_string(),
+        );
 
         let op = OpSpec {
             op_type: "search".to_string(),
@@ -119,6 +122,9 @@ mod tests {
 
         assert_eq!(tool.name, "list_products");
         assert_eq!(tool.op.op_type, "search");
-        assert_eq!(tool.op.map.get("model"), Some(&"product.product".to_string()));
+        assert_eq!(
+            tool.op.map.get("model"),
+            Some(&"product.product".to_string())
+        );
     }
 }

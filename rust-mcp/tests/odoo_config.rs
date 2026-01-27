@@ -1,7 +1,7 @@
 //! Tests for Odoo configuration types and parsing
 #[cfg(test)]
 mod tests {
-    use rust_mcp::odoo::config::{OdooEnvConfig, OdooInstanceConfig, OdooAuthMode};
+    use rust_mcp::odoo::config::{OdooAuthMode, OdooEnvConfig, OdooInstanceConfig};
     use std::collections::HashMap;
 
     #[test]

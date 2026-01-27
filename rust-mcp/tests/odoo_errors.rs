@@ -103,10 +103,7 @@ mod tests {
         }"#;
 
         let body: OdooErrorBody = serde_json::from_str(json_str).unwrap();
-        assert_eq!(
-            body.name,
-            Some("odoo.exceptions.AccessDenied".to_string())
-        );
+        assert_eq!(body.name, Some("odoo.exceptions.AccessDenied".to_string()));
         assert_eq!(body.message, Some("Access Denied".to_string()));
         assert_eq!(body.arguments.len(), 2);
         assert_eq!(body.debug, Some("traceback here".to_string()));
