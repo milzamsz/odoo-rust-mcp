@@ -58,17 +58,19 @@ odooInstances:
   # Or use a separate file (create ConfigMap with instances.json)
   jsonFilePath: ""
 
-# Single instance mode (fallback - uncomment if not using multi-instance)
-# odoo:
-#   # URL of Odoo server (use K8s service name for in-cluster)
-#   url: "http://odoo-service:8069"
-#   db: ""
-#   # For Odoo 19+ with API Key (preferred)
-#   apiKey: ""
-#   # For Odoo < 19 with Username/Password
-#   version: ""
-#   username: ""
-#   password: ""
+# Single instance mode (fallback - used when odooInstances is empty)
+# These values are used by the Helm template for backward compatibility
+odoo:
+  # URL of Odoo server (use K8s service name for in-cluster)
+  # Leave empty to use multi-instance mode instead
+  url: ""
+  db: ""
+  # For Odoo 19+ with API Key (preferred)
+  apiKey: ""
+  # For Odoo < 19 with Username/Password
+  version: ""
+  username: ""
+  password: ""
 
 # =============================================================================
 # MCP Configuration
