@@ -59,12 +59,41 @@ impl AuthConfig {
     }
 }
 
+/// Wrapper for dynamic auth config with hot-reload support
+#[derive(Clone)]
+struct DynamicAuthConfig {
+    config: Arc<RwLock<AuthConfig>>,
+}
+
+impl DynamicAuthConfig {
+    fn new(config: AuthConfig) -> Self {
+        Self {
+            config: Arc::new(RwLock::new(config)),
+        }
+    }
+
+    async fn reload(&self) {
+        let new_config = AuthConfig::from_env();
+        *self.config.write().await = new_config;
+    }
+
+    async fn verify(&self, username: &str, password: &str) -> bool {
+        let config = self.config.read().await;
+        config.verify(username, password)
+    }
+
+    async fn is_enabled(&self) -> bool {
+        let config = self.config.read().await;
+        config.enabled
+    }
+}
+
 #[derive(Clone)]
 struct AppState {
     config_manager: ConfigManager,
     config_watcher: Arc<ConfigWatcher>,
     sessions: Arc<RwLock<HashMap<String, SessionInfo>>>,
-    auth_config: AuthConfig,
+    auth_config: DynamicAuthConfig,
     env_file_path: PathBuf,
     /// HTTP auth config for hot-reload (optional - only when HTTP transport is used)
     http_auth_config: Option<HttpAuthConfig>,
@@ -104,7 +133,7 @@ async fn auth_middleware(
     next: Next,
 ) -> Response {
     // If auth is disabled, allow all requests
-    if !state.auth_config.enabled {
+    if !state.auth_config.is_enabled().await {
         return next.run(request).await;
     }
 
@@ -133,7 +162,7 @@ pub async fn start_config_server(
 ) -> anyhow::Result<()> {
     let config_manager = ConfigManager::new(config_dir.clone());
     let config_watcher = Arc::new(ConfigWatcher::new(config_dir.clone())?);
-    let auth_config = AuthConfig::from_env();
+    let auth_config = DynamicAuthConfig::new(AuthConfig::from_env());
 
     // Determine env file path
     let env_file_path = if let Some(home) = dirs::home_dir() {
@@ -296,7 +325,7 @@ struct AuthStatusResponse {
 
 async fn auth_status(State(state): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
     // If auth is disabled, always return authenticated
-    if !state.auth_config.enabled {
+    if !state.auth_config.is_enabled().await {
         return Json(AuthStatusResponse {
             authenticated: true,
             auth_enabled: false,
@@ -342,7 +371,7 @@ async fn login(
     Json(payload): Json<LoginRequest>,
 ) -> impl IntoResponse {
     // If auth is disabled, return error
-    if !state.auth_config.enabled {
+    if !state.auth_config.is_enabled().await {
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({ "error": "Authentication is not configured" })),
@@ -354,6 +383,7 @@ async fn login(
     if !state
         .auth_config
         .verify(&payload.username, &payload.password)
+        .await
     {
         return (
             StatusCode::UNAUTHORIZED,
@@ -446,7 +476,10 @@ async fn change_password(
             .into_response();
     }
 
-    info!("Password changed for user '{}'", username);
+    // Reload auth config to apply the new password immediately
+    state.auth_config.reload().await;
+
+    info!("Password changed for user '{}' (hot-reloaded)", username);
 
     (
         StatusCode::OK,
