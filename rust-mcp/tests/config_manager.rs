@@ -86,12 +86,20 @@ async fn setup_test_server() -> (TestServer, TempDir) {
         Json(payload): Json<Value>,
     ) -> impl IntoResponse {
         match state.config_manager.save_instances(payload).await {
-            Ok(_) => {
-                state.config_watcher.notify("instances.json");
-                (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+            Ok(result) => {
+                if result.success {
+                    state.config_watcher.notify("instances.json");
+                    (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+                } else {
+                    (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({ "error": result.message })),
+                    )
+                        .into_response()
+                }
             }
             Err(e) => (
-                StatusCode::BAD_REQUEST,
+                StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({ "error": e.to_string() })),
             )
                 .into_response(),
@@ -114,12 +122,20 @@ async fn setup_test_server() -> (TestServer, TempDir) {
         Json(payload): Json<Value>,
     ) -> impl IntoResponse {
         match state.config_manager.save_tools(payload).await {
-            Ok(_) => {
-                state.config_watcher.notify("tools.json");
-                (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+            Ok(result) => {
+                if result.success {
+                    state.config_watcher.notify("tools.json");
+                    (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+                } else {
+                    (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({ "error": result.message })),
+                    )
+                        .into_response()
+                }
             }
             Err(e) => (
-                StatusCode::BAD_REQUEST,
+                StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({ "error": e.to_string() })),
             )
                 .into_response(),
@@ -142,12 +158,20 @@ async fn setup_test_server() -> (TestServer, TempDir) {
         Json(payload): Json<Value>,
     ) -> impl IntoResponse {
         match state.config_manager.save_prompts(payload).await {
-            Ok(_) => {
-                state.config_watcher.notify("prompts.json");
-                (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+            Ok(result) => {
+                if result.success {
+                    state.config_watcher.notify("prompts.json");
+                    (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+                } else {
+                    (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({ "error": result.message })),
+                    )
+                        .into_response()
+                }
             }
             Err(e) => (
-                StatusCode::BAD_REQUEST,
+                StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({ "error": e.to_string() })),
             )
                 .into_response(),
@@ -170,12 +194,20 @@ async fn setup_test_server() -> (TestServer, TempDir) {
         Json(payload): Json<Value>,
     ) -> impl IntoResponse {
         match state.config_manager.save_server(payload).await {
-            Ok(_) => {
-                state.config_watcher.notify("server.json");
-                (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+            Ok(result) => {
+                if result.success {
+                    state.config_watcher.notify("server.json");
+                    (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+                } else {
+                    (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({ "error": result.message })),
+                    )
+                        .into_response()
+                }
             }
             Err(e) => (
-                StatusCode::BAD_REQUEST,
+                StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({ "error": e.to_string() })),
             )
                 .into_response(),

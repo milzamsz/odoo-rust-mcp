@@ -85,16 +85,35 @@ export function useConfig(type: ConfigType) {
         throw new Error('Session expired. Please log in again.');
       }
 
+      const responseData = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Failed to save ${type}`);
+        // Handle rollback notification
+        if (responseData.rollback) {
+          throw new Error(
+            `${responseData.error || 'Failed to save'} (Previous config restored automatically)`
+          );
+        }
+        throw new Error(responseData.error || `Failed to save ${type}`);
       }
 
-      setStatus({
-        message: `${type.charAt(0).toUpperCase() + type.slice(1)} saved successfully. Hot reload applied.`,
-        type: 'success'
-      });
-      setTimeout(() => setStatus(null), 3000);
+      // Build success message with optional warning
+      let successMessage = `${type.charAt(0).toUpperCase() + type.slice(1)} saved successfully. Hot reload applied.`;
+      
+      if (responseData.warning) {
+        // Show warning alongside success
+        setStatus({
+          message: `${successMessage} Warning: ${responseData.warning}`,
+          type: 'warning'
+        });
+        setTimeout(() => setStatus(null), 6000); // Keep warning visible longer
+      } else {
+        setStatus({
+          message: successMessage,
+          type: 'success'
+        });
+        setTimeout(() => setStatus(null), 3000);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : `Failed to save ${type}`;
       setStatus({ message, type: 'error' });
