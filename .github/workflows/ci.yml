@@ -140,7 +140,7 @@ jobs:
       - name: Generate Rust coverage
         run: |
           cd rust-mcp
-          cargo tarpaulin --out xml --output-dir coverage
+          cargo tarpaulin --all-targets --all-features --out xml --output-dir coverage
       
       # TypeScript coverage with vitest
       - name: Setup Node.js
