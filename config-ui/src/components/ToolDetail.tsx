@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ChevronDown, ChevronRight, Shield, Settings } from 'lucide-react';
 import type { ToolConfig } from '../types';
 
@@ -36,7 +36,7 @@ export function ToolDetail({ tool, enabled, onToggle, onToggleGuard, availableGu
                 </h3>
               </button>
               {hasGuards && (
-                <Shield size={14} className="text-orange-600" title="Has security guards" />
+                <Shield size={14} className="text-orange-600" aria-label="Has security guards" />
               )}
             </div>
             <p className="text-sm text-gray-600 leading-relaxed">
@@ -71,7 +71,7 @@ export function ToolDetail({ tool, enabled, onToggle, onToggleGuard, availableGu
                 {availableGuards.length > 0 && onToggleGuard ? (
                   <div className="space-y-2">
                     {availableGuards.map(({ key, value, label }) => {
-                      const isActive = tool.guards?.[key] === value;
+                      const isActive = tool.guards?.[key as keyof typeof tool.guards] === value;
                       return (
                         <div
                           key={`${key}-${value}`}
@@ -106,7 +106,7 @@ export function ToolDetail({ tool, enabled, onToggle, onToggleGuard, availableGu
                   </div>
                 ) : hasGuards ? (
                   <div className="space-y-1">
-                    {Object.entries(tool.guards).map(([key, value]) => (
+                    {Object.entries(tool.guards || {}).map(([key, value]) => (
                       <div key={key} className="text-xs">
                         <span className="font-mono text-orange-700">{key}:</span>{' '}
                         <span className="text-orange-600">{String(value)}</span>

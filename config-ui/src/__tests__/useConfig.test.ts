@@ -3,7 +3,7 @@ import { useConfig } from '../hooks/useConfig';
 import type { StatusMessage, InstanceConfig, ToolConfig } from '../types';
 
 // Mock fetch globally
-global.fetch = vi.fn(async () => {
+globalThis.fetch = vi.fn(async () => {
   throw new Error('fetch is not mocked');
 });
 
@@ -255,19 +255,21 @@ describe('useConfig Hook', () => {
   });
 
   describe('Timeout and Delays', () => {
-    it('should handle status message timeout', (done) => {
-      const status: StatusMessage = {
-        message: 'Temporary message',
-        type: 'success',
-      };
+    it('should handle status message timeout', () => {
+      return new Promise<void>((resolve) => {
+        const status: StatusMessage = {
+          message: 'Temporary message',
+          type: 'success',
+        };
 
-      expect(status.message).toBe('Temporary message');
-      
-      // In real implementation, status would clear after 3 seconds
-      setTimeout(() => {
-        expect(true).toBe(true); // Just verify timeout works
-        done();
-      }, 100);
+        expect(status.message).toBe('Temporary message');
+        
+        // In real implementation, status would clear after 3 seconds
+        setTimeout(() => {
+          expect(true).toBe(true); // Just verify timeout works
+          resolve();
+        }, 100);
+      });
     });
   });
 

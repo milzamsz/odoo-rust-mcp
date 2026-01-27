@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from './Button';
 
@@ -8,7 +8,7 @@ interface InstanceData {
   apiKey?: string;
   username?: string;
   password?: string;
-  version?: string;
+  version?: number | string;
 }
 
 interface InstanceFormProps {
@@ -37,7 +37,7 @@ export function InstanceForm({ instanceName, instanceData, existingNames, onSave
       setName(instanceName);
       setUrl(instanceData.url);
       setDb(instanceData.db);
-      setVersion(instanceData.version || '');
+      setVersion(instanceData.version ? String(instanceData.version) : '');
 
       if (instanceData.apiKey) {
         setAuthType('apiKey');

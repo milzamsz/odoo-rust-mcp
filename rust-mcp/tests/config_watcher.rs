@@ -80,9 +80,6 @@ mod tests {
         let recursive = RecursiveMode::Recursive;
 
         // Verify the enum variants exist and are different
-        assert_ne!(
-            format!("{:?}", non_recursive),
-            format!("{:?}", recursive)
-        );
+        assert_ne!(format!("{:?}", non_recursive), format!("{:?}", recursive));
     }
 }

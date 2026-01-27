@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { AuthContextType, AuthStatus } from '../types';
 
 const AuthContext = createContext<AuthContextType | null>(null);

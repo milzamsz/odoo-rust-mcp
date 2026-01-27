@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RefreshCw, Search } from 'lucide-react';
 import { useConfig } from '../../hooks/useConfig';
 import { Card } from '../Card';
@@ -22,7 +22,6 @@ const AVAILABLE_GUARDS = [
 
 export function ToolsTab() {
   const { load, save, status, loading } = useConfig('tools');
-  const [tools, setTools] = useState<ToolConfig[]>([]);
   const [editedTools, setEditedTools] = useState<ToolConfig[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'enabled' | 'disabled'>('all');
@@ -34,7 +33,6 @@ export function ToolsTab() {
   const loadTools = async () => {
     try {
       const data = await load() as ToolConfig[];
-      setTools(data);
       setEditedTools(data);
     } catch (error) {
       console.error('Failed to load tools:', error);
@@ -48,7 +46,6 @@ export function ToolsTab() {
   const autoSave = async (updatedTools: ToolConfig[]) => {
     try {
       await save(updatedTools);
-      setTools(updatedTools);
       setEditedTools(updatedTools);
     } catch (error) {
       console.error('Failed to auto-save tools:', error);
@@ -122,7 +119,7 @@ export function ToolsTab() {
         } else {
           if (newTool.guards) {
             const newGuards = { ...newTool.guards };
-            delete newGuards[guardKey];
+            delete newGuards[guardKey as keyof typeof newGuards];
 
             if (Object.keys(newGuards).length === 0) {
               delete newTool.guards;

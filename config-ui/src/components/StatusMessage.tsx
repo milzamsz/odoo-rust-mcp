@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { CheckCircle, AlertCircle, AlertTriangle, Loader2, X } from 'lucide-react';
 import type { StatusMessage as StatusMessageType } from '../types';
 

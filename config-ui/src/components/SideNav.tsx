@@ -1,4 +1,3 @@
-import React from 'react';
 import { Database, Server, Wrench, FileText, Circle, Shield, LogOut } from 'lucide-react';
 import type { TabType } from '../types';
 import { useAuth } from './AuthProvider';
