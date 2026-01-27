@@ -1,7 +1,9 @@
 //! Tests for cleanup deep module
 #[cfg(test)]
 mod tests {
-    use rust_mcp::cleanup::deep::{DeepCleanupOptions, DeepCleanupReport, DeepCleanupSummary, DeepCleanupDetail};
+    use rust_mcp::cleanup::deep::{
+        DeepCleanupDetail, DeepCleanupOptions, DeepCleanupReport, DeepCleanupSummary,
+    };
 
     #[test]
     fn test_deep_cleanup_options_creation() {
