@@ -169,20 +169,44 @@ impl SecurityConfig {
 pub struct AuthConfig {
     /// Bearer token for authentication. If None, authentication is disabled.
     pub bearer_token: Option<String>,
+    /// Whether authentication is enabled (MCP_AUTH_ENABLED)
+    pub enabled: bool,
 }
 
 impl AuthConfig {
     /// Load auth config from environment variables
     pub fn from_env() -> Self {
+        // Check if auth is explicitly enabled
+        let enabled = std::env::var("MCP_AUTH_ENABLED")
+            .map(|v| v.to_lowercase() == "true" || v == "1")
+            .unwrap_or(false);
+
         let bearer_token = std::env::var("MCP_AUTH_TOKEN")
             .ok()
             .filter(|s| !s.is_empty());
-        if bearer_token.is_some() {
-            info!("MCP HTTP authentication enabled (Bearer token)");
+
+        if enabled {
+            if bearer_token.is_some() {
+                info!("MCP HTTP authentication enabled (Bearer token)");
+            } else {
+                warn!("MCP HTTP authentication enabled but MCP_AUTH_TOKEN not set!");
+            }
         } else {
-            warn!("MCP HTTP authentication disabled (set MCP_AUTH_TOKEN to enable)");
+            debug!("MCP HTTP authentication disabled (set MCP_AUTH_ENABLED=true to enable)");
         }
-        Self { bearer_token }
+
+        Self {
+            bearer_token,
+            enabled,
+        }
+    }
+
+    /// Create a disabled auth config
+    pub fn disabled() -> Self {
+        Self {
+            bearer_token: None,
+            enabled: false,
+        }
     }
 }
 
@@ -427,9 +451,20 @@ fn validate_origin(
 
 /// Validate Bearer token authentication
 fn validate_auth(headers: &HeaderMap, auth: &AuthConfig) -> Result<(), (StatusCode, Json<Value>)> {
-    let Some(expected_token) = &auth.bearer_token else {
-        // Auth disabled
+    // Check if auth is enabled
+    if !auth.enabled {
         return Ok(());
+    }
+
+    let Some(expected_token) = &auth.bearer_token else {
+        // Auth enabled but no token configured - deny all
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "error": "server_error",
+                "error_description": "Authentication enabled but no token configured"
+            })),
+        ));
     };
 
     let auth_header = headers.get(&AUTHORIZATION).and_then(|v| v.to_str().ok());

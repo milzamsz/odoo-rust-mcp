@@ -176,7 +176,19 @@ ODOO_INSTANCES_JSON=${CONFIG_DIR}/instances.json
 # # ODOO_USERNAME=admin
 # # ODOO_PASSWORD=admin
 
-# MCP Authentication (HTTP transport)
+# =============================================================================
+# Config UI Authentication
+# =============================================================================
+# Login credentials for the config web UI
+# IMPORTANT: Change these default credentials!
+CONFIG_UI_USERNAME=admin
+CONFIG_UI_PASSWORD=changeme
+
+# =============================================================================
+# MCP HTTP Transport Authentication
+# =============================================================================
+# Enable/disable HTTP authentication (default: false)
+MCP_AUTH_ENABLED=false
 # Generate a secure token: openssl rand -hex 32
 MCP_AUTH_TOKEN=CHANGE_ME_TO_A_SECURE_TOKEN
 
@@ -186,7 +198,7 @@ MCP_PROMPTS_JSON=${CONFIG_DIR}/prompts.json
 MCP_SERVER_JSON=${CONFIG_DIR}/server.json
 ENVEOF
         sudo chmod 600 "$ENV_FILE"
-        warn "Please edit $ENV_FILE with your MCP_AUTH_TOKEN"
+        warn "Please edit $ENV_FILE with your credentials"
     fi
 
     # Create systemd service file
@@ -300,7 +312,19 @@ ODOO_INSTANCES_JSON=$user_config_dir/instances.json
 # # ODOO_USERNAME=admin
 # # ODOO_PASSWORD=admin
 
-# MCP Authentication (HTTP transport)
+# =============================================================================
+# Config UI Authentication
+# =============================================================================
+# Login credentials for the config web UI
+# IMPORTANT: Change these default credentials!
+CONFIG_UI_USERNAME=admin
+CONFIG_UI_PASSWORD=changeme
+
+# =============================================================================
+# MCP HTTP Transport Authentication
+# =============================================================================
+# Enable/disable HTTP authentication (default: false)
+MCP_AUTH_ENABLED=false
 # Generate a secure token: openssl rand -hex 32
 MCP_AUTH_TOKEN=CHANGE_ME_TO_A_SECURE_TOKEN
 
@@ -310,7 +334,7 @@ MCP_PROMPTS_JSON=$CONFIG_DIR/prompts.json
 MCP_SERVER_JSON=$CONFIG_DIR/server.json
 ENVEOF
         chmod 600 "$user_env_file"
-        warn "Please edit $user_env_file with your MCP_AUTH_TOKEN"
+        warn "Please edit $user_env_file with your credentials"
     fi
 
     # Create launchd plist

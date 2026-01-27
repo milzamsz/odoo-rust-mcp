@@ -1,34 +1,209 @@
 use axum::{
     Json, Router,
     extract::State,
-    http::StatusCode,
-    response::IntoResponse,
+    http::{HeaderMap, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{get, post},
 };
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::{error, info, warn};
 
 use super::{ConfigManager, ConfigWatcher};
 
+/// Session info stored in memory
+#[derive(Clone)]
+struct SessionInfo {
+    username: String,
+    expires_at: Instant,
+}
+
+/// Auth configuration loaded from environment
+#[derive(Clone)]
+struct AuthConfig {
+    username: String,
+    password: String,
+    enabled: bool,
+}
+
+impl AuthConfig {
+    fn from_env() -> Self {
+        let username = std::env::var("CONFIG_UI_USERNAME").unwrap_or_default();
+        let password = std::env::var("CONFIG_UI_PASSWORD").unwrap_or_default();
+        let enabled = !username.is_empty() && !password.is_empty();
+
+        if enabled {
+            info!("Config UI authentication enabled for user: {}", username);
+        } else {
+            warn!("Config UI authentication disabled (CONFIG_UI_USERNAME/PASSWORD not set)");
+        }
+
+        Self {
+            username,
+            password,
+            enabled,
+        }
+    }
+
+    fn verify(&self, username: &str, password: &str) -> bool {
+        self.enabled && self.username == username && self.password == password
+    }
+}
+
 #[derive(Clone)]
 struct AppState {
     config_manager: ConfigManager,
     config_watcher: Arc<ConfigWatcher>,
+    sessions: Arc<RwLock<HashMap<String, SessionInfo>>>,
+    auth_config: AuthConfig,
+    env_file_path: PathBuf,
+}
+
+// Session token validity duration (24 hours)
+const SESSION_DURATION: Duration = Duration::from_secs(24 * 60 * 60);
+
+/// Generate a random session token
+fn generate_session_token() -> String {
+    let mut rng = rand::rng();
+    let bytes: [u8; 32] = rng.random();
+    hex::encode(bytes)
+}
+
+/// Generate a random MCP auth token
+fn generate_mcp_token() -> String {
+    let mut rng = rand::rng();
+    let bytes: [u8; 32] = rng.random();
+    hex::encode(bytes)
+}
+
+/// Extract session token from Authorization header
+fn extract_token(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .map(|s| s.to_string())
+}
+
+/// Auth middleware - checks session token for protected routes
+async fn auth_middleware(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    // If auth is disabled, allow all requests
+    if !state.auth_config.enabled {
+        return next.run(request).await;
+    }
+
+    // Check for valid session token
+    if let Some(token) = extract_token(&headers) {
+        let sessions = state.sessions.read().await;
+        if let Some(session) = sessions.get(&token)
+            && session.expires_at > Instant::now()
+        {
+            return next.run(request).await;
+        }
+    }
+
+    // Unauthorized
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(json!({ "error": "Unauthorized" })),
+    )
+        .into_response()
 }
 
 pub async fn start_config_server(port: u16, config_dir: std::path::PathBuf) -> anyhow::Result<()> {
     let config_manager = ConfigManager::new(config_dir.clone());
-    let config_watcher = Arc::new(ConfigWatcher::new(config_dir)?);
+    let config_watcher = Arc::new(ConfigWatcher::new(config_dir.clone())?);
+    let auth_config = AuthConfig::from_env();
+
+    // Determine env file path
+    let env_file_path = if let Some(home) = dirs::home_dir() {
+        home.join(".config/odoo-rust-mcp/env")
+    } else {
+        config_dir.join("env")
+    };
 
     let state = AppState {
         config_manager,
         config_watcher,
+        sessions: Arc::new(RwLock::new(HashMap::new())),
+        auth_config,
+        env_file_path,
     };
 
     // Serve static files from dist directory (React app)
-    // Try multiple paths: relative to current dir, relative to executable, and absolute
+    let static_dir_final = find_static_dir();
+
+    if static_dir_final.exists() && static_dir_final.is_dir() {
+        info!("Serving static files from: {:?}", static_dir_final);
+    } else {
+        warn!(
+            "static/dist directory not found at {:?}. Please build the React UI first with: cd config-ui && npm run build",
+            static_dir_final
+        );
+    }
+
+    // Protected routes (require auth)
+    let protected_routes = Router::new()
+        // Config endpoints
+        .route("/api/config/instances", get(get_instances))
+        .route("/api/config/instances", post(update_instances))
+        .route("/api/config/tools", get(get_tools))
+        .route("/api/config/tools", post(update_tools))
+        .route("/api/config/prompts", get(get_prompts))
+        .route("/api/config/prompts", post(update_prompts))
+        .route("/api/config/server", get(get_server))
+        .route("/api/config/server", post(update_server))
+        // Auth management endpoints (protected)
+        .route("/api/auth/change-password", post(change_password))
+        .route("/api/auth/mcp-auth-status", get(mcp_token_status))
+        .route("/api/auth/mcp-auth-enabled", post(set_mcp_auth_enabled))
+        .route(
+            "/api/auth/generate-mcp-token",
+            post(generate_mcp_token_endpoint),
+        )
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ));
+
+    // Public routes (no auth required)
+    let public_routes = Router::new()
+        .route("/health", get(health_check))
+        .route("/api/auth/status", get(auth_status))
+        .route("/api/auth/login", post(login))
+        .route("/api/auth/logout", post(logout));
+
+    let app = Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
+        // Serve static files (React app) - use fallback_service for root path
+        .fallback_service(ServeDir::new(&static_dir_final))
+        .layer(CorsLayer::permissive())
+        .with_state(state);
+
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
+    info!("Config server listening on http://0.0.0.0:{}", port);
+
+    axum::serve(listener, app).await?;
+
+    Ok(())
+}
+
+/// Find static files directory
+fn find_static_dir() -> PathBuf {
     let mut static_dir_abs = None;
 
     // Try 1: Relative to current working directory
@@ -57,10 +232,8 @@ pub async fn start_config_server(port: u16, config_dir: std::path::PathBuf) -> a
     // Try 3: Homebrew/system share directory
     if static_dir_abs.is_none() {
         let candidates = [
-            // Homebrew paths (odoo-rust-mcp is the share folder name)
             "/opt/homebrew/share/odoo-rust-mcp/static/dist",
             "/usr/local/share/odoo-rust-mcp/static/dist",
-            // Debian/APT paths (rust-mcp is the package name)
             "/usr/share/rust-mcp/static/dist",
         ];
         for candidate_str in &candidates {
@@ -85,47 +258,15 @@ pub async fn start_config_server(port: u16, config_dir: std::path::PathBuf) -> a
         }
     }
 
-    let static_dir_final = static_dir_abs.unwrap_or_else(|| {
+    static_dir_abs.unwrap_or_else(|| {
         warn!("static/dist directory not found in any location. Please build the React UI first with: cd config-ui && npm run build");
         std::path::PathBuf::from("static/dist")
-    });
-
-    if static_dir_final.exists() && static_dir_final.is_dir() {
-        info!("Serving static files from: {:?}", static_dir_final);
-    } else {
-        warn!(
-            "static/dist directory not found at {:?}. Please build the React UI first with: cd config-ui && npm run build",
-            static_dir_final
-        );
-    }
-
-    let app = Router::new()
-        // Health check
-        .route("/health", get(health_check))
-        // Instances endpoints
-        .route("/api/config/instances", get(get_instances))
-        .route("/api/config/instances", post(update_instances))
-        // Tools endpoints
-        .route("/api/config/tools", get(get_tools))
-        .route("/api/config/tools", post(update_tools))
-        // Prompts endpoints
-        .route("/api/config/prompts", get(get_prompts))
-        .route("/api/config/prompts", post(update_prompts))
-        // Server endpoints
-        .route("/api/config/server", get(get_server))
-        .route("/api/config/server", post(update_server))
-        // Serve static files (React app) - use fallback_service for root path
-        .fallback_service(ServeDir::new(&static_dir_final))
-        .layer(CorsLayer::permissive())
-        .with_state(state);
-
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
-    info!("Config server listening on http://0.0.0.0:{}", port);
-
-    axum::serve(listener, app).await?;
-
-    Ok(())
+    })
 }
+
+// =============================================================================
+// Health Check
+// =============================================================================
 
 async fn health_check() -> impl IntoResponse {
     Json(json!({
@@ -133,6 +274,307 @@ async fn health_check() -> impl IntoResponse {
         "service": "odoo-rust-mcp-config"
     }))
 }
+
+// =============================================================================
+// Auth Endpoints
+// =============================================================================
+
+#[derive(Serialize)]
+struct AuthStatusResponse {
+    authenticated: bool,
+    auth_enabled: bool,
+    username: Option<String>,
+}
+
+async fn auth_status(State(state): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
+    // If auth is disabled, always return authenticated
+    if !state.auth_config.enabled {
+        return Json(AuthStatusResponse {
+            authenticated: true,
+            auth_enabled: false,
+            username: None,
+        });
+    }
+
+    // Check if user has valid session
+    if let Some(token) = extract_token(&headers) {
+        let sessions = state.sessions.read().await;
+        if let Some(session) = sessions.get(&token)
+            && session.expires_at > Instant::now()
+        {
+            return Json(AuthStatusResponse {
+                authenticated: true,
+                auth_enabled: true,
+                username: Some(session.username.clone()),
+            });
+        }
+    }
+
+    Json(AuthStatusResponse {
+        authenticated: false,
+        auth_enabled: true,
+        username: None,
+    })
+}
+
+#[derive(Deserialize)]
+struct LoginRequest {
+    username: String,
+    password: String,
+}
+
+#[derive(Serialize)]
+struct LoginResponse {
+    token: String,
+    username: String,
+}
+
+async fn login(
+    State(state): State<AppState>,
+    Json(payload): Json<LoginRequest>,
+) -> impl IntoResponse {
+    // If auth is disabled, return error
+    if !state.auth_config.enabled {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "Authentication is not configured" })),
+        )
+            .into_response();
+    }
+
+    // Verify credentials
+    if !state
+        .auth_config
+        .verify(&payload.username, &payload.password)
+    {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({ "error": "Invalid username or password" })),
+        )
+            .into_response();
+    }
+
+    // Create session
+    let token = generate_session_token();
+    let session = SessionInfo {
+        username: payload.username.clone(),
+        expires_at: Instant::now() + SESSION_DURATION,
+    };
+
+    state.sessions.write().await.insert(token.clone(), session);
+
+    info!("User '{}' logged in", payload.username);
+
+    (
+        StatusCode::OK,
+        Json(LoginResponse {
+            token,
+            username: payload.username,
+        }),
+    )
+        .into_response()
+}
+
+async fn logout(State(state): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
+    if let Some(token) = extract_token(&headers) {
+        let mut sessions = state.sessions.write().await;
+        if sessions.remove(&token).is_some() {
+            info!("Session logged out");
+        }
+    }
+
+    Json(json!({ "status": "logged_out" }))
+}
+
+#[derive(Deserialize)]
+struct ChangePasswordRequest {
+    new_password: String,
+}
+
+async fn change_password(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<ChangePasswordRequest>,
+) -> impl IntoResponse {
+    // Get current username from session
+    let username = if let Some(token) = extract_token(&headers) {
+        let sessions = state.sessions.read().await;
+        sessions.get(&token).map(|s| s.username.clone())
+    } else {
+        None
+    };
+
+    let username = match username {
+        Some(u) => u,
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(json!({ "error": "Not authenticated" })),
+            )
+                .into_response();
+        }
+    };
+
+    // Validate new password
+    if payload.new_password.len() < 4 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "Password must be at least 4 characters" })),
+        )
+            .into_response();
+    }
+
+    // Update password in env file
+    if let Err(e) = update_env_var(
+        &state.env_file_path,
+        "CONFIG_UI_PASSWORD",
+        &payload.new_password,
+    ) {
+        error!("Failed to update password: {}", e);
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("Failed to update password: {}", e) })),
+        )
+            .into_response();
+    }
+
+    info!("Password changed for user '{}'", username);
+
+    (
+        StatusCode::OK,
+        Json(json!({ "status": "password_changed" })),
+    )
+        .into_response()
+}
+
+#[derive(Serialize)]
+struct McpAuthStatusResponse {
+    enabled: bool,
+    token_configured: bool,
+}
+
+async fn mcp_token_status() -> impl IntoResponse {
+    let enabled = std::env::var("MCP_AUTH_ENABLED")
+        .map(|v| v.to_lowercase() == "true" || v == "1")
+        .unwrap_or(false);
+
+    let token_configured = std::env::var("MCP_AUTH_TOKEN")
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false);
+
+    Json(McpAuthStatusResponse {
+        enabled,
+        token_configured,
+    })
+}
+
+#[derive(Deserialize)]
+struct SetMcpAuthEnabledRequest {
+    enabled: bool,
+}
+
+async fn set_mcp_auth_enabled(
+    State(state): State<AppState>,
+    Json(payload): Json<SetMcpAuthEnabledRequest>,
+) -> impl IntoResponse {
+    let value = if payload.enabled { "true" } else { "false" };
+
+    if let Err(e) = update_env_var(&state.env_file_path, "MCP_AUTH_ENABLED", value) {
+        error!("Failed to update MCP_AUTH_ENABLED: {}", e);
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("Failed to update setting: {}", e) })),
+        )
+            .into_response();
+    }
+
+    info!("MCP HTTP auth set to: {}", payload.enabled);
+
+    (
+        StatusCode::OK,
+        Json(json!({ "status": "updated", "enabled": payload.enabled })),
+    )
+        .into_response()
+}
+
+#[derive(Serialize)]
+struct GenerateMcpTokenResponse {
+    token: String,
+}
+
+async fn generate_mcp_token_endpoint(State(state): State<AppState>) -> impl IntoResponse {
+    let new_token = generate_mcp_token();
+
+    // Update MCP_AUTH_TOKEN in env file
+    if let Err(e) = update_env_var(&state.env_file_path, "MCP_AUTH_TOKEN", &new_token) {
+        error!("Failed to update MCP_AUTH_TOKEN: {}", e);
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("Failed to update token: {}", e) })),
+        )
+            .into_response();
+    }
+
+    info!("Generated new MCP_AUTH_TOKEN");
+
+    (
+        StatusCode::OK,
+        Json(GenerateMcpTokenResponse { token: new_token }),
+    )
+        .into_response()
+}
+
+/// Update or add an environment variable in the env file
+fn update_env_var(env_file_path: &PathBuf, key: &str, value: &str) -> anyhow::Result<()> {
+    // Read existing content or create empty
+    let content = std::fs::read_to_string(env_file_path).unwrap_or_default();
+
+    let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+    let mut found = false;
+
+    // Update existing line or add new
+    for line in &mut lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with(&format!("{}=", key)) || trimmed.starts_with(&format!("{}=", key)) {
+            *line = format!("{}={}", key, value);
+            found = true;
+            break;
+        }
+        // Also check for commented version
+        if trimmed.starts_with(&format!("# {}=", key)) || trimmed.starts_with(&format!("#{}=", key))
+        {
+            *line = format!("{}={}", key, value);
+            found = true;
+            break;
+        }
+    }
+
+    if !found {
+        // Add to end of file
+        lines.push(format!("{}={}", key, value));
+    }
+
+    // Ensure parent directory exists
+    if let Some(parent) = env_file_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    // Write back
+    std::fs::write(env_file_path, lines.join("\n") + "\n")?;
+
+    // Set restrictive permissions on env file (Unix only)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(env_file_path, std::fs::Permissions::from_mode(0o600));
+    }
+
+    Ok(())
+}
+
+// =============================================================================
+// Config Endpoints
+// =============================================================================
 
 async fn get_instances(State(state): State<AppState>) -> impl IntoResponse {
     match state.config_manager.load_instances().await {

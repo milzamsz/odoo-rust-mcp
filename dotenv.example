@@ -37,13 +37,25 @@ ODOO_INSTANCES_JSON=/config/instances.json
 # ODOO_PASSWORD=admin
 
 # =============================================================================
-# MCP AUTHENTICATION (HTTP Transport)
+# CONFIG UI AUTHENTICATION
 # =============================================================================
-# Set MCP_AUTH_TOKEN to enable Bearer token authentication for HTTP transport.
-# Clients must include "Authorization: Bearer <token>" header in all requests.
+# Login credentials for the web-based configuration interface.
+# IMPORTANT: Change these default credentials immediately after first install!
+CONFIG_UI_USERNAME=admin
+CONFIG_UI_PASSWORD=changeme
+
+# =============================================================================
+# MCP HTTP TRANSPORT AUTHENTICATION
+# =============================================================================
+# Enable/disable Bearer token authentication for HTTP transport.
+# When enabled, clients must include "Authorization: Bearer <token>" header.
 # STRONGLY RECOMMENDED for production deployments!
 #
-# Generate a secure token: openssl rand -hex 32
+# Enable/disable MCP HTTP authentication (default: false)
+MCP_AUTH_ENABLED=false
+#
+# The auth token - generate with: openssl rand -hex 32
+# Or use the "Generate Token" button in Config UI Security tab.
 # MCP_AUTH_TOKEN=your-secure-random-token-here
 
 # =============================================================================

@@ -85,8 +85,20 @@ const DEFAULT_ENV_TEMPLATE: &str = r#"# Odoo Rust MCP Server Configuration
 # # ODOO_USERNAME=admin
 # # ODOO_PASSWORD=admin
 
-# MCP Authentication (HTTP transport)
-# Generate a secure token: openssl rand -hex 32
+# =============================================================================
+# Config UI Authentication
+# =============================================================================
+# Login credentials for the web-based configuration interface.
+# IMPORTANT: Change these default credentials immediately after first install!
+CONFIG_UI_USERNAME=admin
+CONFIG_UI_PASSWORD=changeme
+
+# =============================================================================
+# MCP HTTP Transport Authentication
+# =============================================================================
+# Enable/disable HTTP transport authentication (default: disabled)
+# When enabled, clients must include "Authorization: Bearer <token>" header
+MCP_AUTH_ENABLED=false
 # MCP_AUTH_TOKEN=your-secure-random-token-here
 "#;
 
@@ -106,8 +118,38 @@ fn setup_user_config() {
         }
     }
 
-    // Create default instances.json for multi-instance configuration
+    // Create default env file if it doesn't exist
+    let env_file = config_dir.join("env");
+    if !env_file.exists() {
+        if let Err(e) = fs::write(&env_file, DEFAULT_ENV_TEMPLATE) {
+            warn!("Failed to create default env file {:?}: {}", env_file, e);
+        } else {
+            // Set restrictive permissions on env file (Unix only)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(&env_file, fs::Permissions::from_mode(0o600));
+            }
+            info!("Created default env file: {:?}", env_file);
+        }
+    }
+
+    // Load environment variables from env file FIRST
+    // This is important so single-instance vars are loaded before migration check
+    if env_file.exists() {
+        load_env_file(&env_file);
+    }
+
+    // Check instances.json
     let instances_file = config_dir.join("instances.json");
+
+    // Try to migrate single-instance config to multi-instance
+    // This will create instances.json from ODOO_URL/DB/etc if they exist
+    if !instances_file.exists() {
+        migrate_single_to_multi_instance(&config_dir);
+    }
+
+    // Create default instances.json if still doesn't exist (fresh install)
     if !instances_file.exists() {
         if let Err(e) = fs::write(&instances_file, DEFAULT_INSTANCES_TEMPLATE) {
             warn!(
@@ -126,25 +168,9 @@ fn setup_user_config() {
         }
     }
 
-    // Create default env file if it doesn't exist
-    let env_file = config_dir.join("env");
-    if !env_file.exists() {
-        if let Err(e) = fs::write(&env_file, DEFAULT_ENV_TEMPLATE) {
-            warn!("Failed to create default env file {:?}: {}", env_file, e);
-        } else {
-            // Set restrictive permissions on env file (Unix only)
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let _ = fs::set_permissions(&env_file, fs::Permissions::from_mode(0o600));
-            }
-            info!("Created default env file: {:?}", env_file);
-        }
-    }
-
-    // Load environment variables from env file
+    // Migrate env file: add new variables that were introduced in newer versions
     if env_file.exists() {
-        load_env_file(&env_file);
+        migrate_env_file(&env_file);
     }
 
     // Set ODOO_INSTANCES_JSON to user config if not already set and file exists
@@ -207,6 +233,161 @@ fn load_env_file(path: &PathBuf) {
                     };
                 info!("  Set {}={}", key, display_value);
             }
+        }
+    }
+}
+
+/// Migrate env file: add new variables that were introduced in newer versions
+fn migrate_env_file(path: &PathBuf) {
+    let Ok(content) = fs::read_to_string(path) else {
+        return;
+    };
+
+    let mut additions = Vec::new();
+
+    // Check for single-instance to multi-instance migration (added in v0.3.23)
+    // If user has ODOO_URL but not ODOO_INSTANCES_JSON, suggest migration
+    let has_single_instance = content.contains("ODOO_URL=") && !content.contains("# ODOO_URL=");
+    let has_multi_instance = content.contains("ODOO_INSTANCES_JSON");
+
+    if has_single_instance && !has_multi_instance {
+        additions.push(
+            r#"
+# =============================================================================
+# Multi-Instance Configuration (added in v0.3.23 - RECOMMENDED)
+# =============================================================================
+# Multi-instance mode is now the default. Your single-instance config above
+# will continue to work, but we recommend migrating to multi-instance.
+#
+# To migrate:
+# 1. Edit ~/.config/odoo-rust-mcp/instances.json with your Odoo instances
+# 2. Uncomment the line below
+# 3. Comment out or remove the single-instance ODOO_URL/DB/etc settings above
+#
+# ODOO_INSTANCES_JSON=~/.config/odoo-rust-mcp/instances.json
+"#,
+        );
+        info!("Migration: Adding multi-instance migration guide to env file");
+    }
+
+    // Check for CONFIG_UI_USERNAME/PASSWORD (added in v0.3.24)
+    if !content.contains("CONFIG_UI_USERNAME") {
+        additions.push(
+            r#"
+# =============================================================================
+# Config UI Authentication (added in v0.3.24)
+# =============================================================================
+# Login credentials for the web-based configuration interface.
+# IMPORTANT: Change these default credentials immediately!
+CONFIG_UI_USERNAME=admin
+CONFIG_UI_PASSWORD=changeme
+"#,
+        );
+        info!("Migration: Adding CONFIG_UI_USERNAME/PASSWORD to env file");
+    }
+
+    // Check for MCP_AUTH_ENABLED (added in v0.3.24)
+    if !content.contains("MCP_AUTH_ENABLED") {
+        additions.push(
+            r#"
+# =============================================================================
+# MCP HTTP Transport Authentication (added in v0.3.24)
+# =============================================================================
+# Enable/disable HTTP transport authentication
+MCP_AUTH_ENABLED=false
+"#,
+        );
+        info!("Migration: Adding MCP_AUTH_ENABLED to env file");
+    }
+
+    if !additions.is_empty() {
+        let mut new_content = content;
+        for addition in additions {
+            new_content.push_str(addition);
+        }
+
+        if let Err(e) = fs::write(path, new_content) {
+            warn!("Failed to migrate env file {:?}: {}", path, e);
+        } else {
+            info!("Successfully migrated env file with new variables");
+        }
+    }
+}
+
+/// Create instances.json from single-instance env vars if it doesn't exist
+/// This helps users who upgrade from single-instance to multi-instance
+fn migrate_single_to_multi_instance(config_dir: &std::path::Path) {
+    let instances_file = config_dir.join("instances.json");
+
+    // Only migrate if instances.json doesn't exist and we have single-instance config
+    if instances_file.exists() {
+        return;
+    }
+
+    // Check if we have single-instance env vars set
+    let odoo_url = std::env::var("ODOO_URL").ok();
+    let odoo_db = std::env::var("ODOO_DB").ok();
+
+    let Some(url) = odoo_url else {
+        return;
+    };
+
+    let Some(db) = odoo_db else {
+        return;
+    };
+
+    // Build instance config from env vars
+    let api_key = std::env::var("ODOO_API_KEY").ok();
+    let username = std::env::var("ODOO_USERNAME").ok();
+    let password = std::env::var("ODOO_PASSWORD").ok();
+    let version = std::env::var("ODOO_VERSION").ok();
+
+    let mut instance = serde_json::json!({
+        "url": url,
+        "db": db
+    });
+
+    if let Some(key) = api_key {
+        instance["apiKey"] = serde_json::json!(key);
+    }
+    if let Some(user) = username {
+        instance["username"] = serde_json::json!(user);
+    }
+    if let Some(pass) = password {
+        instance["password"] = serde_json::json!(pass);
+    }
+    if let Some(ver) = version {
+        instance["version"] = serde_json::json!(ver);
+    }
+
+    let instances = serde_json::json!({
+        "default": instance
+    });
+
+    // Write instances.json
+    match serde_json::to_string_pretty(&instances) {
+        Ok(json_str) => {
+            if let Err(e) = fs::write(&instances_file, json_str) {
+                warn!(
+                    "Failed to create instances.json from single-instance config: {}",
+                    e
+                );
+            } else {
+                // Set restrictive permissions (Unix only)
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let _ = fs::set_permissions(&instances_file, fs::Permissions::from_mode(0o600));
+                }
+                info!(
+                    "Migrated single-instance config to instances.json: {:?}",
+                    instances_file
+                );
+                info!("Instance 'default' created with your existing Odoo configuration");
+            }
+        }
+        Err(e) => {
+            warn!("Failed to serialize instances.json: {}", e);
         }
     }
 }

@@ -168,7 +168,19 @@ function Install-Service {
 # # `$env:ODOO_USERNAME = "admin"
 # # `$env:ODOO_PASSWORD = "admin"
 
-# MCP Authentication (HTTP transport)
+# =============================================================================
+# Config UI Authentication
+# =============================================================================
+# Login credentials for the config web UI
+# IMPORTANT: Change these default credentials!
+`$env:CONFIG_UI_USERNAME = "admin"
+`$env:CONFIG_UI_PASSWORD = "changeme"
+
+# =============================================================================
+# MCP HTTP Transport Authentication
+# =============================================================================
+# Enable/disable HTTP authentication (default: false)
+`$env:MCP_AUTH_ENABLED = "false"
 # Generate a secure token in PowerShell: [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
 `$env:MCP_AUTH_TOKEN = "CHANGE_ME_TO_A_SECURE_TOKEN"
 
@@ -177,7 +189,7 @@ function Install-Service {
 `$env:MCP_PROMPTS_JSON = "$ConfigDir\prompts.json"
 `$env:MCP_SERVER_JSON = "$ConfigDir\server.json"
 "@ | Out-File -FilePath $EnvFile -Encoding UTF8
-        Write-Warn "Please edit $EnvFile with your MCP_AUTH_TOKEN"
+        Write-Warn "Please edit $EnvFile with your credentials"
     }
 
     # Create wrapper script for service

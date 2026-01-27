@@ -3,6 +3,27 @@ import type { ConfigType, StatusMessage, InstanceConfig, ServerConfig, ToolConfi
 
 type ConfigData = InstanceConfig | ServerConfig | ToolConfig[] | PromptConfig[];
 
+const TOKEN_STORAGE_KEY = 'mcp_config_token';
+
+function getAuthHeaders(): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+function handleUnauthorized(response: Response) {
+  if (response.status === 401) {
+    // Clear token and reload page to show login
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    window.location.reload();
+  }
+}
+
 export function useConfig(type: ConfigType) {
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [loading, setLoading] = useState(false);
@@ -12,7 +33,14 @@ export function useConfig(type: ConfigType) {
     setStatus({ message: `Loading ${type}...`, type: 'loading' });
 
     try {
-      const response = await fetch(`/api/config/${type}`);
+      const response = await fetch(`/api/config/${type}`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (response.status === 401) {
+        handleUnauthorized(response);
+        throw new Error('Session expired. Please log in again.');
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -48,11 +76,14 @@ export function useConfig(type: ConfigType) {
     try {
       const response = await fetch(`/api/config/${type}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(config),
       });
+
+      if (response.status === 401) {
+        handleUnauthorized(response);
+        throw new Error('Session expired. Please log in again.');
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));

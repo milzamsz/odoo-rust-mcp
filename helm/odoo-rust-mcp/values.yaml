@@ -76,10 +76,14 @@ odoo:
 # MCP Configuration
 # =============================================================================
 mcp:
-  # HTTP transport authentication token
-  # STRONGLY RECOMMENDED for production
-  # Generate: openssl rand -hex 32
-  authToken: ""
+  # HTTP transport authentication
+  auth:
+    # Enable/disable HTTP authentication (default: false)
+    enabled: false
+    # Bearer token for HTTP authentication
+    # STRONGLY RECOMMENDED for production
+    # Generate: openssl rand -hex 32
+    token: ""
   
   # Log level: trace, debug, info, warn, error
   logLevel: "info"
@@ -102,6 +106,11 @@ configServer:
   port: 3008
   # Security: bind only to localhost in production, use reverse proxy
   bindAddress: "127.0.0.1"
+  # Config UI authentication credentials
+  # IMPORTANT: Change these default credentials in production!
+  auth:
+    username: "admin"
+    password: "changeme"
 
 # =============================================================================
 # Service Configuration

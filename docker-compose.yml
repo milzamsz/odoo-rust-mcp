@@ -80,8 +80,20 @@ services:
       MCP_PROMPTS_JSON: "/config/prompts.json"
       MCP_SERVER_JSON: "/config/server.json"
       
-      # HTTP transport authentication (recommended for production)
+      # =========================================================================
+      # MCP HTTP Transport Authentication
+      # =========================================================================
+      # Enable/disable HTTP authentication (default: false)
+      MCP_AUTH_ENABLED: "${MCP_AUTH_ENABLED:-false}"
+      # Bearer token for HTTP authentication
       MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN:-}"
+      
+      # =========================================================================
+      # Config UI Authentication
+      # =========================================================================
+      # Login credentials for the config web UI
+      CONFIG_UI_USERNAME: "${CONFIG_UI_USERNAME:-admin}"
+      CONFIG_UI_PASSWORD: "${CONFIG_UI_PASSWORD:-changeme}"
       
       # =========================================================================
       # Config Server (Web UI for configuration management)

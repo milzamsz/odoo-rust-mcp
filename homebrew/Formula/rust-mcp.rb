@@ -100,7 +100,19 @@ ODOO_INSTANCES_JSON=$HOME/.config/odoo-rust-mcp/instances.json
 # # ODOO_USERNAME=admin
 # # ODOO_PASSWORD=admin
 
-# MCP Authentication (HTTP transport)
+# =============================================================================
+# Config UI Authentication
+# =============================================================================
+# Login credentials for the config web UI
+# IMPORTANT: Change these default credentials!
+CONFIG_UI_USERNAME=admin
+CONFIG_UI_PASSWORD=changeme
+
+# =============================================================================
+# MCP HTTP Transport Authentication
+# =============================================================================
+# Enable/disable HTTP authentication (default: false)
+MCP_AUTH_ENABLED=false
 # Generate a secure token: openssl rand -hex 32
 # MCP_AUTH_TOKEN=your-secure-random-token-here
 ENVEOF

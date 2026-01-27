@@ -64,9 +64,13 @@ async fn setup_test_server(with_auth: bool) -> (TestServer, TempDir) {
     let auth = if with_auth {
         AuthConfig {
             bearer_token: Some("test_token".to_string()),
+            enabled: true,
         }
     } else {
-        AuthConfig { bearer_token: None }
+        AuthConfig {
+            bearer_token: None,
+            enabled: false,
+        }
     };
 
     let app = create_app(handler, auth);

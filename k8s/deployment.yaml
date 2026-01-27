@@ -102,8 +102,30 @@ spec:
               value: "3008"
             
             # =========================================================================
-            # HTTP Authentication
+            # Config UI Authentication
             # =========================================================================
+            - name: CONFIG_UI_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-mcp-secrets
+                  key: CONFIG_UI_USERNAME
+                  optional: true
+            - name: CONFIG_UI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-mcp-secrets
+                  key: CONFIG_UI_PASSWORD
+                  optional: true
+            
+            # =========================================================================
+            # MCP HTTP Transport Authentication
+            # =========================================================================
+            - name: MCP_AUTH_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-mcp-secrets
+                  key: MCP_AUTH_ENABLED
+                  optional: true
             - name: MCP_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:

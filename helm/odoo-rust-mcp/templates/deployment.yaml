@@ -134,7 +134,10 @@ spec:
               value: "/config/prompts.json"
             - name: MCP_SERVER_JSON
               value: "/config/server.json"
-            {{- if .Values.mcp.authToken }}
+            # MCP HTTP Authentication
+            - name: MCP_AUTH_ENABLED
+              value: {{ .Values.mcp.auth.enabled | quote }}
+            {{- if .Values.mcp.auth.token }}
             - name: MCP_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -143,9 +146,21 @@ spec:
             {{- end }}
             - name: RUST_LOG
               value: {{ .Values.mcp.logLevel | quote }}
+            # Config Server
             {{- if .Values.configServer.enabled }}
             - name: ODOO_CONFIG_SERVER_PORT
               value: {{ .Values.configServer.port | quote }}
+            # Config UI Authentication
+            - name: CONFIG_UI_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "odoo-rust-mcp.fullname" . }}
+                  key: CONFIG_UI_USERNAME
+            - name: CONFIG_UI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "odoo-rust-mcp.fullname" . }}
+                  key: CONFIG_UI_PASSWORD
             {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Database, Server, Wrench, FileText, Circle } from 'lucide-react';
+import { Database, Server, Wrench, FileText, Circle, Shield, LogOut } from 'lucide-react';
 import type { TabType } from '../types';
+import { useAuth } from './AuthProvider';
 import packageJson from '../../package.json';
 
 interface SideNavProps {
@@ -10,11 +11,14 @@ interface SideNavProps {
 }
 
 export function SideNav({ activeTab, onTabChange, isLive = true }: SideNavProps) {
+  const { username, authEnabled, logout } = useAuth();
+
   const navItems = [
     { id: 'server' as TabType, label: 'Server', icon: Server },
     { id: 'instances' as TabType, label: 'Instances', icon: Database },
     { id: 'tools' as TabType, label: 'Tools', icon: Wrench },
     { id: 'prompts' as TabType, label: 'Prompts', icon: FileText },
+    { id: 'security' as TabType, label: 'Security', icon: Shield },
   ];
 
   return (
@@ -46,7 +50,7 @@ export function SideNav({ activeTab, onTabChange, isLive = true }: SideNavProps)
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t border-gray-800 space-y-3">
         <div className="flex items-center gap-2 px-4 py-2">
           <Circle
             className={`${isLive ? 'text-green-500 fill-green-500' : 'text-gray-500 fill-gray-500'}`}
@@ -56,6 +60,23 @@ export function SideNav({ activeTab, onTabChange, isLive = true }: SideNavProps)
             {isLive ? 'Hot Reload Active' : 'Disconnected'}
           </span>
         </div>
+
+        {authEnabled && username && (
+          <div className="px-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400 truncate" title={username}>
+                {username}
+              </span>
+              <button
+                onClick={logout}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-all"
+                title="Sign out"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
