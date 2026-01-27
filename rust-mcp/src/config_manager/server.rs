@@ -625,15 +625,34 @@ async fn update_instances(
     Json(payload): Json<Value>,
 ) -> impl IntoResponse {
     match state.config_manager.save_instances(payload).await {
-        Ok(_) => {
-            state.config_watcher.notify("instances.json");
-            (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+        Ok(result) => {
+            if result.success {
+                state.config_watcher.notify("instances.json");
+                let mut response = json!({
+                    "status": "saved",
+                    "message": result.message
+                });
+                if let Some(warning) = result.warning {
+                    response["warning"] = json!(warning);
+                }
+                (StatusCode::OK, Json(response)).into_response()
+            } else {
+                let mut response = json!({
+                    "error": result.message,
+                    "rollback": result.rollback_performed
+                });
+                if let Some(warning) = result.warning {
+                    response["warning"] = json!(warning);
+                }
+                error!("Failed to save instances: {}", result.message);
+                (StatusCode::BAD_REQUEST, Json(response)).into_response()
+            }
         }
         Err(e) => {
-            error!("Failed to save instances: {}", e);
+            error!("Unexpected error saving instances: {}", e);
             (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": e.to_string() })),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("Unexpected error: {}", e) })),
             )
                 .into_response()
         }
@@ -659,15 +678,34 @@ async fn update_tools(
     Json(payload): Json<Value>,
 ) -> impl IntoResponse {
     match state.config_manager.save_tools(payload).await {
-        Ok(_) => {
-            state.config_watcher.notify("tools.json");
-            (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+        Ok(result) => {
+            if result.success {
+                state.config_watcher.notify("tools.json");
+                let mut response = json!({
+                    "status": "saved",
+                    "message": result.message
+                });
+                if let Some(warning) = result.warning {
+                    response["warning"] = json!(warning);
+                }
+                (StatusCode::OK, Json(response)).into_response()
+            } else {
+                let mut response = json!({
+                    "error": result.message,
+                    "rollback": result.rollback_performed
+                });
+                if let Some(warning) = result.warning {
+                    response["warning"] = json!(warning);
+                }
+                error!("Failed to save tools: {}", result.message);
+                (StatusCode::BAD_REQUEST, Json(response)).into_response()
+            }
         }
         Err(e) => {
-            error!("Failed to save tools: {}", e);
+            error!("Unexpected error saving tools: {}", e);
             (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": e.to_string() })),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("Unexpected error: {}", e) })),
             )
                 .into_response()
         }
@@ -693,15 +731,34 @@ async fn update_prompts(
     Json(payload): Json<Value>,
 ) -> impl IntoResponse {
     match state.config_manager.save_prompts(payload).await {
-        Ok(_) => {
-            state.config_watcher.notify("prompts.json");
-            (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+        Ok(result) => {
+            if result.success {
+                state.config_watcher.notify("prompts.json");
+                let mut response = json!({
+                    "status": "saved",
+                    "message": result.message
+                });
+                if let Some(warning) = result.warning {
+                    response["warning"] = json!(warning);
+                }
+                (StatusCode::OK, Json(response)).into_response()
+            } else {
+                let mut response = json!({
+                    "error": result.message,
+                    "rollback": result.rollback_performed
+                });
+                if let Some(warning) = result.warning {
+                    response["warning"] = json!(warning);
+                }
+                error!("Failed to save prompts: {}", result.message);
+                (StatusCode::BAD_REQUEST, Json(response)).into_response()
+            }
         }
         Err(e) => {
-            error!("Failed to save prompts: {}", e);
+            error!("Unexpected error saving prompts: {}", e);
             (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": e.to_string() })),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("Unexpected error: {}", e) })),
             )
                 .into_response()
         }
@@ -727,15 +784,34 @@ async fn update_server(
     Json(payload): Json<Value>,
 ) -> impl IntoResponse {
     match state.config_manager.save_server(payload).await {
-        Ok(_) => {
-            state.config_watcher.notify("server.json");
-            (StatusCode::OK, Json(json!({ "status": "saved" }))).into_response()
+        Ok(result) => {
+            if result.success {
+                state.config_watcher.notify("server.json");
+                let mut response = json!({
+                    "status": "saved",
+                    "message": result.message
+                });
+                if let Some(warning) = result.warning {
+                    response["warning"] = json!(warning);
+                }
+                (StatusCode::OK, Json(response)).into_response()
+            } else {
+                let mut response = json!({
+                    "error": result.message,
+                    "rollback": result.rollback_performed
+                });
+                if let Some(warning) = result.warning {
+                    response["warning"] = json!(warning);
+                }
+                error!("Failed to save server: {}", result.message);
+                (StatusCode::BAD_REQUEST, Json(response)).into_response()
+            }
         }
         Err(e) => {
-            error!("Failed to save server: {}", e);
+            error!("Unexpected error saving server: {}", e);
             (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": e.to_string() })),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("Unexpected error: {}", e) })),
             )
                 .into_response()
         }

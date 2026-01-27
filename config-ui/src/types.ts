@@ -36,7 +36,7 @@ export type ConfigType = 'instances' | 'server' | 'tools' | 'prompts';
 
 export interface StatusMessage {
   message: string;
-  type: 'loading' | 'success' | 'error';
+  type: 'loading' | 'success' | 'error' | 'warning';
 }
 
 export interface ToolCategory {
