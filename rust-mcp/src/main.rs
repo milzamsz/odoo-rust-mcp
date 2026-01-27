@@ -39,6 +39,62 @@ fn get_share_dir() -> Option<PathBuf> {
     candidates.into_iter().find(|path| path.exists())
 }
 
+/// Set environment variable if not already set
+/// SAFETY: Called early in main() before threads are spawned
+fn set_default_env(key: &str, value: PathBuf) {
+    if std::env::var(key).is_err() {
+        // SAFETY: Called during single-threaded init
+        unsafe {
+            std::env::set_var(key, &value);
+        }
+        info!("Set default {}={:?}", key, value);
+    }
+}
+
+/// Copy default config file to user config directory if it doesn't exist
+fn copy_default_config_if_missing(config_dir: &std::path::Path, filename: &str) {
+    let target = config_dir.join(filename);
+    if target.exists() {
+        return;
+    }
+
+    // Try to find the default config from various locations
+    let sources = [
+        // Current directory (for development)
+        PathBuf::from("config").join(filename),
+        PathBuf::from("rust-mcp/config").join(filename),
+        // Config defaults bundled with binary
+        PathBuf::from("config-defaults").join(filename),
+    ];
+
+    for source in &sources {
+        if source.exists() {
+            match fs::copy(source, &target) {
+                Ok(_) => {
+                    info!("Copied default {} to {:?}", filename, target);
+                    return;
+                }
+                Err(e) => {
+                    warn!("Failed to copy {} from {:?}: {}", filename, source, e);
+                }
+            }
+        }
+    }
+
+    // If no source found, create minimal default
+    let default_content = match filename {
+        "tools.json" => include_str!("../config-defaults/tools.json"),
+        "prompts.json" => include_str!("../config-defaults/prompts.json"),
+        "server.json" => include_str!("../config-defaults/server.json"),
+        _ => return,
+    };
+
+    match fs::write(&target, default_content) {
+        Ok(_) => info!("Created default {} at {:?}", filename, target),
+        Err(e) => warn!("Failed to create default {}: {}", filename, e),
+    }
+}
+
 /// Default instances.json template for multi-instance configuration
 const DEFAULT_INSTANCES_TEMPLATE: &str = r#"{
   "production": {
@@ -187,10 +243,22 @@ fn setup_user_config() {
     }
 
     // Set default MCP config paths if not already set
+    // Priority: 1) Already set in env, 2) Homebrew/APT share dir, 3) User config dir
     if let Some(share_dir) = get_share_dir() {
+        // Homebrew/APT installation - use share directory
         set_default_env("MCP_TOOLS_JSON", share_dir.join("tools.json"));
         set_default_env("MCP_PROMPTS_JSON", share_dir.join("prompts.json"));
         set_default_env("MCP_SERVER_JSON", share_dir.join("server.json"));
+    } else {
+        // Binary/source install - use user config directory
+        set_default_env("MCP_TOOLS_JSON", config_dir.join("tools.json"));
+        set_default_env("MCP_PROMPTS_JSON", config_dir.join("prompts.json"));
+        set_default_env("MCP_SERVER_JSON", config_dir.join("server.json"));
+
+        // Copy default config files to user directory if they don't exist
+        copy_default_config_if_missing(&config_dir, "tools.json");
+        copy_default_config_if_missing(&config_dir, "prompts.json");
+        copy_default_config_if_missing(&config_dir, "server.json");
     }
 }
 
@@ -388,18 +456,6 @@ fn migrate_single_to_multi_instance(config_dir: &std::path::Path) {
         }
         Err(e) => {
             warn!("Failed to serialize instances.json: {}", e);
-        }
-    }
-}
-
-/// Set environment variable if not already set
-fn set_default_env(key: &str, value: PathBuf) {
-    if std::env::var(key).is_err()
-        && let Some(s) = value.to_str()
-    {
-        // SAFETY: We're setting env vars at startup before any threads are spawned
-        unsafe {
-            std::env::set_var(key, s);
         }
     }
 }
