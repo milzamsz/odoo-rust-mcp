@@ -405,16 +405,44 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check for and remove any conflict markers that may have been left
+          if grep -q "<<<<<<< HEAD" homebrew/Formula/rust-mcp.rb; then
+            echo "Conflict markers found, regenerating formula..."
+            # Keep our version by removing conflict markers
+            sed -i '/<<<<<<< HEAD/,/=======/d' homebrew/Formula/rust-mcp.rb
+            sed -i '/>>>>>>>/d' homebrew/Formula/rust-mcp.rb
+          fi
+          
           git add homebrew/Formula/rust-mcp.rb
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
             git commit -m "chore: update Homebrew formula for ${{ steps.tag.outputs.tag }}"
+            
+            # Fetch and handle potential conflicts
             git fetch origin main
-            if ! git push origin HEAD:main 2>&1; then
-              git pull origin main --no-edit || git pull origin main --no-rebase || true
-              git push origin HEAD:main || exit 0
-            fi
+            
+            # Try to push, with retry on failure
+            for i in 1 2 3; do
+              if git push origin HEAD:main 2>&1; then
+                echo "Push succeeded"
+                break
+              fi
+              
+              echo "Push attempt $i failed, pulling and retrying..."
+              git pull origin main --rebase || git pull origin main --no-rebase || true
+              
+              # Re-apply our formula changes if there was a conflict
+              if grep -q "<<<<<<< HEAD" homebrew/Formula/rust-mcp.rb 2>/dev/null; then
+                echo "Conflict detected, keeping our version..."
+                git checkout --ours homebrew/Formula/rust-mcp.rb
+                git add homebrew/Formula/rust-mcp.rb
+                git rebase --continue || true
+              fi
+              
+              sleep 2
+            done
           fi
 
       - name: Push to Homebrew tap (if configured)
@@ -429,13 +457,25 @@ jobs:
           fi
           git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${HOMEBREW_TAP_REPO}.git homebrew-tap
           mkdir -p homebrew-tap/Formula
+          
+          # Force overwrite with our version (resolves any conflicts)
           cp homebrew/Formula/rust-mcp.rb homebrew-tap/Formula/
+          
           cd homebrew-tap
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Pull latest changes first to minimize conflicts
+          git pull --rebase || git pull || true
+          
+          # Force overwrite again after pull (in case of conflicts)
+          cp ../homebrew/Formula/rust-mcp.rb Formula/
+          
           git add -A
           git commit -m "Update rust-mcp to ${{ steps.tag.outputs.tag }}" || echo "No changes to commit"
-          git push
+          
+          # Retry push with force if needed (safe because we're just updating formula)
+          git push || git push --force-with-lease || echo "Push failed, manual intervention may be needed"
 
   # =============================================================================
   # Stage 4: Update APT Repository (depends on release, build-deb)
