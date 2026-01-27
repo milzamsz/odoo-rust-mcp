@@ -129,21 +129,42 @@ jobs:
     needs: build-ui
     steps:
       - uses: actions/checkout@v6
+      
+      # Rust coverage with tarpaulin
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust-mcp
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
-      - name: Generate coverage
+      - name: Generate Rust coverage
         run: |
           cd rust-mcp
           cargo tarpaulin --out xml --output-dir coverage
+      
+      # TypeScript coverage with vitest
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: config-ui/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: config-ui
+        run: npm ci
+      
+      - name: Generate TypeScript coverage
+        working-directory: config-ui
+        run: npm run test:coverage
+      
+      # Merge coverage reports and upload
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: rust-mcp/coverage/cobertura.xml
+          files: ./rust-mcp/coverage/cobertura.xml,./config-ui/coverage/cobertura-coverage.xml
+          flags: unittests
           fail_ci_if_error: false
 
   security:
