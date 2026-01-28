@@ -699,7 +699,7 @@ jobs:
           [ -f "/usr/bin/rust-mcp-service" ] && echo "PASS: rust-mcp-service installed"
           rust-mcp --help
           
-          echo "=== Verifying config files ==="
+          echo "=== Verifying share directory config files ==="
           SHARE_DIR="/usr/share/rust-mcp"
           for f in tools.json prompts.json server.json; do
             [ -f "$SHARE_DIR/$f" ] && echo "PASS: $f exists in $SHARE_DIR"
@@ -708,11 +708,13 @@ jobs:
           echo "=== Verifying systemd service file ==="
           [ -f "/lib/systemd/system/rust-mcp.service" ] && echo "PASS: systemd service file installed"
           
-          echo "=== Testing service wrapper creates config ==="
-          rust-mcp-service --help 2>/dev/null || true
-          CONFIG_DIR="$HOME/.config/rust-mcp"
-          [ -f "$CONFIG_DIR/instances.json" ] && echo "PASS: instances.json created by service wrapper"
-          [ -f "$CONFIG_DIR/env" ] && echo "PASS: env file created by service wrapper"
+          echo "=== Verifying system config created by postinst ==="
+          SYSTEM_CONFIG="/etc/rust-mcp"
+          [ -d "$SYSTEM_CONFIG" ] && echo "PASS: /etc/rust-mcp directory exists"
+          [ -f "$SYSTEM_CONFIG/instances.json" ] && echo "PASS: instances.json created"
+          [ -f "$SYSTEM_CONFIG/env" ] && echo "PASS: env file created"
+          [ -f "$SYSTEM_CONFIG/tools.json" ] && echo "PASS: tools.json copied"
+          ls -la "$SYSTEM_CONFIG/" || true
 
       - name: Test systemd service
         run: |

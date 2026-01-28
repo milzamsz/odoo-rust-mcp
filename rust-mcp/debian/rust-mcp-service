@@ -2,7 +2,18 @@
 # Wrapper script for rust-mcp that loads user configuration
 # This script is used by systemd service and can be run directly
 
-CONFIG_DIR="$HOME/.config/rust-mcp"
+# Determine config directory based on context
+# When running as systemd service (root), use /etc/rust-mcp
+# When running as regular user, use ~/.config/rust-mcp
+if [ "$HOME" = "/" ] || [ -z "$HOME" ] || [ "$EUID" -eq 0 ]; then
+    # Running as root/systemd - use system config directory
+    CONFIG_DIR="/etc/rust-mcp"
+    SHARE_DIR="/usr/share/rust-mcp"
+else
+    # Running as regular user
+    CONFIG_DIR="$HOME/.config/rust-mcp"
+    SHARE_DIR="/usr/share/rust-mcp"
+fi
 
 # Create config directory if it doesn't exist
 if [ ! -d "$CONFIG_DIR" ]; then

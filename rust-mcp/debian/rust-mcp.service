@@ -5,29 +5,28 @@ After=network.target
 
 [Service]
 Type=simple
+
+# Setup config directory before starting
+ExecStartPre=/bin/mkdir -p /etc/rust-mcp
 ExecStart=/usr/bin/rust-mcp-service --transport http --listen 127.0.0.1:8787
 Restart=on-failure
 RestartSec=5
 
-# Run as user service when possible, fallback to root
-# For user-level service, use: systemctl --user start rust-mcp
-DynamicUser=no
-
-# Security hardening (relaxed to allow config file access)
+# Security hardening
 NoNewPrivileges=true
 ProtectSystem=full
 PrivateTmp=true
 
-# Allow read-write access to user config directories
-# The service wrapper creates config in ~/.config/rust-mcp/
-ReadWritePaths=/home
-ReadWritePaths=/root/.config
+# Config and runtime directories
+ConfigurationDirectory=rust-mcp
+RuntimeDirectory=rust-mcp
 
 # Working directory for static files
 WorkingDirectory=/usr/share/rust-mcp
 
 # Environment
 Environment=RUST_LOG=info
+Environment=HOME=/root
 
 # Logging
 StandardOutput=journal

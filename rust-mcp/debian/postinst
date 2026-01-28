@@ -2,9 +2,68 @@
 set -e
 
 # Post-installation script for rust-mcp
-# Creates user configuration directory and default env file
+# Creates system and user configuration directories
 
-# Get the actual user (not root when using sudo)
+# Always create system config directory for systemd service
+SYSTEM_CONFIG_DIR="/etc/rust-mcp"
+SHARE_DIR="/usr/share/rust-mcp"
+
+echo "Setting up system configuration..."
+mkdir -p "$SYSTEM_CONFIG_DIR"
+
+# Create system instances.json if it doesn't exist
+if [ ! -f "$SYSTEM_CONFIG_DIR/instances.json" ]; then
+    cat > "$SYSTEM_CONFIG_DIR/instances.json" << 'EOF'
+{
+  "production": {
+    "url": "http://localhost:8069",
+    "db": "production",
+    "apiKey": "YOUR_ODOO_19_API_KEY"
+  },
+  "staging": {
+    "url": "http://localhost:8069",
+    "db": "staging",
+    "apiKey": "YOUR_STAGING_API_KEY"
+  },
+  "development": {
+    "url": "http://localhost:8069",
+    "db": "development",
+    "version": "18",
+    "username": "admin",
+    "password": "admin"
+  }
+}
+EOF
+    chmod 600 "$SYSTEM_CONFIG_DIR/instances.json"
+    echo "Created system instances.json: $SYSTEM_CONFIG_DIR/instances.json"
+fi
+
+# Copy default config files to system directory
+for config_file in tools.json prompts.json server.json; do
+    if [ ! -f "$SYSTEM_CONFIG_DIR/$config_file" ] && [ -f "$SHARE_DIR/$config_file" ]; then
+        cp "$SHARE_DIR/$config_file" "$SYSTEM_CONFIG_DIR/$config_file"
+        chmod 644 "$SYSTEM_CONFIG_DIR/$config_file"
+        echo "Copied $config_file to: $SYSTEM_CONFIG_DIR/$config_file"
+    fi
+done
+
+# Create system env file if it doesn't exist
+if [ ! -f "$SYSTEM_CONFIG_DIR/env" ]; then
+    cat > "$SYSTEM_CONFIG_DIR/env" << EOF
+# Odoo Rust MCP Server Configuration (System)
+ODOO_INSTANCES_JSON=$SYSTEM_CONFIG_DIR/instances.json
+MCP_TOOLS_JSON=$SYSTEM_CONFIG_DIR/tools.json
+MCP_PROMPTS_JSON=$SYSTEM_CONFIG_DIR/prompts.json
+MCP_SERVER_JSON=$SYSTEM_CONFIG_DIR/server.json
+CONFIG_UI_USERNAME=admin
+CONFIG_UI_PASSWORD=changeme
+MCP_AUTH_ENABLED=false
+EOF
+    chmod 600 "$SYSTEM_CONFIG_DIR/env"
+    echo "Created system env file: $SYSTEM_CONFIG_DIR/env"
+fi
+
+# Get the actual user (not root when using sudo) for user-level config
 if [ -n "$SUDO_USER" ]; then
     ACTUAL_USER="$SUDO_USER"
     ACTUAL_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
@@ -13,10 +72,13 @@ else
     ACTUAL_HOME="$HOME"
 fi
 
-# Skip if no valid user found (e.g., during automated builds)
+# Skip user config if no valid user found (e.g., during automated builds)
 if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
     echo "Note: Skipping user config setup (no regular user detected)"
-    echo "Run 'rust-mcp-service --help' as your user to create config"
+    echo "Run 'rust-mcp-service --help' as your user to create user-level config"
+    echo ""
+    echo "System configuration is ready in $SYSTEM_CONFIG_DIR"
+    echo "Start service with: sudo systemctl start rust-mcp"
     exit 0
 fi
 

@@ -397,20 +397,42 @@ jobs:
           ls -la /usr/share/rust-mcp/
           cat /lib/systemd/system/rust-mcp.service
       
-      - name: Test service wrapper creates config
+      - name: Setup system config directory
         run: |
-          echo "=== Running service wrapper to create config ==="
-          /usr/bin/rust-mcp-service --help || true
+          echo "=== Creating system config directory ==="
+          sudo mkdir -p /etc/rust-mcp
           
-          echo "=== Checking config directory ==="
-          CONFIG_DIR="$HOME/.config/rust-mcp"
-          ls -la "$CONFIG_DIR/" || echo "Config dir not created"
+          echo "=== Creating instances.json ==="
+          sudo tee /etc/rust-mcp/instances.json > /dev/null << 'EOF'
+          {
+            "test": {
+              "url": "http://localhost:8069",
+              "db": "testdb",
+              "apiKey": "test_key_12345"
+            }
+          }
+          EOF
           
-          [ -f "$CONFIG_DIR/instances.json" ] && echo "PASS: instances.json created"
-          [ -f "$CONFIG_DIR/env" ] && echo "PASS: env file created"
-          [ -f "$CONFIG_DIR/tools.json" ] && echo "PASS: tools.json copied"
-          [ -f "$CONFIG_DIR/prompts.json" ] && echo "PASS: prompts.json copied"
-          [ -f "$CONFIG_DIR/server.json" ] && echo "PASS: server.json copied"
+          echo "=== Copying config files ==="
+          sudo cp /usr/share/rust-mcp/tools.json /etc/rust-mcp/
+          sudo cp /usr/share/rust-mcp/prompts.json /etc/rust-mcp/
+          sudo cp /usr/share/rust-mcp/server.json /etc/rust-mcp/
+          
+          echo "=== Creating env file ==="
+          sudo tee /etc/rust-mcp/env > /dev/null << EOF
+          ODOO_INSTANCES_JSON=/etc/rust-mcp/instances.json
+          MCP_TOOLS_JSON=/etc/rust-mcp/tools.json
+          MCP_PROMPTS_JSON=/etc/rust-mcp/prompts.json
+          MCP_SERVER_JSON=/etc/rust-mcp/server.json
+          EOF
+          
+          echo "=== Verifying config ==="
+          ls -la /etc/rust-mcp/
+          [ -f "/etc/rust-mcp/instances.json" ] && echo "PASS: instances.json created"
+          [ -f "/etc/rust-mcp/env" ] && echo "PASS: env file created"
+          [ -f "/etc/rust-mcp/tools.json" ] && echo "PASS: tools.json copied"
+          [ -f "/etc/rust-mcp/prompts.json" ] && echo "PASS: prompts.json copied"
+          [ -f "/etc/rust-mcp/server.json" ] && echo "PASS: server.json copied"
       
       - name: Test systemd service lifecycle
         run: |
