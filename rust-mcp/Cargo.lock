@@ -1891,7 +1891,7 @@ dependencies = [
 
 [[package]]
 name = "rust-mcp"
-version = "0.3.28"
+version = "0.3.29"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -1904,6 +1904,7 @@ dependencies = [
  "dirs",
  "futures",
  "hex",
+ "libc",
  "mcp_rust_sdk",
  "mockall",
  "notify",

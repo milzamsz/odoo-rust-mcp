@@ -17,9 +17,26 @@ use rust_mcp::mcp::registry::Registry;
 use rust_mcp::mcp::runtime::ServerCompat;
 use rust_mcp::mcp::tools::OdooClientPool;
 
-/// Get user config directory: ~/.config/odoo-rust-mcp/
-/// We use ~/.config/ for cross-platform consistency with the shell wrapper
+/// Get config directory based on context:
+/// - If running as root/systemd service: /etc/rust-mcp
+/// - If running as regular user: ~/.config/odoo-rust-mcp
 fn get_config_dir() -> Option<PathBuf> {
+    // Check if running as root (systemd service context)
+    #[cfg(unix)]
+    {
+        // Check effective UID - if 0, we're running as root
+        // SAFETY: geteuid() is always safe to call
+        if unsafe { libc::geteuid() } == 0 {
+            // Running as root - use system config directory
+            let system_config = PathBuf::from("/etc/rust-mcp");
+            // If system config exists or we can create it, use it
+            if system_config.exists() || std::fs::create_dir_all(&system_config).is_ok() {
+                return Some(system_config);
+            }
+        }
+    }
+
+    // For regular users or Windows, use home directory
     dirs::home_dir().map(|p| p.join(".config").join("odoo-rust-mcp"))
 }
 
@@ -34,6 +51,8 @@ fn get_share_dir() -> Option<PathBuf> {
         // Linux (APT, manual install)
         PathBuf::from("/usr/share/rust-mcp"),
         PathBuf::from("/usr/local/share/odoo-rust-mcp"),
+        // System config directory (for systemd service)
+        PathBuf::from("/etc/rust-mcp"),
     ];
 
     candidates.into_iter().find(|path| path.exists())
