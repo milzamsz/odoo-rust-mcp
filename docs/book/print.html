@@ -1,0 +1,2149 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Odoo Rust MCP Documentation</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-d010076a.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-e2fbf26c.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Odoo Rust MCP Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="odoo-rust-mcp-documentation"><a class="header" href="#odoo-rust-mcp-documentation">Odoo Rust MCP Documentation</a></h1>
+<p>Welcome to the official documentation for <strong>odoo-rust-mcp</strong>, a high-performance Model Context Protocol (MCP) server for Odoo ERP integration.</p>
+<h2 id="quick-links"><a class="header" href="#quick-links">Quick Links</a></h2>
+<h3 id="for-functional-users-end-users--it-admins"><a class="header" href="#for-functional-users-end-users--it-admins">For Functional Users (End Users / IT Admins)</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Document</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="#getting-started">Getting Started</a></td><td>Installation and first-time setup</td></tr>
+<tr><td><a href="#configuration-guide">Configuration Guide</a></td><td>Configuring instances, authentication, and options</td></tr>
+<tr><td><a href="#tools-reference">Tools Reference</a></td><td>Complete reference for all 22 available tools</td></tr>
+<tr><td><a href="#prompts-reference">Prompts Reference</a></td><td>Guide to built-in prompts for AI assistants</td></tr>
+<tr><td><a href="#use-cases--examples">Use Cases</a></td><td>Real-world examples and workflows</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="for-developers-contributors"><a class="header" href="#for-developers-contributors">For Developers (Contributors)</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Document</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="#architecture-overview">Architecture</a></td><td>System design and code structure</td></tr>
+<tr><td><a href="#building-from-source">Building from Source</a></td><td>Compiling and running locally</td></tr>
+<tr><td><a href="#contributing-guide">Contributing Guide</a></td><td>How to contribute to the project</td></tr>
+<tr><td><a href="#api-reference">API Reference</a></td><td>Internal APIs and types</td></tr>
+<tr><td><a href="#testing-guide">Testing Guide</a></td><td>Running and writing tests</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="what-is-odoo-rust-mcp"><a class="header" href="#what-is-odoo-rust-mcp">What is odoo-rust-mcp?</a></h2>
+<p>A Rust implementation of an MCP server that enables AI assistants (Claude, Cursor, etc.) to interact with Odoo ERP systems through a standardized protocol.</p>
+<h3 id="key-features"><a class="header" href="#key-features">Key Features</a></h3>
+<ul>
+<li>✅ <strong>Multi-instance support</strong> - Connect to multiple Odoo servers</li>
+<li>✅ <strong>Dual authentication</strong> - API Keys (v19+) or Username/Password (&lt; v19)</li>
+<li>✅ <strong>Multiple transports</strong> - stdio, HTTP, SSE, WebSocket</li>
+<li>✅ <strong>Web UI</strong> - Visual configuration interface on port 3008</li>
+<li>✅ <strong>Declarative tools</strong> - Customize via JSON without recompiling</li>
+<li>✅ <strong>Production-ready</strong> - Docker, Kubernetes, Helm support</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<p>This guide walks you through installing and configuring odoo-rust-mcp for your first use.</p>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<ul>
+<li><strong>Odoo Instance</strong>: A running Odoo server (v16-19+)</li>
+<li><strong>Credentials</strong>: API Key (for v19+) or Username/Password (for v16-18)</li>
+<li><strong>AI Client</strong>: Cursor, Claude Desktop, or other MCP-compatible client</li>
+</ul>
+<h2 id="installation-options"><a class="header" href="#installation-options">Installation Options</a></h2>
+<h3 id="option-1-pre-built-binary-recommended"><a class="header" href="#option-1-pre-built-binary-recommended">Option 1: Pre-built Binary (Recommended)</a></h3>
+<p>Download the latest release for your platform:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Platform</th><th>Download</th></tr>
+</thead>
+<tbody>
+<tr><td>Windows x64</td><td><code>rust-mcp-x86_64-pc-windows-msvc.zip</code></td></tr>
+<tr><td>macOS Intel</td><td><code>rust-mcp-x86_64-apple-darwin.tar.gz</code></td></tr>
+<tr><td>macOS Apple Silicon</td><td><code>rust-mcp-aarch64-apple-darwin.tar.gz</code></td></tr>
+<tr><td>Linux x64</td><td><code>rust-mcp-x86_64-unknown-linux-gnu.tar.gz</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Download URL</strong>: https://github.com/rachmataditiya/odoo-rust-mcp/releases/latest</p>
+<p><strong>Windows Installation:</strong></p>
+<pre><code class="language-powershell"># Download and extract
+Expand-Archive rust-mcp-x86_64-pc-windows-msvc.zip -DestinationPath C:\odoo-mcp
+cd C:\odoo-mcp
+.\install.ps1
+</code></pre>
+<p><strong>Linux/macOS Installation:</strong></p>
+<pre><code class="language-bash">tar -xzf rust-mcp-&lt;platform&gt;.tar.gz
+cd rust-mcp-&lt;platform&gt;
+./install.sh
+</code></pre>
+<h3 id="option-2-homebrew-macoslinux"><a class="header" href="#option-2-homebrew-macoslinux">Option 2: Homebrew (macOS/Linux)</a></h3>
+<pre><code class="language-bash">brew tap rachmataditiya/odoo-rust-mcp
+brew install rust-mcp
+</code></pre>
+<h3 id="option-3-apt-debianubuntu"><a class="header" href="#option-3-apt-debianubuntu">Option 3: APT (Debian/Ubuntu)</a></h3>
+<pre><code class="language-bash">curl -fsSL https://rachmataditiya.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg
+echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://rachmataditiya.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
+sudo apt update &amp;&amp; sudo apt install rust-mcp
+</code></pre>
+<h3 id="option-4-docker"><a class="header" href="#option-4-docker">Option 4: Docker</a></h3>
+<pre><code class="language-bash">docker run -d --name odoo-mcp \
+  -e ODOO_URL=https://your-odoo.com \
+  -e ODOO_DB=mydb \
+  -e ODOO_API_KEY=your-key \
+  -p 8787:8787 \
+  ghcr.io/rachmataditiya/odoo-rust-mcp:latest
+</code></pre>
+<hr>
+<h2 id="quick-configuration"><a class="header" href="#quick-configuration">Quick Configuration</a></h2>
+<h3 id="step-1-create-instance-configuration"><a class="header" href="#step-1-create-instance-configuration">Step 1: Create Instance Configuration</a></h3>
+<p>Create <code>instances.json</code>:</p>
+<pre><code class="language-json">{
+  "production": {
+    "url": "https://your-odoo.com",
+    "db": "production",
+    "apiKey": "YOUR_API_KEY"
+  }
+}
+</code></pre>
+<blockquote>
+<p><strong>For Odoo &lt; 19</strong>, use <code>username</code> and <code>password</code> instead of <code>apiKey</code>, plus add <code>"version": "18"</code>.</p>
+</blockquote>
+<h3 id="step-2-set-environment-variables"><a class="header" href="#step-2-set-environment-variables">Step 2: Set Environment Variables</a></h3>
+<p>Create <code>.env</code> file:</p>
+<pre><code class="language-bash">ODOO_INSTANCES_JSON=/path/to/instances.json
+
+# Optional: Enable write tools
+ODOO_ENABLE_WRITE_TOOLS=true
+</code></pre>
+<h3 id="step-3-configure-your-ai-client"><a class="header" href="#step-3-configure-your-ai-client">Step 3: Configure Your AI Client</a></h3>
+<p><strong>Cursor (<code>~/.cursor/mcp.json</code>):</strong></p>
+<pre><code class="language-json">{
+  "mcpServers": {
+    "odoo": {
+      "command": "rust-mcp",
+      "args": ["--transport", "stdio"],
+      "env": {
+        "ODOO_INSTANCES_JSON": "/path/to/instances.json"
+      }
+    }
+  }
+}
+</code></pre>
+<p><strong>Claude Desktop (<code>claude_desktop_config.json</code>):</strong></p>
+<pre><code class="language-json">{
+  "mcpServers": {
+    "odoo": {
+      "command": "/path/to/rust-mcp",
+      "args": ["--transport", "stdio"],
+      "env": {
+        "ODOO_INSTANCES_JSON": "/path/to/instances.json"
+      }
+    }
+  }
+}
+</code></pre>
+<hr>
+<h2 id="verify-installation"><a class="header" href="#verify-installation">Verify Installation</a></h2>
+<ol>
+<li>Restart your AI client</li>
+<li>Ask: “List available Odoo tools”</li>
+<li>The assistant should show tools like <code>odoo_search</code>, <code>odoo_read</code>, etc.</li>
+</ol>
+<p><strong>Test a simple query:</strong></p>
+<pre><code>Search for the first 5 partners in my Odoo instance
+</code></pre>
+<hr>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
+<ul>
+<li><a href="#configuration-guide">Configuration Guide</a> - Advanced configuration options</li>
+<li><a href="#tools-reference">Tools Reference</a> - Complete tool documentation</li>
+<li><a href="#use-cases--examples">Use Cases</a> - Real-world examples</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="configuration-guide"><a class="header" href="#configuration-guide">Configuration Guide</a></h1>
+<p>This guide covers all configuration options for odoo-rust-mcp.</p>
+<h2 id="instance-configuration"><a class="header" href="#instance-configuration">Instance Configuration</a></h2>
+<h3 id="multi-instance-setup-recommended"><a class="header" href="#multi-instance-setup-recommended">Multi-Instance Setup (Recommended)</a></h3>
+<p>Create <code>instances.json</code>:</p>
+<pre><code class="language-json">{
+  "production": {
+    "url": "https://prod.example.com",
+    "db": "production",
+    "apiKey": "prod_api_key_here"
+  },
+  "staging": {
+    "url": "https://staging.example.com",
+    "db": "staging",
+    "apiKey": "staging_api_key_here"
+  },
+  "local": {
+    "url": "http://localhost:8069",
+    "db": "localdb",
+    "version": "18",
+    "username": "admin",
+    "password": "admin"
+  }
+}
+</code></pre>
+<p><strong>Instance Fields:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Field</th><th>Required</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>url</code></td><td>✅</td><td>Odoo server URL</td></tr>
+<tr><td><code>db</code></td><td>✅ (v&lt;19)</td><td>Database name</td></tr>
+<tr><td><code>apiKey</code></td><td>✅ (v19+)</td><td>API key for authentication</td></tr>
+<tr><td><code>version</code></td><td>v&lt;19</td><td>Odoo version (triggers username/password mode)</td></tr>
+<tr><td><code>username</code></td><td>v&lt;19</td><td>Username for JSON-RPC auth</td></tr>
+<tr><td><code>password</code></td><td>v&lt;19</td><td>Password for JSON-RPC auth</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="single-instance-legacy"><a class="header" href="#single-instance-legacy">Single Instance (Legacy)</a></h3>
+<pre><code class="language-bash">ODOO_URL=https://your-odoo.com
+ODOO_DB=mydb
+ODOO_API_KEY=your-key
+</code></pre>
+<hr>
+<h2 id="environment-variables"><a class="header" href="#environment-variables">Environment Variables</a></h2>
+<h3 id="core-configuration"><a class="header" href="#core-configuration">Core Configuration</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ODOO_INSTANCES_JSON</code></td><td>-</td><td>Path to <code>instances.json</code> file</td></tr>
+<tr><td><code>ODOO_INSTANCES</code></td><td>-</td><td>Inline JSON (single-line, alternative to file)</td></tr>
+<tr><td><code>ODOO_URL</code></td><td>-</td><td>Single instance URL (fallback)</td></tr>
+<tr><td><code>ODOO_DB</code></td><td>-</td><td>Database name</td></tr>
+<tr><td><code>ODOO_API_KEY</code></td><td>-</td><td>API key for v19+</td></tr>
+<tr><td><code>ODOO_VERSION</code></td><td>-</td><td>Odoo version (triggers legacy mode)</td></tr>
+<tr><td><code>ODOO_USERNAME</code></td><td>-</td><td>Username for v&lt;19</td></tr>
+<tr><td><code>ODOO_PASSWORD</code></td><td>-</td><td>Password for v&lt;19</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="feature-toggles"><a class="header" href="#feature-toggles">Feature Toggles</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ODOO_ENABLE_WRITE_TOOLS</code></td><td><code>false</code></td><td>Enable create/update/delete tools</td></tr>
+<tr><td><code>ODOO_ENABLE_CLEANUP_TOOLS</code></td><td><code>false</code></td><td>Enable database cleanup tools</td></tr>
+<tr><td><code>ODOO_TIMEOUT_MS</code></td><td><code>30000</code></td><td>Request timeout in milliseconds</td></tr>
+<tr><td><code>ODOO_MAX_RETRIES</code></td><td><code>2</code></td><td>Retry attempts for failed requests</td></tr>
+<tr><td><code>ODOO_METADATA_CACHE_TTL_SECS</code></td><td><code>3600</code></td><td>Metadata cache duration (1 hour)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="mcp-configuration"><a class="header" href="#mcp-configuration">MCP Configuration</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>MCP_TOOLS_JSON</code></td><td>Auto</td><td>Path to <code>tools.json</code></td></tr>
+<tr><td><code>MCP_PROMPTS_JSON</code></td><td>Auto</td><td>Path to <code>prompts.json</code></td></tr>
+<tr><td><code>MCP_SERVER_JSON</code></td><td>Auto</td><td>Path to <code>server.json</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="authentication-http-transport"><a class="header" href="#authentication-http-transport">Authentication (HTTP Transport)</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>MCP_AUTH_ENABLED</code></td><td><code>false</code></td><td>Enable Bearer token auth</td></tr>
+<tr><td><code>MCP_AUTH_TOKEN</code></td><td>-</td><td>Auth token (generate with <code>openssl rand -hex 32</code>)</td></tr>
+<tr><td><code>MCP_ALLOWED_ORIGINS</code></td><td>-</td><td>Comma-separated allowed origins</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="config-ui"><a class="header" href="#config-ui">Config UI</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ODOO_CONFIG_SERVER_PORT</code></td><td><code>3008</code></td><td>Config UI port</td></tr>
+<tr><td><code>CONFIG_UI_USERNAME</code></td><td><code>admin</code></td><td>Login username</td></tr>
+<tr><td><code>CONFIG_UI_PASSWORD</code></td><td><code>changeme</code></td><td><strong>Change immediately!</strong></td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="transport-modes"><a class="header" href="#transport-modes">Transport Modes</a></h2>
+<h3 id="stdio-recommended-for-ai-clients"><a class="header" href="#stdio-recommended-for-ai-clients">stdio (Recommended for AI Clients)</a></h3>
+<pre><code class="language-bash">rust-mcp --transport stdio
+</code></pre>
+<ul>
+<li>Used by Cursor, Claude Desktop</li>
+<li>Communication via stdin/stdout</li>
+</ul>
+<h3 id="http-remotemulti-user"><a class="header" href="#http-remotemulti-user">HTTP (Remote/Multi-user)</a></h3>
+<pre><code class="language-bash">rust-mcp --transport http --listen 127.0.0.1:8787
+</code></pre>
+<ul>
+<li>Endpoints: <code>/mcp</code>, <code>/health</code>, <code>/openapi.json</code></li>
+<li>Supports Bearer token authentication</li>
+</ul>
+<h3 id="websocket"><a class="header" href="#websocket">WebSocket</a></h3>
+<pre><code class="language-bash">rust-mcp --transport ws --listen 127.0.0.1:8787
+</code></pre>
+<ul>
+<li>For custom integrations</li>
+</ul>
+<h3 id="sse-legacy"><a class="header" href="#sse-legacy">SSE (Legacy)</a></h3>
+<pre><code class="language-bash">rust-mcp --transport http --listen 127.0.0.1:8787
+</code></pre>
+<ul>
+<li>Available at <code>/sse</code> endpoint</li>
+</ul>
+<hr>
+<h2 id="config-ui-web-interface"><a class="header" href="#config-ui-web-interface">Config UI (Web Interface)</a></h2>
+<p>Access the visual configuration interface at <code>http://localhost:3008</code>.</p>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Edit <code>tools.json</code>, <code>prompts.json</code>, <code>server.json</code></li>
+<li>Manage Odoo instances</li>
+<li>Enable/disable tools</li>
+<li>Generate auth tokens</li>
+<li>Real-time validation</li>
+</ul>
+<p><strong>First-time setup:</strong></p>
+<ol>
+<li>Login with <code>admin</code> / <code>changeme</code></li>
+<li>Go to <strong>Security</strong> tab → Change password</li>
+<li>Configure instances in <strong>Instances</strong> tab</li>
+</ol>
+<hr>
+<h2 id="customizing-tools"><a class="header" href="#customizing-tools">Customizing Tools</a></h2>
+<p>Edit <code>tools.json</code> to:</p>
+<ul>
+<li>Remove tools you don’t need</li>
+<li>Add guards for conditional enabling</li>
+<li>Modify tool descriptions</li>
+</ul>
+<p><strong>Example: Read-only mode</strong>
+Remove <code>odoo_create</code>, <code>odoo_update</code>, <code>odoo_delete</code> from the <code>tools</code> array.</p>
+<p><strong>Example: Conditional tools</strong></p>
+<pre><code class="language-json">{
+  "name": "odoo_create",
+  "guards": { "requiresEnvTrue": "ODOO_ENABLE_WRITE_TOOLS" },
+  ...
+}
+</code></pre>
+<hr>
+<h2 id="deployment-options"><a class="header" href="#deployment-options">Deployment Options</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Method</th><th>Best For</th></tr>
+</thead>
+<tbody>
+<tr><td>Binary</td><td>Local development, single user</td></tr>
+<tr><td>Docker</td><td>Quick deployment, isolation</td></tr>
+<tr><td>Docker Compose</td><td>Multi-service setups (n8n, Dify)</td></tr>
+<tr><td>Kubernetes</td><td>Production, high availability</td></tr>
+<tr><td>Helm</td><td>Production, customizable deployment</td></tr>
+</tbody>
+</table>
+</div>
+<p>See <a href="#building-from-source">Developer: Building</a> for details.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="tools-reference"><a class="header" href="#tools-reference">Tools Reference</a></h1>
+<p>Complete reference for all 22 tools available in odoo-rust-mcp.</p>
+<hr>
+<h2 id="read-operations-always-available"><a class="header" href="#read-operations-always-available">Read Operations (Always Available)</a></h2>
+<h3 id="odoo_search"><a class="header" href="#odoo_search">odoo_search</a></h3>
+<p>Search for records matching domain filters. Returns <strong>IDs only</strong>.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "res.partner",
+  "domain": [["is_company", "=", true]],
+  "limit": 10,
+  "offset": 0,
+  "order": "name ASC"
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{ "ids": [1, 2, 3], "count": 3 }
+</code></pre>
+<hr>
+<h3 id="odoo_search_read"><a class="header" href="#odoo_search_read">odoo_search_read</a></h3>
+<p>Search and read records in one operation. Returns <strong>full record data</strong>.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "res.partner",
+  "domain": [["is_company", "=", true]],
+  "fields": ["name", "email", "phone"],
+  "limit": 10,
+  "order": "name ASC"
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  "records": [
+    {"id": 1, "name": "Acme Corp", "email": "info@acme.com", "phone": "+1234567890"}
+  ],
+  "count": 1
+}
+</code></pre>
+<hr>
+<h3 id="odoo_read"><a class="header" href="#odoo_read">odoo_read</a></h3>
+<p>Read specific records by IDs.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "res.partner",
+  "ids": [1, 2, 3],
+  "fields": ["name", "email"]
+}
+</code></pre>
+<hr>
+<h3 id="odoo_count"><a class="header" href="#odoo_count">odoo_count</a></h3>
+<p>Count records matching domain.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "sale.order",
+  "domain": [["state", "=", "sale"]]
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{ "count": 42 }
+</code></pre>
+<hr>
+<h3 id="odoo_read_group"><a class="header" href="#odoo_read_group">odoo_read_group</a></h3>
+<p>Aggregate records with GROUP BY.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "sale.order",
+  "domain": [["state", "=", "sale"]],
+  "fields": ["amount_total:sum"],
+  "groupby": ["partner_id"]
+}
+</code></pre>
+<hr>
+<h3 id="odoo_name_search"><a class="header" href="#odoo_name_search">odoo_name_search</a></h3>
+<p>Autocomplete-style name search.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "res.partner",
+  "name": "Acme",
+  "limit": 10
+}
+</code></pre>
+<hr>
+<h3 id="odoo_name_get"><a class="header" href="#odoo_name_get">odoo_name_get</a></h3>
+<p>Get display names for record IDs.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "res.partner",
+  "ids": [1, 2, 3]
+}
+</code></pre>
+<hr>
+<h3 id="odoo_default_get"><a class="header" href="#odoo_default_get">odoo_default_get</a></h3>
+<p>Get default values for new record creation.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "sale.order",
+  "fields": ["partner_id", "date_order"]
+}
+</code></pre>
+<hr>
+<h3 id="odoo_list_models"><a class="header" href="#odoo_list_models">odoo_list_models</a></h3>
+<p>List available Odoo models.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "domain": [["transient", "=", false]],
+  "limit": 50
+}
+</code></pre>
+<hr>
+<h3 id="odoo_get_model_metadata"><a class="header" href="#odoo_get_model_metadata">odoo_get_model_metadata</a></h3>
+<p>Get field definitions and types for a model.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "sale.order"
+}
+</code></pre>
+<hr>
+<h3 id="odoo_check_access"><a class="header" href="#odoo_check_access">odoo_check_access</a></h3>
+<p>Check user permissions on a model.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "res.partner",
+  "operation": "write",
+  "ids": [1, 2, 3]
+}
+</code></pre>
+<hr>
+<h3 id="odoo_generate_report"><a class="header" href="#odoo_generate_report">odoo_generate_report</a></h3>
+<p>Generate PDF report (returns base64).</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "reportName": "sale.report_saleorder",
+  "ids": [42]
+}
+</code></pre>
+<hr>
+<h3 id="odoo_onchange"><a class="header" href="#odoo_onchange">odoo_onchange</a></h3>
+<p>Simulate form onchange behavior.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "sale.order",
+  "ids": [],
+  "values": {"partner_id": 42}
+}
+</code></pre>
+<hr>
+<h2 id="write-operations"><a class="header" href="#write-operations">Write Operations</a></h2>
+<blockquote>
+<p><strong>Requires:</strong> <code>ODOO_ENABLE_WRITE_TOOLS=true</code></p>
+</blockquote>
+<h3 id="odoo_create"><a class="header" href="#odoo_create">odoo_create</a></h3>
+<p>Create a new record.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "res.partner",
+  "values": {
+    "name": "New Customer",
+    "email": "customer@example.com"
+  }
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{ "id": 123, "success": true }
+</code></pre>
+<hr>
+<h3 id="odoo_create_batch"><a class="header" href="#odoo_create_batch">odoo_create_batch</a></h3>
+<p>Create multiple records (max 100).</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "res.partner",
+  "values": [
+    {"name": "Partner 1", "email": "p1@example.com"},
+    {"name": "Partner 2", "email": "p2@example.com"}
+  ]
+}
+</code></pre>
+<hr>
+<h3 id="odoo_update"><a class="header" href="#odoo_update">odoo_update</a></h3>
+<p>Update existing records.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "res.partner",
+  "ids": [123],
+  "values": {
+    "email": "updated@example.com"
+  }
+}
+</code></pre>
+<hr>
+<h3 id="odoo_delete"><a class="header" href="#odoo_delete">odoo_delete</a></h3>
+<p>Delete records.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "res.partner",
+  "ids": [123]
+}
+</code></pre>
+<hr>
+<h3 id="odoo_copy"><a class="header" href="#odoo_copy">odoo_copy</a></h3>
+<p>Duplicate a record.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "sale.order",
+  "id": 42,
+  "default": {"name": "Copy of SO042"}
+}
+</code></pre>
+<hr>
+<h3 id="odoo_execute"><a class="header" href="#odoo_execute">odoo_execute</a></h3>
+<p>Execute arbitrary model method.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "sale.order",
+  "method": "action_confirm",
+  "args": [[42]]
+}
+</code></pre>
+<hr>
+<h3 id="odoo_workflow_action"><a class="header" href="#odoo_workflow_action">odoo_workflow_action</a></h3>
+<p>Execute workflow action button.</p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "sale.order",
+  "ids": [42],
+  "action": "action_confirm"
+}
+</code></pre>
+<hr>
+<h2 id="cleanup-operations"><a class="header" href="#cleanup-operations">Cleanup Operations</a></h2>
+<blockquote>
+<p><strong>Requires:</strong> <code>ODOO_ENABLE_CLEANUP_TOOLS=true</code>
+⚠️ <strong>Use with caution!</strong></p>
+</blockquote>
+<h3 id="odoo_database_cleanup"><a class="header" href="#odoo_database_cleanup">odoo_database_cleanup</a></h3>
+<p>Comprehensive database cleanup.</p>
+<pre><code class="language-json">{
+  "instance": "staging",
+  "removeTestData": true,
+  "cleanupDrafts": true,
+  "dryRun": true
+}
+</code></pre>
+<hr>
+<h3 id="odoo_deep_cleanup"><a class="header" href="#odoo_deep_cleanup">odoo_deep_cleanup</a></h3>
+<p><strong>DESTRUCTIVE</strong>: Remove all non-essential data.</p>
+<pre><code class="language-json">{
+  "instance": "staging",
+  "dryRun": true,
+  "keepCompanyDefaults": true,
+  "keepUserAccounts": true
+}
+</code></pre>
+<hr>
+<h2 id="domain-filter-syntax"><a class="header" href="#domain-filter-syntax">Domain Filter Syntax</a></h2>
+<pre><code class="language-python"># Basic
+["name", "=", "John"]
+["age", "&gt;", 18]
+["name", "ilike", "john"]
+
+# List
+["state", "in", ["draft", "posted"]]
+
+# Logical (Polish notation)
+["&amp;", ("a", "=", 1), ("b", "=", 2)]    # AND
+["|", ("a", "=", 1), ("a", "=", 2)]    # OR
+["!", ("state", "=", "cancel")]        # NOT
+
+# Related fields
+["partner_id.country_id.code", "=", "US"]
+</code></pre>
+<hr>
+<h2 id="common-models"><a class="header" href="#common-models">Common Models</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Model</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>res.partner</code></td><td>Contacts/Customers</td></tr>
+<tr><td><code>sale.order</code></td><td>Sales Orders</td></tr>
+<tr><td><code>purchase.order</code></td><td>Purchase Orders</td></tr>
+<tr><td><code>account.move</code></td><td>Invoices/Bills</td></tr>
+<tr><td><code>stock.picking</code></td><td>Transfers</td></tr>
+<tr><td><code>product.product</code></td><td>Products</td></tr>
+<tr><td><code>hr.employee</code></td><td>Employees</td></tr>
+<tr><td><code>project.task</code></td><td>Tasks</td></tr>
+</tbody>
+</table>
+</div>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="prompts-reference"><a class="header" href="#prompts-reference">Prompts Reference</a></h1>
+<p>Built-in prompts provide context and guidance to AI assistants when working with Odoo.</p>
+<hr>
+<h2 id="available-prompts"><a class="header" href="#available-prompts">Available Prompts</a></h2>
+<h3 id="odoo_common_models"><a class="header" href="#odoo_common_models">odoo_common_models</a></h3>
+<p><strong>Description:</strong> List of commonly used Odoo models across different modules.</p>
+<p><strong>Contents:</strong></p>
+<ul>
+<li>Sales &amp; CRM: <code>sale.order</code>, <code>crm.lead</code>, <code>crm.team</code></li>
+<li>Accounting: <code>account.move</code>, <code>account.payment</code>, <code>account.journal</code></li>
+<li>Inventory: <code>stock.picking</code>, <code>stock.move</code>, <code>stock.warehouse</code>, <code>stock.quant</code></li>
+<li>Products: <code>product.product</code>, <code>product.template</code>, <code>product.category</code></li>
+<li>Partners: <code>res.partner</code>, <code>res.company</code>, <code>res.users</code></li>
+<li>HR: <code>hr.employee</code>, <code>hr.department</code>, <code>hr.leave</code></li>
+<li>Projects: <code>project.project</code>, <code>project.task</code></li>
+<li>Purchase: <code>purchase.order</code></li>
+<li>POS: <code>pos.order</code>, <code>pos.session</code>, <code>pos.config</code></li>
+</ul>
+<hr>
+<h3 id="odoo_domain_filters"><a class="header" href="#odoo_domain_filters">odoo_domain_filters</a></h3>
+<p><strong>Description:</strong> Complete guide for Odoo domain filter syntax.</p>
+<p><strong>Covers:</strong></p>
+<ul>
+<li>Basic operators: <code>=</code>, <code>!=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code></li>
+<li>String operators: <code>like</code>, <code>ilike</code>, <code>=like</code>, <code>=ilike</code></li>
+<li>List operators: <code>in</code>, <code>not in</code></li>
+<li>Logical operators: <code>&amp;</code> (AND), <code>|</code> (OR), <code>!</code> (NOT)</li>
+<li>Related field traversal: <code>partner_id.country_id.code</code></li>
+<li>Complex examples</li>
+</ul>
+<hr>
+<h3 id="odoo_field_types"><a class="header" href="#odoo_field_types">odoo_field_types</a></h3>
+<p><strong>Description:</strong> Odoo field types and relational fields explained.</p>
+<p><strong>Covers:</strong></p>
+<ul>
+<li>Basic fields: Char, Text, Integer, Float, Monetary, Boolean, Date, Datetime</li>
+<li>Selection fields</li>
+<li>Binary and Html fields</li>
+<li>Relational fields:
+<ul>
+<li>Many2one (N:1)</li>
+<li>One2many (1:N)</li>
+<li>Many2many (N:N)</li>
+</ul>
+</li>
+<li>Computed and related fields</li>
+<li>Naming conventions (<code>_id</code>, <code>_ids</code>, <code>_count</code>)</li>
+</ul>
+<hr>
+<h3 id="odoo_workflow_states"><a class="header" href="#odoo_workflow_states">odoo_workflow_states</a></h3>
+<p><strong>Description:</strong> Common workflow states for Odoo documents.</p>
+<p><strong>Documents covered:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Document</th><th>States</th></tr>
+</thead>
+<tbody>
+<tr><td>Sale Order</td><td>draft → sent → sale → done / cancel</td></tr>
+<tr><td>Purchase Order</td><td>draft → sent → to approve → purchase → done</td></tr>
+<tr><td>Invoice</td><td>draft → posted → cancel</td></tr>
+<tr><td>Stock Picking</td><td>draft → waiting → confirmed → assigned → done</td></tr>
+<tr><td>CRM Lead</td><td>lead / opportunity (type)</td></tr>
+<tr><td>POS Order</td><td>draft → paid → done → invoiced</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h3 id="odoo_read_group-1"><a class="header" href="#odoo_read_group-1">odoo_read_group</a></h3>
+<p><strong>Description:</strong> How to use <code>read_group</code> for aggregation and reporting.</p>
+<p><strong>Covers:</strong></p>
+<ul>
+<li>Syntax and parameters</li>
+<li>Aggregation functions: <code>sum</code>, <code>count</code>, <code>avg</code>, <code>min</code>, <code>max</code></li>
+<li>Time grouping: <code>day</code>, <code>week</code>, <code>month</code>, <code>quarter</code>, <code>year</code></li>
+<li>Practical examples:
+<ul>
+<li>Count orders by state</li>
+<li>Sum sales by customer</li>
+<li>Monthly revenue analysis</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h3 id="odoo_context"><a class="header" href="#odoo_context">odoo_context</a></h3>
+<p><strong>Description:</strong> Odoo context parameters and their usage.</p>
+<p><strong>Covers:</strong></p>
+<ul>
+<li>Session keys: <code>uid</code>, <code>lang</code>, <code>tz</code>, <code>allowed_company_ids</code></li>
+<li>Active record keys: <code>active_id</code>, <code>active_ids</code>, <code>active_model</code></li>
+<li>Behavior modifiers: <code>default_*</code>, <code>search_default_*</code></li>
+<li>Skip validations: <code>tracking_disable</code>, <code>mail_create_nosubscribe</code></li>
+<li>Import mode</li>
+</ul>
+<hr>
+<h3 id="odoo_api_tips"><a class="header" href="#odoo_api_tips">odoo_api_tips</a></h3>
+<p><strong>Description:</strong> Best practices for Odoo API usage.</p>
+<p><strong>Topics:</strong></p>
+<ul>
+<li>Performance tips:
+<ul>
+<li>Limit fields in <code>search_read</code></li>
+<li>Use pagination</li>
+<li>Use <code>read_group</code> for aggregation</li>
+<li>Avoid search in loops</li>
+</ul>
+</li>
+<li>Field selection tips</li>
+<li>Common patterns</li>
+<li>Error handling</li>
+</ul>
+<hr>
+<h2 id="using-prompts"><a class="header" href="#using-prompts">Using Prompts</a></h2>
+<p>In your AI client, you can reference prompts to get context:</p>
+<p><strong>Cursor/Claude:</strong></p>
+<pre><code>Show me the odoo_domain_filters prompt, then help me write a domain
+to find all unpaid invoices from this year.
+</code></pre>
+<p><strong>Programmatic access:</strong></p>
+<pre><code class="language-json">{
+  "method": "prompts/get",
+  "params": {
+    "name": "odoo_common_models"
+  }
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="use-cases--examples"><a class="header" href="#use-cases--examples">Use Cases &amp; Examples</a></h1>
+<p>Real-world examples of using odoo-rust-mcp with AI assistants.</p>
+<hr>
+<h2 id="sales--crm"><a class="header" href="#sales--crm">Sales &amp; CRM</a></h2>
+<h3 id="find-top-customers-by-revenue"><a class="header" href="#find-top-customers-by-revenue">Find Top Customers by Revenue</a></h3>
+<pre><code>Search for sale orders with state 'sale' from this year,
+group by partner and sum the amount_total.
+Show me the top 10 customers.
+</code></pre>
+<p><strong>Tool used:</strong> <code>odoo_read_group</code></p>
+<hr>
+<h3 id="create-a-quotation"><a class="header" href="#create-a-quotation">Create a Quotation</a></h3>
+<pre><code>Create a new sale order for partner ID 42 with 3 lines:
+- Product ID 10, qty 5
+- Product ID 15, qty 2
+- Product ID 20, qty 10
+</code></pre>
+<p><strong>Tools used:</strong> <code>odoo_create</code> (sale.order), <code>odoo_create_batch</code> (sale.order.line)</p>
+<hr>
+<h3 id="confirm-pending-orders"><a class="header" href="#confirm-pending-orders">Confirm Pending Orders</a></h3>
+<pre><code>Find all draft sale orders older than 7 days and confirm them.
+</code></pre>
+<p><strong>Tools used:</strong> <code>odoo_search</code>, <code>odoo_workflow_action</code> (action_confirm)</p>
+<hr>
+<h2 id="inventory"><a class="header" href="#inventory">Inventory</a></h2>
+<h3 id="check-stock-levels"><a class="header" href="#check-stock-levels">Check Stock Levels</a></h3>
+<pre><code>List all products where qty_available is less than 10.
+Include product name, quantity on hand, and category.
+</code></pre>
+<p><strong>Tool used:</strong> <code>odoo_search_read</code> on <code>product.product</code></p>
+<hr>
+<h3 id="process-pending-deliveries"><a class="header" href="#process-pending-deliveries">Process Pending Deliveries</a></h3>
+<pre><code>Find all stock pickings in 'assigned' state for today and validate them.
+</code></pre>
+<p><strong>Tools used:</strong> <code>odoo_search</code>, <code>odoo_workflow_action</code> (button_validate)</p>
+<hr>
+<h2 id="accounting"><a class="header" href="#accounting">Accounting</a></h2>
+<h3 id="unpaid-invoice-analysis"><a class="header" href="#unpaid-invoice-analysis">Unpaid Invoice Analysis</a></h3>
+<pre><code>Show me all unpaid customer invoices grouped by partner,
+with total amount and count.
+</code></pre>
+<p><strong>Tool used:</strong> <code>odoo_read_group</code> on <code>account.move</code></p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "account.move",
+  "domain": [
+    ["state", "=", "posted"],
+    ["move_type", "=", "out_invoice"],
+    ["payment_state", "!=", "paid"]
+  ],
+  "fields": ["amount_residual:sum", "id:count"],
+  "groupby": ["partner_id"]
+}
+</code></pre>
+<hr>
+<h3 id="post-draft-invoices"><a class="header" href="#post-draft-invoices">Post Draft Invoices</a></h3>
+<pre><code>Find all draft invoices for this month and post them.
+</code></pre>
+<p><strong>Tools used:</strong> <code>odoo_search</code>, <code>odoo_workflow_action</code> (action_post)</p>
+<hr>
+<h2 id="contacts"><a class="header" href="#contacts">Contacts</a></h2>
+<h3 id="bulk-update-partners"><a class="header" href="#bulk-update-partners">Bulk Update Partners</a></h3>
+<pre><code>Find all partners in category 'Prospects' and add them to the
+'Newsletter' mailing list.
+</code></pre>
+<p><strong>Tools used:</strong> <code>odoo_search</code>, <code>odoo_update</code></p>
+<hr>
+<h3 id="find-duplicate-contacts"><a class="header" href="#find-duplicate-contacts">Find Duplicate Contacts</a></h3>
+<pre><code>Search for partners with duplicate email addresses.
+</code></pre>
+<p><strong>Tool used:</strong> <code>odoo_search_read</code> with <code>odoo_read_group</code></p>
+<hr>
+<h2 id="reports"><a class="header" href="#reports">Reports</a></h2>
+<h3 id="generate-sales-report"><a class="header" href="#generate-sales-report">Generate Sales Report</a></h3>
+<pre><code>Generate a PDF sales report for order ID 42.
+</code></pre>
+<p><strong>Tool used:</strong> <code>odoo_generate_report</code></p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "reportName": "sale.report_saleorder",
+  "ids": [42]
+}
+</code></pre>
+<hr>
+<h3 id="monthly-revenue-dashboard"><a class="header" href="#monthly-revenue-dashboard">Monthly Revenue Dashboard</a></h3>
+<pre><code>Show me total revenue by month for the current year.
+</code></pre>
+<p><strong>Tool used:</strong> <code>odoo_read_group</code></p>
+<pre><code class="language-json">{
+  "instance": "production",
+  "model": "account.move",
+  "domain": [
+    ["state", "=", "posted"],
+    ["move_type", "=", "out_invoice"],
+    ["invoice_date", "&gt;=", "2026-01-01"]
+  ],
+  "fields": ["amount_untaxed_signed:sum"],
+  "groupby": ["invoice_date:month"]
+}
+</code></pre>
+<hr>
+<h2 id="model-discovery"><a class="header" href="#model-discovery">Model Discovery</a></h2>
+<h3 id="explore-available-models"><a class="header" href="#explore-available-models">Explore Available Models</a></h3>
+<pre><code>List all non-transient models in my Odoo instance.
+</code></pre>
+<p><strong>Tool used:</strong> <code>odoo_list_models</code></p>
+<hr>
+<h3 id="understand-a-model"><a class="header" href="#understand-a-model">Understand a Model</a></h3>
+<pre><code>Show me the fields and their types for the sale.order model.
+</code></pre>
+<p><strong>Tool used:</strong> <code>odoo_get_model_metadata</code></p>
+<hr>
+<h2 id="best-practices"><a class="header" href="#best-practices">Best Practices</a></h2>
+<h3 id="1-always-specify-fields"><a class="header" href="#1-always-specify-fields">1. Always specify fields</a></h3>
+<pre><code># Good - only requested fields
+"fields": ["name", "email", "phone"]
+
+# Avoid - fetches everything
+"fields": []
+</code></pre>
+<h3 id="2-use-pagination-for-large-datasets"><a class="header" href="#2-use-pagination-for-large-datasets">2. Use pagination for large datasets</a></h3>
+<pre><code class="language-json">{
+  "limit": 100,
+  "offset": 0
+}
+</code></pre>
+<h3 id="3-check-access-before-writing"><a class="header" href="#3-check-access-before-writing">3. Check access before writing</a></h3>
+<pre><code>Before updating those records, check if I have write access.
+</code></pre>
+<p><strong>Tool used:</strong> <code>odoo_check_access</code></p>
+<h3 id="4-use-dry-run-for-cleanup"><a class="header" href="#4-use-dry-run-for-cleanup">4. Use dry run for cleanup</a></h3>
+<pre><code>Run a dry run of database cleanup first to see what would be affected.
+</code></pre>
+<pre><code class="language-json">{
+  "dryRun": true
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="building-from-source"><a class="header" href="#building-from-source">Building from Source</a></h1>
+<p>Guide to building odoo-rust-mcp from source code.</p>
+<hr>
+<h2 id="prerequisites-1"><a class="header" href="#prerequisites-1">Prerequisites</a></h2>
+<ul>
+<li><strong>Rust toolchain</strong>: 1.70+ (install via <a href="https://rustup.rs/">rustup</a>)</li>
+<li><strong>Git</strong>: For cloning the repository</li>
+<li><strong>Odoo instance</strong>: For testing (optional)</li>
+</ul>
+<hr>
+<h2 id="quick-build"><a class="header" href="#quick-build">Quick Build</a></h2>
+<pre><code class="language-bash"># Clone the repository
+git clone https://github.com/rachmataditiya/odoo-rust-mcp.git
+cd odoo-rust-mcp
+
+# Build debug version
+cd rust-mcp
+cargo build
+
+# Build release version (optimized)
+cargo build --release
+</code></pre>
+<p><strong>Binary location:</strong></p>
+<ul>
+<li>Debug: <code>rust-mcp/target/debug/rust-mcp</code></li>
+<li>Release: <code>rust-mcp/target/release/rust-mcp</code></li>
+</ul>
+<hr>
+<h2 id="development-setup"><a class="header" href="#development-setup">Development Setup</a></h2>
+<h3 id="1-install-rust"><a class="header" href="#1-install-rust">1. Install Rust</a></h3>
+<pre><code class="language-bash"># Linux/macOS
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Windows
+# Download and run rustup-init.exe from https://rustup.rs/
+</code></pre>
+<h3 id="2-clone-and-build"><a class="header" href="#2-clone-and-build">2. Clone and Build</a></h3>
+<pre><code class="language-bash">git clone https://github.com/rachmataditiya/odoo-rust-mcp.git
+cd odoo-rust-mcp/rust-mcp
+cargo build
+</code></pre>
+<h3 id="3-configure-environment"><a class="header" href="#3-configure-environment">3. Configure Environment</a></h3>
+<pre><code class="language-bash"># Create config directory
+mkdir -p ~/.config/odoo-rust-mcp
+
+# Create env file
+cat &gt; ~/.config/odoo-rust-mcp/env &lt;&lt;EOF
+ODOO_URL=http://localhost:8069
+ODOO_DB=mydb
+ODOO_VERSION=18
+ODOO_USERNAME=admin
+ODOO_PASSWORD=admin
+EOF
+</code></pre>
+<h3 id="4-run-the-server"><a class="header" href="#4-run-the-server">4. Run the Server</a></h3>
+<pre><code class="language-bash"># stdio transport
+./target/debug/rust-mcp --transport stdio
+
+# HTTP transport
+./target/debug/rust-mcp --transport http --listen 127.0.0.1:8787
+</code></pre>
+<hr>
+<h2 id="build-options"><a class="header" href="#build-options">Build Options</a></h2>
+<h3 id="debug-build-fast-compilation"><a class="header" href="#debug-build-fast-compilation">Debug Build (Fast compilation)</a></h3>
+<pre><code class="language-bash">cargo build
+</code></pre>
+<h3 id="release-build-optimized"><a class="header" href="#release-build-optimized">Release Build (Optimized)</a></h3>
+<pre><code class="language-bash">cargo build --release
+</code></pre>
+<h3 id="build-with-all-features"><a class="header" href="#build-with-all-features">Build with All Features</a></h3>
+<pre><code class="language-bash">cargo build --release --all-features
+</code></pre>
+<h3 id="cross-compilation"><a class="header" href="#cross-compilation">Cross-Compilation</a></h3>
+<p>Using <a href="https://github.com/cross-rs/cross">cross</a>:</p>
+<pre><code class="language-bash"># Install cross
+cargo install cross
+
+# Build for Linux (from macOS/Windows)
+cross build --release --target x86_64-unknown-linux-gnu
+
+# Build for Windows (from Linux/macOS)
+cross build --release --target x86_64-pc-windows-msvc
+</code></pre>
+<hr>
+<h2 id="running-tests"><a class="header" href="#running-tests">Running Tests</a></h2>
+<pre><code class="language-bash">cd rust-mcp
+
+# Run all tests
+cargo test
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_name
+
+# Run with warnings as errors
+RUSTFLAGS='-Dwarnings' cargo test
+</code></pre>
+<hr>
+<h2 id="linting--formatting"><a class="header" href="#linting--formatting">Linting &amp; Formatting</a></h2>
+<pre><code class="language-bash">cd rust-mcp
+
+# Format code
+cargo fmt
+
+# Check formatting (CI mode)
+cargo fmt --check
+
+# Run clippy linter
+cargo clippy
+
+# Run clippy with all warnings
+cargo clippy -- -W clippy::all
+</code></pre>
+<hr>
+<h2 id="docker-build"><a class="header" href="#docker-build">Docker Build</a></h2>
+<pre><code class="language-bash"># From repository root
+docker build -t odoo-rust-mcp:latest .
+
+# Run container
+docker run -d \
+  -e ODOO_URL=http://host.docker.internal:8069 \
+  -e ODOO_DB=mydb \
+  -e ODOO_API_KEY=your-key \
+  -p 8787:8787 \
+  odoo-rust-mcp:latest
+</code></pre>
+<h3 id="docker-compose"><a class="header" href="#docker-compose">Docker Compose</a></h3>
+<pre><code class="language-bash"># Create .env from example
+cp dotenv.example .env
+# Edit .env with your credentials
+
+# Build and run
+docker compose up --build
+</code></pre>
+<hr>
+<h2 id="config-ui-development"><a class="header" href="#config-ui-development">Config UI Development</a></h2>
+<p>The Config UI is a React application in <code>config-ui/</code>.</p>
+<pre><code class="language-bash">cd config-ui
+
+# Install dependencies
+npm install
+
+# Development server
+npm run dev
+
+# Production build
+npm run build
+</code></pre>
+<hr>
+<h2 id="ide-setup"><a class="header" href="#ide-setup">IDE Setup</a></h2>
+<h3 id="vs-code"><a class="header" href="#vs-code">VS Code</a></h3>
+<p>Recommended extensions:</p>
+<ul>
+<li><code>rust-analyzer</code>: Rust language support</li>
+<li><code>crates</code>: Dependency version hints</li>
+<li><code>TOML Language Support</code>: Cargo.toml editing</li>
+</ul>
+<p><strong>settings.json:</strong></p>
+<pre><code class="language-json">{
+  "rust-analyzer.checkOnSave.command": "clippy",
+  "rust-analyzer.cargo.features": "all"
+}
+</code></pre>
+<h3 id="intellij--rustrover"><a class="header" href="#intellij--rustrover">IntelliJ / RustRover</a></h3>
+<ul>
+<li>Install Rust plugin</li>
+<li>Enable clippy on save</li>
+</ul>
+<hr>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<h3 id="build-errors"><a class="header" href="#build-errors">Build errors</a></h3>
+<pre><code class="language-bash"># Clean build artifacts
+cargo clean
+
+# Update dependencies
+cargo update
+
+# Rebuild
+cargo build
+</code></pre>
+<h3 id="missing-system-libraries-linux"><a class="header" href="#missing-system-libraries-linux">Missing system libraries (Linux)</a></h3>
+<pre><code class="language-bash"># Debian/Ubuntu
+sudo apt install build-essential libssl-dev pkg-config
+
+# Fedora
+sudo dnf install gcc openssl-devel
+</code></pre>
+<h3 id="slow-compilation"><a class="header" href="#slow-compilation">Slow compilation</a></h3>
+<ul>
+<li>Use <code>cargo build</code> (debug) instead of <code>cargo build --release</code></li>
+<li>Consider using <a href="https://github.com/mozilla/sccache">sccache</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="architecture-overview"><a class="header" href="#architecture-overview">Architecture Overview</a></h1>
+<p>This document describes the internal architecture of odoo-rust-mcp.</p>
+<hr>
+<h2 id="high-level-architecture"><a class="header" href="#high-level-architecture">High-Level Architecture</a></h2>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                         MCP Clients                              │
+│        (Cursor, Claude Desktop, Custom Integrations)            │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Transport Layer                               │
+│     ┌─────────┬─────────┬─────────┬─────────┐                   │
+│     │  stdio  │  HTTP   │   SSE   │   WS    │                   │
+│     └────┬────┴────┬────┴────┬────┴────┬────┘                   │
+│          └─────────┴─────────┴─────────┘                        │
+└─────────────────────────┬───────────────────────────────────────┘
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    MCP Protocol Handler                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │    Tools     │  │   Prompts    │  │  Resources   │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+└─────────────────────────┬───────────────────────────────────────┘
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Operation Dispatcher                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
+│  │  search  │  │   read   │  │  create  │  │ execute  │ ...    │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘        │
+└─────────────────────────┬───────────────────────────────────────┘
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Odoo Client                                 │
+│  ┌──────────────────┐  ┌──────────────────┐                     │
+│  │   JSON-2 (v19+)  │  │  JSON-RPC (&lt;19)  │                     │
+│  └──────────────────┘  └──────────────────┘                     │
+└─────────────────────────┬───────────────────────────────────────┘
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Odoo Instance(s)                              │
+│              Production | Staging | Development                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+<hr>
+<h2 id="directory-structure"><a class="header" href="#directory-structure">Directory Structure</a></h2>
+<pre><code>odoo-rust-mcp/
+├── rust-mcp/                    # Main Rust project
+│   ├── src/
+│   │   ├── main.rs              # Entry point, CLI parsing
+│   │   ├── lib.rs               # Library exports
+│   │   ├── mcp/                 # MCP protocol implementation
+│   │   │   ├── mod.rs           # Module exports
+│   │   │   ├── server.rs        # MCP server core
+│   │   │   ├── tools.rs         # Tool handling
+│   │   │   ├── prompts.rs       # Prompt handling
+│   │   │   ├── resources.rs     # Resource handling
+│   │   │   └── transport/       # Transport implementations
+│   │   │       ├── stdio.rs     # stdio transport
+│   │   │       ├── http.rs      # HTTP/SSE transport
+│   │   │       └── ws.rs        # WebSocket transport
+│   │   ├── odoo/                # Odoo integration
+│   │   │   ├── mod.rs           # Module exports
+│   │   │   ├── client.rs        # HTTP client for Odoo
+│   │   │   ├── config.rs        # Instance configuration
+│   │   │   ├── json2.rs         # JSON-2 API (v19+)
+│   │   │   ├── jsonrpc.rs       # JSON-RPC API (&lt;v19)
+│   │   │   └── operations.rs    # CRUD operations
+│   │   ├── config_manager/      # Config UI server
+│   │   │   ├── mod.rs           # Module exports
+│   │   │   ├── server.rs        # HTTP server for UI
+│   │   │   └── handlers.rs      # API handlers
+│   │   └── cleanup/             # Database cleanup tools
+│   ├── config/                  # Runtime config files
+│   │   ├── tools.json           # Tool definitions
+│   │   ├── prompts.json         # Prompt definitions
+│   │   └── server.json          # Server metadata
+│   ├── config-defaults/         # Seed defaults (embedded)
+│   ├── tests/                   # Unit and integration tests
+│   ├── Cargo.toml               # Rust dependencies
+│   └── Dockerfile               # Container build
+├── config/                      # Example configs
+├── config-ui/                   # React config UI
+├── k8s/                         # Kubernetes manifests
+├── helm/                        # Helm chart
+├── scripts/                     # Helper scripts
+└── .github/                     # CI/CD workflows
+</code></pre>
+<hr>
+<h2 id="key-components"><a class="header" href="#key-components">Key Components</a></h2>
+<h3 id="1-transport-layer"><a class="header" href="#1-transport-layer">1. Transport Layer</a></h3>
+<p>Handles communication with MCP clients.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Transport</th><th>Module</th><th>Use Case</th></tr>
+</thead>
+<tbody>
+<tr><td>stdio</td><td><code>transport/stdio.rs</code></td><td>Local AI clients (Cursor, Claude)</td></tr>
+<tr><td>HTTP</td><td><code>transport/http.rs</code></td><td>Remote access, webhooks</td></tr>
+<tr><td>SSE</td><td><code>transport/http.rs</code></td><td>Legacy streaming</td></tr>
+<tr><td>WebSocket</td><td><code>transport/ws.rs</code></td><td>Real-time integrations</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="2-mcp-protocol-handler"><a class="header" href="#2-mcp-protocol-handler">2. MCP Protocol Handler</a></h3>
+<p>Implements the Model Context Protocol specification.</p>
+<p><strong>Key functions:</strong></p>
+<ul>
+<li><code>initialize</code>: Capability negotiation</li>
+<li><code>tools/list</code>: Return available tools</li>
+<li><code>tools/call</code>: Execute tool operations</li>
+<li><code>prompts/list</code>: Return available prompts</li>
+<li><code>prompts/get</code>: Return prompt content</li>
+<li><code>resources/list</code>: Return Odoo resources</li>
+</ul>
+<h3 id="3-operation-dispatcher"><a class="header" href="#3-operation-dispatcher">3. Operation Dispatcher</a></h3>
+<p>Maps tool operations to Odoo API calls.</p>
+<p><strong>Operation types:</strong></p>
+<ul>
+<li><code>search</code>, <code>search_read</code>, <code>read</code>, <code>create</code>, <code>write</code>, <code>unlink</code></li>
+<li><code>search_count</code>, <code>execute</code>, <code>workflow_action</code></li>
+<li><code>get_model_metadata</code>, <code>list_models</code>, <code>check_access</code></li>
+<li><code>generate_report</code>, <code>create_batch</code></li>
+<li><code>database_cleanup</code>, <code>deep_cleanup</code></li>
+</ul>
+<h3 id="4-odoo-client"><a class="header" href="#4-odoo-client">4. Odoo Client</a></h3>
+<p>Handles communication with Odoo instances.</p>
+<p><strong>Dual API support:</strong></p>
+<ul>
+<li><strong>JSON-2</strong> (<code>/json/2/...</code>): For Odoo 19+ with API keys</li>
+<li><strong>JSON-RPC</strong> (<code>/jsonrpc</code>): For Odoo &lt;19 with username/password</li>
+</ul>
+<h3 id="5-config-manager"><a class="header" href="#5-config-manager">5. Config Manager</a></h3>
+<p>Web-based configuration UI on port 3008.</p>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Edit JSON config files</li>
+<li>Manage instances</li>
+<li>Authentication settings</li>
+<li>Hot-reload support</li>
+</ul>
+<hr>
+<h2 id="data-flow"><a class="header" href="#data-flow">Data Flow</a></h2>
+<h3 id="tool-call-flow"><a class="header" href="#tool-call-flow">Tool Call Flow</a></h3>
+<pre><code>1. Client sends tools/call request
+      ↓
+2. Transport layer receives request
+      ↓
+3. MCP handler parses tool name and arguments
+      ↓
+4. Operation dispatcher maps to Odoo operation
+      ↓
+5. Odoo client makes API request
+      ↓
+6. Response transformed to MCP format
+      ↓
+7. Result returned to client
+</code></pre>
+<h3 id="configuration-loading"><a class="header" href="#configuration-loading">Configuration Loading</a></h3>
+<pre><code>1. Server starts
+      ↓
+2. Load environment variables (.env)
+      ↓
+3. Parse ODOO_INSTANCES_JSON or ODOO_INSTANCES
+      ↓
+4. Load tools.json, prompts.json, server.json
+      ↓
+5. Validate configurations
+      ↓
+6. Start transport listeners
+      ↓
+7. File watchers for hot-reload
+</code></pre>
+<hr>
+<h2 id="thread-safety"><a class="header" href="#thread-safety">Thread Safety</a></h2>
+<ul>
+<li><strong>Arc<rwlock></rwlock></strong> for shared configuration state</li>
+<li><strong>Async/await</strong> with Tokio runtime</li>
+<li>Configuration changes trigger atomic swaps</li>
+<li>No locking during Odoo API calls</li>
+</ul>
+<hr>
+<h2 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h2>
+<p>All errors propagate as MCP error responses:</p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32000,
+    "message": "Odoo error: Access Denied"
+  }
+}
+</code></pre>
+<p><strong>Error categories:</strong></p>
+<ul>
+<li>Transport errors</li>
+<li>Authentication errors</li>
+<li>Odoo API errors</li>
+<li>Validation errors</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="api-reference"><a class="header" href="#api-reference">API Reference</a></h1>
+<p>Internal API documentation for odoo-rust-mcp developers.</p>
+<hr>
+<h2 id="mcp-protocol-methods"><a class="header" href="#mcp-protocol-methods">MCP Protocol Methods</a></h2>
+<h3 id="initialize"><a class="header" href="#initialize">initialize</a></h3>
+<p>Called by clients to establish a session.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-03-26",
+    "clientInfo": {
+      "name": "cursor",
+      "version": "1.0.0"
+    }
+  }
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2025-03-26",
+    "serverInfo": {
+      "name": "odoo-rust-mcp",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "tools": {},
+      "prompts": {},
+      "resources": {}
+    }
+  }
+}
+</code></pre>
+<hr>
+<h3 id="toolslist"><a class="header" href="#toolslist">tools/list</a></h3>
+<p>List available tools.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list"
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "tools": [
+      {
+        "name": "odoo_search",
+        "description": "Search for Odoo records...",
+        "inputSchema": { ... }
+      }
+    ]
+  }
+}
+</code></pre>
+<hr>
+<h3 id="toolscall"><a class="header" href="#toolscall">tools/call</a></h3>
+<p>Execute a tool.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "odoo_search_read",
+    "arguments": {
+      "instance": "production",
+      "model": "res.partner",
+      "domain": [["is_company", "=", true]],
+      "fields": ["name", "email"],
+      "limit": 10
+    }
+  }
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"records\":[...],\"count\":10}"
+      }
+    ]
+  }
+}
+</code></pre>
+<hr>
+<h3 id="promptslist"><a class="header" href="#promptslist">prompts/list</a></h3>
+<p>List available prompts.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  "result": {
+    "prompts": [
+      {
+        "name": "odoo_common_models",
+        "description": "List of commonly used Odoo models"
+      }
+    ]
+  }
+}
+</code></pre>
+<hr>
+<h3 id="promptsget"><a class="header" href="#promptsget">prompts/get</a></h3>
+<p>Get prompt content.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  "method": "prompts/get",
+  "params": {
+    "name": "odoo_domain_filters"
+  }
+}
+</code></pre>
+<hr>
+<h3 id="resourceslist"><a class="header" href="#resourceslist">resources/list</a></h3>
+<p>List Odoo resources.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  "result": {
+    "resources": [
+      { "uri": "odoo://instances", "name": "Odoo Instances" },
+      { "uri": "odoo://production/models", "name": "Models" }
+    ]
+  }
+}
+</code></pre>
+<hr>
+<h2 id="operation-types"><a class="header" href="#operation-types">Operation Types</a></h2>
+<p>Internal operation types mapped from <code>tools.json</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>search</code></td><td>Search for record IDs</td></tr>
+<tr><td><code>search_read</code></td><td>Search and read records</td></tr>
+<tr><td><code>read</code></td><td>Read records by IDs</td></tr>
+<tr><td><code>create</code></td><td>Create new record</td></tr>
+<tr><td><code>write</code></td><td>Update records</td></tr>
+<tr><td><code>unlink</code></td><td>Delete records</td></tr>
+<tr><td><code>search_count</code></td><td>Count records</td></tr>
+<tr><td><code>execute</code></td><td>Execute model method</td></tr>
+<tr><td><code>workflow_action</code></td><td>Call workflow action</td></tr>
+<tr><td><code>generate_report</code></td><td>Generate PDF report</td></tr>
+<tr><td><code>get_model_metadata</code></td><td>Get model fields</td></tr>
+<tr><td><code>list_models</code></td><td>List available models</td></tr>
+<tr><td><code>check_access</code></td><td>Check permissions</td></tr>
+<tr><td><code>create_batch</code></td><td>Batch create records</td></tr>
+<tr><td><code>read_group</code></td><td>Aggregate data</td></tr>
+<tr><td><code>name_search</code></td><td>Autocomplete search</td></tr>
+<tr><td><code>name_get</code></td><td>Get display names</td></tr>
+<tr><td><code>default_get</code></td><td>Get default values</td></tr>
+<tr><td><code>copy</code></td><td>Duplicate record</td></tr>
+<tr><td><code>onchange</code></td><td>Simulate onchange</td></tr>
+<tr><td><code>database_cleanup</code></td><td>Clean database</td></tr>
+<tr><td><code>deep_cleanup</code></td><td>Deep clean database</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="http-endpoints"><a class="header" href="#http-endpoints">HTTP Endpoints</a></h2>
+<p>When running in HTTP transport mode:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Endpoint</th><th>Method</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>/mcp</code></td><td>POST</td><td>MCP JSON-RPC requests</td></tr>
+<tr><td><code>/mcp</code></td><td>GET</td><td>SSE stream</td></tr>
+<tr><td><code>/mcp</code></td><td>DELETE</td><td>Terminate session</td></tr>
+<tr><td><code>/health</code></td><td>GET</td><td>Health check</td></tr>
+<tr><td><code>/openapi.json</code></td><td>GET</td><td>OpenAPI spec</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="health-check"><a class="header" href="#health-check">Health Check</a></h3>
+<pre><code class="language-json">{
+  "status": "ok",
+  "version": "1.0.0",
+  "instance": {
+    "name": "production",
+    "reachable": true
+  }
+}
+</code></pre>
+<hr>
+<h2 id="config-ui-api"><a class="header" href="#config-ui-api">Config UI API</a></h2>
+<p>Config server on port 3008:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Endpoint</th><th>Method</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>/api/config/instances</code></td><td>GET/POST</td><td>Manage instances</td></tr>
+<tr><td><code>/api/config/tools</code></td><td>GET/POST</td><td>Manage tools</td></tr>
+<tr><td><code>/api/config/prompts</code></td><td>GET/POST</td><td>Manage prompts</td></tr>
+<tr><td><code>/api/config/server</code></td><td>GET/POST</td><td>Manage server config</td></tr>
+<tr><td><code>/api/config/auth/status</code></td><td>GET</td><td>Auth status</td></tr>
+<tr><td><code>/api/config/auth/enable</code></td><td>POST</td><td>Enable/disable auth</td></tr>
+<tr><td><code>/api/config/auth/token/generate</code></td><td>POST</td><td>Generate auth token</td></tr>
+<tr><td><code>/health</code></td><td>GET</td><td>Health check</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="odoo-api-mapping"><a class="header" href="#odoo-api-mapping">Odoo API Mapping</a></h2>
+<h3 id="json-2-api-v19"><a class="header" href="#json-2-api-v19">JSON-2 API (v19+)</a></h3>
+<pre><code>POST /json/2/{db}/{model}/{method}
+Authorization: Bearer {api_key}
+</code></pre>
+<h3 id="json-rpc-api-v19"><a class="header" href="#json-rpc-api-v19">JSON-RPC API (&lt;v19)</a></h3>
+<pre><code>POST /jsonrpc
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "service": "object",
+    "method": "execute_kw",
+    "args": [db, uid, password, model, method, args, kwargs]
+  }
+}
+</code></pre>
+<hr>
+<h2 id="error-codes"><a class="header" href="#error-codes">Error Codes</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Code</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>-32700</td><td>Parse error</td></tr>
+<tr><td>-32600</td><td>Invalid request</td></tr>
+<tr><td>-32601</td><td>Method not found</td></tr>
+<tr><td>-32602</td><td>Invalid params</td></tr>
+<tr><td>-32603</td><td>Internal error</td></tr>
+<tr><td>-32000</td><td>Odoo error</td></tr>
+<tr><td>-32001</td><td>Authentication error</td></tr>
+<tr><td>-32002</td><td>Access denied</td></tr>
+</tbody>
+</table>
+</div>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="testing-guide"><a class="header" href="#testing-guide">Testing Guide</a></h1>
+<p>How to run and write tests for odoo-rust-mcp.</p>
+<hr>
+<h2 id="running-tests-1"><a class="header" href="#running-tests-1">Running Tests</a></h2>
+<h3 id="unit-tests"><a class="header" href="#unit-tests">Unit Tests</a></h3>
+<pre><code class="language-bash">cd rust-mcp
+
+# Run all tests
+cargo test
+
+# Run with output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_search_operation
+
+# Run tests with warnings as errors
+RUSTFLAGS='-Dwarnings' cargo test
+</code></pre>
+<h3 id="integration-tests"><a class="header" href="#integration-tests">Integration Tests</a></h3>
+<pre><code class="language-bash"># Run integration tests (requires Odoo instance)
+cargo test --test integration_tests
+</code></pre>
+<hr>
+<h2 id="smoke-testing"><a class="header" href="#smoke-testing">Smoke Testing</a></h2>
+<h3 id="websocket-smoke-client"><a class="header" href="#websocket-smoke-client">WebSocket Smoke Client</a></h3>
+<p>End-to-end validation of MCP operations:</p>
+<pre><code class="language-bash">cd rust-mcp
+cargo run --release --bin ws_smoke_client -- \
+  --url ws://127.0.0.1:8787 \
+  --instance default \
+  --model res.partner
+</code></pre>
+<p><strong>Expected output:</strong></p>
+<pre><code>tools/list: 22 tools
+- odoo_search
+- odoo_search_read
+- odoo_read
+- ...
+odoo_count result: {"count":18}
+odoo_search_read count: 2
+prompts/list: odoo_common_models, odoo_domain_filters
+</code></pre>
+<h3 id="http-health-check"><a class="header" href="#http-health-check">HTTP Health Check</a></h3>
+<pre><code class="language-bash">curl http://127.0.0.1:8787/health
+</code></pre>
+<p><strong>Expected:</strong></p>
+<pre><code class="language-json">{
+  "status": "ok",
+  "version": "1.0.0",
+  "instance": {"name": "default", "reachable": true}
+}
+</code></pre>
+<hr>
+<h2 id="manual-testing-checklist"><a class="header" href="#manual-testing-checklist">Manual Testing Checklist</a></h2>
+<h3 id="transport-modes-1"><a class="header" href="#transport-modes-1">Transport Modes</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> <strong>stdio</strong>: Test with Cursor or Claude Desktop</li>
+<li><input disabled="" type="checkbox"> <strong>HTTP</strong>: Test with curl or Postman</li>
+<li><input disabled="" type="checkbox"> <strong>WebSocket</strong>: Test with ws_smoke_client</li>
+<li><input disabled="" type="checkbox"> <strong>SSE</strong>: Test streaming responses</li>
+</ul>
+<h3 id="authentication"><a class="header" href="#authentication">Authentication</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> <strong>Odoo 19+</strong>: Test API key authentication</li>
+<li><input disabled="" type="checkbox"> <strong>Odoo &lt;19</strong>: Test username/password authentication</li>
+<li><input disabled="" type="checkbox"> <strong>Multi-instance</strong>: Test switching between instances</li>
+</ul>
+<h3 id="tools"><a class="header" href="#tools">Tools</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> <strong>Read tools</strong>: search, search_read, read, count</li>
+<li><input disabled="" type="checkbox"> <strong>Write tools</strong>: create, update, delete</li>
+<li><input disabled="" type="checkbox"> <strong>Workflow tools</strong>: execute, workflow_action</li>
+<li><input disabled="" type="checkbox"> <strong>Metadata tools</strong>: list_models, get_model_metadata</li>
+</ul>
+<h3 id="config-ui-1"><a class="header" href="#config-ui-1">Config UI</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Login with default credentials</li>
+<li><input disabled="" type="checkbox"> Change password</li>
+<li><input disabled="" type="checkbox"> Edit tools.json</li>
+<li><input disabled="" type="checkbox"> Edit instances</li>
+<li><input disabled="" type="checkbox"> Enable/disable auth</li>
+</ul>
+<hr>
+<h2 id="writing-tests"><a class="header" href="#writing-tests">Writing Tests</a></h2>
+<h3 id="unit-test-example"><a class="header" href="#unit-test-example">Unit Test Example</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_domain() {
+        let domain = r#"[["name", "=", "Test"]]"#;
+        let result = parse_domain(domain);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_invalid_domain() {
+        let domain = "invalid";
+        let result = parse_domain(domain);
+        assert!(result.is_err());
+    }
+}
+<span class="boring">}</span></code></pre>
+<h3 id="async-test-example"><a class="header" href="#async-test-example">Async Test Example</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[tokio::test]
+async fn test_odoo_client() {
+    let client = OdooClient::new(config).await.unwrap();
+    let result = client.search("res.partner", &amp;[]).await;
+    assert!(result.is_ok());
+}
+<span class="boring">}</span></code></pre>
+<h3 id="mock-testing"><a class="header" href="#mock-testing">Mock Testing</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test]
+fn test_with_mock() {
+    let mock_response = json!({
+        "records": [{"id": 1, "name": "Test"}]
+    });
+
+    let client = MockOdooClient::with_response(mock_response);
+    let result = client.search_read("res.partner", &amp;[]).await;
+    assert_eq!(result.records.len(), 1);
+}
+<span class="boring">}</span></code></pre>
+<hr>
+<h2 id="test-coverage"><a class="header" href="#test-coverage">Test Coverage</a></h2>
+<p>Check test coverage:</p>
+<pre><code class="language-bash"># Install cargo-tarpaulin
+cargo install cargo-tarpaulin
+
+# Run coverage
+cargo tarpaulin --out Html
+</code></pre>
+<p>Open <code>tarpaulin-report.html</code> to view results.</p>
+<hr>
+<h2 id="cicd-testing"><a class="header" href="#cicd-testing">CI/CD Testing</a></h2>
+<p>GitHub Actions runs on every PR:</p>
+<pre><code class="language-yaml"># .github/workflows/ci.yml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test
+      - run: cargo clippy -- -D warnings
+      - run: cargo fmt --check
+</code></pre>
+<hr>
+<h2 id="test-configuration"><a class="header" href="#test-configuration">Test Configuration</a></h2>
+<p>For tests requiring Odoo connection, set environment:</p>
+<pre><code class="language-bash">export TEST_ODOO_URL=http://localhost:8069
+export TEST_ODOO_DB=test_db
+export TEST_ODOO_API_KEY=test_key
+</code></pre>
+<p>Or use <code>.env.test</code>:</p>
+<pre><code class="language-bash">TEST_ODOO_URL=http://localhost:8069
+TEST_ODOO_DB=test_db
+TEST_ODOO_VERSION=18
+TEST_ODOO_USERNAME=admin
+TEST_ODOO_PASSWORD=admin
+</code></pre>
+<hr>
+<h2 id="debugging-tests"><a class="header" href="#debugging-tests">Debugging Tests</a></h2>
+<pre><code class="language-bash"># Run with debug output
+RUST_LOG=debug cargo test -- --nocapture
+
+# Run single test with backtrace
+RUST_BACKTRACE=1 cargo test test_name -- --nocapture
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="contributing-guide"><a class="header" href="#contributing-guide">Contributing Guide</a></h1>
+<p>Thank you for your interest in contributing to odoo-rust-mcp!</p>
+<hr>
+<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<ol>
+<li><strong>Fork</strong> the repository on GitHub</li>
+<li><strong>Clone</strong> your fork locally</li>
+<li><strong>Create</strong> a feature branch</li>
+<li><strong>Make</strong> your changes</li>
+<li><strong>Test</strong> your changes</li>
+<li><strong>Submit</strong> a pull request</li>
+</ol>
+<hr>
+<h2 id="development-workflow"><a class="header" href="#development-workflow">Development Workflow</a></h2>
+<h3 id="1-fork-and-clone"><a class="header" href="#1-fork-and-clone">1. Fork and Clone</a></h3>
+<pre><code class="language-bash">git clone https://github.com/YOUR-USERNAME/odoo-rust-mcp.git
+cd odoo-rust-mcp
+</code></pre>
+<h3 id="2-create-a-branch"><a class="header" href="#2-create-a-branch">2. Create a Branch</a></h3>
+<pre><code class="language-bash">git checkout -b feature/your-feature-name
+# or
+git checkout -b fix/your-bug-fix
+</code></pre>
+<h3 id="3-make-changes"><a class="header" href="#3-make-changes">3. Make Changes</a></h3>
+<p>Follow the <a href="#coding-standards">coding standards</a> below.</p>
+<h3 id="4-test-your-changes"><a class="header" href="#4-test-your-changes">4. Test Your Changes</a></h3>
+<pre><code class="language-bash">cd rust-mcp
+cargo test
+cargo clippy
+cargo fmt --check
+</code></pre>
+<h3 id="5-commit"><a class="header" href="#5-commit">5. Commit</a></h3>
+<pre><code class="language-bash">git add .
+git commit -m "Add feature: description of what you did"
+</code></pre>
+<h3 id="6-push-and-create-pr"><a class="header" href="#6-push-and-create-pr">6. Push and Create PR</a></h3>
+<pre><code class="language-bash">git push origin feature/your-feature-name
+</code></pre>
+<p>Then create a Pull Request on GitHub.</p>
+<hr>
+<h2 id="coding-standards"><a class="header" href="#coding-standards">Coding Standards</a></h2>
+<h3 id="rust-style"><a class="header" href="#rust-style">Rust Style</a></h3>
+<ul>
+<li>Follow <a href="https://rust-lang.github.io/api-guidelines/">Rust API Guidelines</a></li>
+<li>Use <code>cargo fmt</code> for formatting</li>
+<li>Fix all <code>cargo clippy</code> warnings</li>
+<li>Use <code>Result&lt;T, E&gt;</code> for error handling (avoid panics)</li>
+<li>Document public APIs with doc comments</li>
+</ul>
+<p><strong>Example documentation:</strong></p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Brief description.
+///
+/// Detailed description if needed.
+///
+/// # Examples
+///
+/// ```
+/// let result = my_function();
+/// ```
+pub fn my_function() -&gt; Result&lt;()&gt; {
+    // ...
+}
+<span class="boring">}</span></code></pre>
+<h3 id="commit-messages"><a class="header" href="#commit-messages">Commit Messages</a></h3>
+<ul>
+<li>Start with a verb: “Add”, “Fix”, “Update”, “Remove”</li>
+<li>Keep first line under 72 characters</li>
+<li>Reference issues: “Fixes #123”</li>
+</ul>
+<p><strong>Examples:</strong></p>
+<pre><code>Add support for Odoo 19 JSON-2 API
+
+Implements authentication via API keys and uses the new /json/2/ endpoint.
+Fixes #42
+</code></pre>
+<hr>
+<h2 id="adding-new-tools"><a class="header" href="#adding-new-tools">Adding New Tools</a></h2>
+<p>Tools are defined in <code>tools.json</code>:</p>
+<h3 id="1-add-tool-definition"><a class="header" href="#1-add-tool-definition">1. Add Tool Definition</a></h3>
+<p>Edit <code>rust-mcp/config/tools.json</code>:</p>
+<pre><code class="language-json">{
+  "name": "odoo_my_new_tool",
+  "description": "Description of what the tool does",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "instance": { "type": "string" },
+      "model": { "type": "string" }
+    },
+    "required": ["instance", "model"]
+  },
+  "op": {
+    "type": "my_operation_type",
+    "map": {
+      "instance": "/instance",
+      "model": "/model"
+    }
+  }
+}
+</code></pre>
+<h3 id="2-implement-operation"><a class="header" href="#2-implement-operation">2. Implement Operation</a></h3>
+<p>Add handler in <code>rust-mcp/src/odoo/operations.rs</code>.</p>
+<h3 id="3-update-seed-defaults"><a class="header" href="#3-update-seed-defaults">3. Update Seed Defaults</a></h3>
+<p>Copy changes to <code>rust-mcp/config-defaults/tools.json</code>.</p>
+<h3 id="4-add-tests"><a class="header" href="#4-add-tests">4. Add Tests</a></h3>
+<p>Write tests for the new tool.</p>
+<h3 id="5-update-documentation"><a class="header" href="#5-update-documentation">5. Update Documentation</a></h3>
+<p>Update <code>docs/functional/tools-reference.md</code>.</p>
+<blockquote>
+<p><strong>Note:</strong> Avoid <code>anyOf</code>, <code>oneOf</code>, <code>allOf</code>, <code>$ref</code> in JSON Schema (Cursor compatibility).</p>
+</blockquote>
+<hr>
+<h2 id="adding-new-prompts"><a class="header" href="#adding-new-prompts">Adding New Prompts</a></h2>
+<p>Edit <code>rust-mcp/config/prompts.json</code>:</p>
+<pre><code class="language-json">{
+  "name": "my_new_prompt",
+  "description": "What this prompt provides",
+  "content": "The actual prompt content..."
+}
+</code></pre>
+<p>Update <code>config-defaults/prompts.json</code> and documentation.</p>
+<hr>
+<h2 id="pull-request-checklist"><a class="header" href="#pull-request-checklist">Pull Request Checklist</a></h2>
+<ul>
+<li><input disabled="" type="checkbox"> Code follows project style</li>
+<li><input disabled="" type="checkbox"> Tests pass: <code>cargo test</code></li>
+<li><input disabled="" type="checkbox"> Linting passes: <code>cargo clippy</code></li>
+<li><input disabled="" type="checkbox"> Formatting correct: <code>cargo fmt --check</code></li>
+<li><input disabled="" type="checkbox"> Documentation updated</li>
+<li><input disabled="" type="checkbox"> Commit messages are clear</li>
+<li><input disabled="" type="checkbox"> PR description explains changes</li>
+</ul>
+<hr>
+<h2 id="review-process"><a class="header" href="#review-process">Review Process</a></h2>
+<ol>
+<li>Submit PR with clear description</li>
+<li>Maintainers review code quality and tests</li>
+<li>Address feedback</li>
+<li>Ensure CI passes</li>
+<li>Merge!</li>
+</ol>
+<hr>
+<h2 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h2>
+<ul>
+<li><strong>Questions:</strong> <a href="https://github.com/rachmataditiya/odoo-rust-mcp/discussions">GitHub Discussions</a></li>
+<li><strong>Bugs:</strong> <a href="https://github.com/rachmataditiya/odoo-rust-mcp/issues">Issue Tracker</a></li>
+<li><strong>Security:</strong> See SECURITY.md</li>
+</ul>
+<hr>
+<h2 id="license"><a class="header" href="#license">License</a></h2>
+<p>By contributing, you agree that your contributions will be licensed under AGPL-3.0.</p>
+<p>Thank you for contributing! 🚗</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>

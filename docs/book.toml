@@ -1,0 +1,7 @@
+[book]
+authors = ["Antigravity"]
+language = "en"
+src = "src"
+title = "Odoo Rust MCP Documentation"
+
+[output.html]
