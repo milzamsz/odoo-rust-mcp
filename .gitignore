@@ -17,3 +17,5 @@ config-ui/dist/
 config-ui/coverage/
 
 .DS_Store
+
+docs/book
