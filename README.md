@@ -1,15 +1,15 @@
 ## odoo-rust-mcp 🚗
 
-[![CI](https://github.com/rachmataditiya/odoo-rust-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/rachmataditiya/odoo-rust-mcp/actions/workflows/ci.yml)
-[![Release](https://github.com/rachmataditiya/odoo-rust-mcp/actions/workflows/release.yml/badge.svg)](https://github.com/rachmataditiya/odoo-rust-mcp/actions/workflows/release.yml)
-[![codecov](https://codecov.io/gh/rachmataditiya/odoo-rust-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/rachmataditiya/odoo-rust-mcp)
-[![GitHub release](https://img.shields.io/github/v/release/rachmataditiya/odoo-rust-mcp)](https://github.com/rachmataditiya/odoo-rust-mcp/releases)
+[![CI](https://github.com/milzamsz/odoo-rust-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/milzamsz/odoo-rust-mcp/actions/workflows/ci.yml)
+[![Release](https://github.com/milzamsz/odoo-rust-mcp/actions/workflows/release.yml/badge.svg)](https://github.com/milzamsz/odoo-rust-mcp/actions/workflows/release.yml)
+[![codecov](https://codecov.io/gh/milzamsz/odoo-rust-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/milzamsz/odoo-rust-mcp)
+[![GitHub release](https://img.shields.io/github/v/release/milzamsz/odoo-rust-mcp)](https://github.com/milzamsz/odoo-rust-mcp/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Homebrew](https://img.shields.io/badge/homebrew-available-orange)](https://rachmataditiya.github.io/homebrew-odoo-rust-mcp/)
-[![Debian/Ubuntu](https://img.shields.io/badge/apt-available-blue)](https://rachmataditiya.github.io/odoo-rust-mcp/)
-[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fodoo--rust--mcp-2496ED?logo=docker&logoColor=white)](https://github.com/rachmataditiya/odoo-rust-mcp/pkgs/container/odoo-rust-mcp)
-[![Kubernetes](https://img.shields.io/badge/kubernetes-ready-326CE5?logo=kubernetes&logoColor=white)](https://github.com/rachmataditiya/odoo-rust-mcp/tree/main/k8s)
-[![Helm](https://img.shields.io/badge/helm-chart-0F1689?logo=helm&logoColor=white)](https://github.com/rachmataditiya/odoo-rust-mcp/tree/main/helm)
+[![Homebrew](https://img.shields.io/badge/homebrew-available-orange)](https://milzamsz.github.io/homebrew-odoo-rust-mcp/)
+[![Debian/Ubuntu](https://img.shields.io/badge/apt-available-blue)](https://milzamsz.github.io/odoo-rust-mcp/)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fodoo--rust--mcp-2496ED?logo=docker&logoColor=white)](https://github.com/milzamsz/odoo-rust-mcp/pkgs/container/odoo-rust-mcp)
+[![Kubernetes](https://img.shields.io/badge/kubernetes-ready-326CE5?logo=kubernetes&logoColor=white)](https://github.com/milzamsz/odoo-rust-mcp/tree/main/k8s)
+[![Helm](https://img.shields.io/badge/helm-chart-0F1689?logo=helm&logoColor=white)](https://github.com/milzamsz/odoo-rust-mcp/tree/main/helm)
 
 > **Inspired by Peugeot 3008** - Elegant, innovative, and reliable. Just like the Peugeot 3008 SUV combines style with performance, this MCP server combines elegance with powerful Odoo integration capabilities.
 
@@ -468,7 +468,7 @@ export MCP_AUTH_TOKEN=               # Bearer token (generate: openssl rand -hex
 
 ```bash
 # Install
-brew tap rachmataditiya/odoo-rust-mcp
+brew tap milzamsz/odoo-rust-mcp
 brew install rust-mcp
 
 # Configure (edit with your Odoo credentials)
@@ -481,7 +481,7 @@ brew services start rust-mcp
 Or install directly in one command:
 
 ```bash
-brew install rachmataditiya/odoo-rust-mcp/rust-mcp
+brew install milzamsz/odoo-rust-mcp/rust-mcp
 ```
 
 **What gets installed:**
@@ -540,16 +540,16 @@ The binary automatically loads config from `~/.config/odoo-rust-mcp/env`, so you
 
 This means you can use `rust-mcp` directly without the shell wrapper `rust-mcp-service`. This is especially important for MCP clients like Windsurf that don't support shell script execution.
 
-For full Homebrew documentation, see: https://rachmataditiya.github.io/homebrew-odoo-rust-mcp/
+For full Homebrew documentation, see: https://milzamsz.github.io/homebrew-odoo-rust-mcp/
 
 #### Option 2: APT (Debian/Ubuntu)
 
 ```bash
 # Add GPG key
-curl -fsSL https://rachmataditiya.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg
+curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg
 
 # Add repository
-echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://rachmataditiya.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
+echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://milzamsz.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
 
 # Install
 sudo apt update
@@ -587,8 +587,9 @@ Service endpoint: `http://127.0.0.1:8787/mcp`
 
 #### Option 3: Download and install
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/rachmataditiya/odoo-rust-mcp/releases):
-
+Download the latest release for your platform from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases):"
+LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
+LABEL org.opencontainers.image.vendor="Milzam (Arkana)"
 | Platform | File |
 |----------|------|
 | Linux x86_64 | `rust-mcp-x86_64-unknown-linux-gnu.tar.gz` |

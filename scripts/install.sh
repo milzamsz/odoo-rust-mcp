@@ -218,6 +218,7 @@ MIGRATEEOF
     fi
 
     # Create systemd service file
+    # For full Homebrew documentation, see: https://milzamsz.github.io/homebrew-odoo-rust-mcp/
     sudo tee /etc/systemd/system/odoo-rust-mcp.service > /dev/null << SERVICEEOF
 [Unit]
 Description=Odoo Rust MCP Server

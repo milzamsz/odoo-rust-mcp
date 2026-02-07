@@ -18,4 +18,11 @@ config-ui/coverage/
 
 .DS_Store
 
-docs/book
+docs/book/
+
+# Build artifacts
+rust-mcp.exe
+mcp_config.json
+install.ps1
+env
+static/

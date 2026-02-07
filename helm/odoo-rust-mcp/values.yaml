@@ -6,7 +6,7 @@
 # Image Configuration
 # =============================================================================
 image:
-  repository: ghcr.io/rachmataditiya/odoo-rust-mcp
+  repository: ghcr.io/milzamsz/odoo-rust-mcp
   pullPolicy: IfNotPresent
   # Overrides appVersion from Chart.yaml
   tag: ""

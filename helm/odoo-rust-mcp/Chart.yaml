@@ -21,14 +21,14 @@ keywords:
   - rust
 
 # Project links
-home: https://github.com/rachmataditiya/odoo-rust-mcp
+home: https://github.com/milzamsz/odoo-rust-mcp
 sources:
-  - https://github.com/rachmataditiya/odoo-rust-mcp
+  - https://github.com/milzamsz/odoo-rust-mcp
 
 # Maintainers
 maintainers:
-  - name: Rachmat Aditiya
-    url: https://github.com/rachmataditiya
+  - name: Milzam
+    url: https://github.com/milzamsz
 
 # Optional: Chart dependencies
 # dependencies:

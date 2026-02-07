@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 
 $BinaryName = "rust-mcp"
 $ServiceName = "OdooRustMcp"
-$ServiceDisplayName = "Odoo Rust MCP Server"
+$ServiceDisplayName = "Odoo Rust MCP Server (Milzam)"
 $InstallDir = "$env:ProgramFiles\odoo-rust-mcp"
 $ConfigDir = "$env:ProgramData\odoo-rust-mcp"
 $EnvFile = "$ConfigDir\env.ps1"

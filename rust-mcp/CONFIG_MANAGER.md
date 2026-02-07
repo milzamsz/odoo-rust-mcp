@@ -35,7 +35,7 @@ docker run -d \
   --name odoo-mcp-config \
   -p 3008:3008 \
   -v ~/.config/odoo-rust-mcp:/config \
-  ghcr.io/rachmataditiya/odoo-rust-mcp:latest \
+  ghcr.io/milzamsz/odoo-rust-mcp:latest \
   --config-server-port 3008
 ```
 
@@ -480,4 +480,4 @@ Same as main project (AGPL-3.0-only)
 
 Config manager is part of the main Odoo Rust MCP project. Contributions welcome!
 
-For issues or feature requests: [GitHub Issues](https://github.com/rachmataditiya/odoo-rust-mcp/issues)
+For issues or feature requests: [GitHub Issues](https://github.com/milzamsz/odoo-rust-mcp/issues)

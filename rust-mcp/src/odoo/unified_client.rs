@@ -617,4 +617,46 @@ mod tests {
         };
         assert_eq!(legacy_cfg.auth_mode(), OdooAuthMode::Password);
     }
+
+    #[test]
+    fn test_client_creation_respects_protocol() {
+        use super::super::config::OdooProtocol;
+
+        // Force Legacy via protocol
+        let config_legacy = OdooInstanceConfig {
+            url: "http://localhost:8069".to_string(),
+            db: Some("test".to_string()),
+            api_key: Some("key".to_string()), // key present
+            username: None,
+            password: None,
+            version: Some("19".to_string()), // version 19
+            protocol: OdooProtocol::JsonRpc, // BUT forced to JsonRpc
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        // auth_mode should be Password -> Legacy Client
+        assert_eq!(config_legacy.auth_mode(), OdooAuthMode::Password);
+        let client = OdooClient::new(&config_legacy).unwrap();
+        assert!(client.is_legacy());
+
+        // Force Modern via protocol
+        let config_modern = OdooInstanceConfig {
+            url: "http://localhost:8069".to_string(),
+            db: Some("test".to_string()),
+            api_key: None,
+            username: Some("user".to_string()),
+            password: Some("pass".to_string()),
+            version: Some("18".to_string()), // version 18
+            protocol: OdooProtocol::Json2,   // BUT forced to Json2
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        // auth_mode should be ApiKey -> Modern Client
+        // Note: Realistically Odoo 18 won't support json2, but the client should attempt it if configured.
+        assert_eq!(config_modern.auth_mode(), OdooAuthMode::ApiKey);
+        let client = OdooClient::new(&config_modern).unwrap();
+        assert!(!client.is_legacy());
+    }
 }

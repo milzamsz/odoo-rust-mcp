@@ -144,7 +144,7 @@ Set these in repository Settings > Secrets and variables:
 
 | Type | Name | Value |
 |------|------|-------|
-| Variable | `HOMEBREW_TAP_REPO` | `rachmataditiya/homebrew-odoo-rust-mcp` |
+| Variable | `HOMEBREW_TAP_REPO` | `milzamsz/homebrew-odoo-rust-mcp` |
 | Secret | `HOMEBREW_TAP_TOKEN` | Personal access token with `repo` scope |
 
 ### Manual Checksum Generation
@@ -153,7 +153,7 @@ After creating a release, generate checksums:
 
 ```bash
 VERSION=0.1.0
-curl -sL "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-aarch64-apple-darwin.tar.gz" | shasum -a 256
-curl -sL "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-x86_64-apple-darwin.tar.gz" | shasum -a 256
-curl -sL "https://github.com/rachmataditiya/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-x86_64-unknown-linux-gnu.tar.gz" | shasum -a 256
+curl -sL "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-aarch64-apple-darwin.tar.gz" | shasum -a 256
+curl -sL "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-x86_64-apple-darwin.tar.gz" | shasum -a 256
+curl -sL "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-x86_64-unknown-linux-gnu.tar.gz" | shasum -a 256
 ```

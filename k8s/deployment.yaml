@@ -48,7 +48,7 @@ spec:
       
       containers:
         - name: odoo-mcp
-          image: ghcr.io/rachmataditiya/odoo-rust-mcp:0.3.0
+          image: ghcr.io/milzamsz/odoo-rust-mcp:0.3.0
           imagePullPolicy: IfNotPresent
           
           # Container ports (MCP server + Config UI)

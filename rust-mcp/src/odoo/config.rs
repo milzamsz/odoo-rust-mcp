@@ -13,6 +13,19 @@ pub enum OdooAuthMode {
     Password,
 }
 
+/// Protocol to use for Odoo communication.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OdooProtocol {
+    #[default]
+    Auto,
+    /// Force JSON-RPC (Legacy client)
+    JsonRpc,
+    /// Force JSON-2 (Modern client)
+    #[serde(rename = "json2")]
+    Json2,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OdooInstanceConfig {
     pub url: String,
@@ -29,6 +42,9 @@ pub struct OdooInstanceConfig {
     /// Odoo version (e.g., "18", "17", "19"). If < 19, uses JSON-RPC with username/password.
     #[serde(default)]
     pub version: Option<String>,
+    /// Explicitly select protocol: "auto", "jsonrpc", or "json2"
+    #[serde(default)]
+    pub protocol: OdooProtocol,
     #[serde(default)]
     pub timeout_ms: Option<u64>,
     #[serde(default)]
@@ -42,6 +58,13 @@ pub struct OdooInstanceConfig {
 impl OdooInstanceConfig {
     /// Determine authentication mode based on version or available credentials.
     pub fn auth_mode(&self) -> OdooAuthMode {
+        // Respect explicit protocol override
+        match self.protocol {
+            OdooProtocol::JsonRpc => return OdooAuthMode::Password,
+            OdooProtocol::Json2 => return OdooAuthMode::ApiKey,
+            OdooProtocol::Auto => {}
+        }
+
         // If version is explicitly set and < 19, use password mode
         if let Some(v) = &self.version
             && let Ok(major) = v.split('.').next().unwrap_or(v).parse::<u32>()
@@ -398,5 +421,56 @@ mod tests {
         assert_eq!(config.username, Some("admin".to_string()));
         assert_eq!(config.password, Some("admin123".to_string()));
         assert_eq!(config.auth_mode(), OdooAuthMode::Password);
+    }
+
+    #[test]
+    fn test_auth_mode_protocol_override_jsonrpc() {
+        let config = OdooInstanceConfig {
+            url: "http://localhost".to_string(),
+            db: None,
+            api_key: Some("test-key".to_string()),
+            username: None,
+            password: None,
+            version: Some("19".to_string()),
+            protocol: OdooProtocol::JsonRpc,
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        assert_eq!(config.auth_mode(), OdooAuthMode::Password);
+    }
+
+    #[test]
+    fn test_auth_mode_protocol_override_json2() {
+        let config = OdooInstanceConfig {
+            url: "http://localhost".to_string(),
+            db: Some("mydb".to_string()),
+            api_key: None,
+            username: Some("admin".to_string()),
+            password: Some("admin".to_string()),
+            version: Some("18".to_string()),
+            protocol: OdooProtocol::Json2,
+            timeout_ms: None,
+            max_retries: None,
+            extra: HashMap::new(),
+        };
+        assert_eq!(config.auth_mode(), OdooAuthMode::ApiKey);
+    }
+
+    #[test]
+    fn test_protocol_deserialize() {
+        let json = r#"{
+            "url": "http://localhost",
+            "protocol": "jsonrpc"
+        }"#;
+        let config: OdooInstanceConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.protocol, OdooProtocol::JsonRpc);
+
+        let json = r#"{
+            "url": "http://localhost",
+            "protocol": "json2"
+        }"#;
+        let config: OdooInstanceConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.protocol, OdooProtocol::Json2);
     }
 }
