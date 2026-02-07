@@ -6,9 +6,28 @@ Guide to building odoo-rust-mcp from source code.
 
 ## Prerequisites
 
-- **Rust toolchain**: 1.70+ (install via [rustup](https://rustup.rs/))
+- **Rust toolchain**: 1.85+ (for Rust 2024 edition) -- install via [rustup](https://rustup.rs/)
+- **Node.js**: 20+ with npm
 - **Git**: For cloning the repository
-- **Odoo instance**: For testing (optional)
+
+---
+
+## Build Order
+
+The React Config UI must be built **before** the Rust binary, because the built UI assets are embedded into the binary via `include_dir!`.
+
+```
+1. config-ui (npm ci && npm run build)
+       |
+       v
+   rust-mcp/static/dist/  (generated)
+       |
+       v
+2. rust-mcp (cargo build --release)
+       |
+       v
+   rust-mcp/target/release/rust-mcp  (final binary)
+```
 
 ---
 
@@ -19,17 +38,36 @@ Guide to building odoo-rust-mcp from source code.
 git clone https://github.com/rachmataditiya/odoo-rust-mcp.git
 cd odoo-rust-mcp
 
-# Build debug version
-cd rust-mcp
-cargo build
+# Step 1: Build React UI
+cd config-ui
+npm ci
+npm run build
+cd ..
 
-# Build release version (optimized)
+# Step 2: Build Rust binary
+cd rust-mcp
 cargo build --release
 ```
 
 **Binary location:**
 - Debug: `rust-mcp/target/debug/rust-mcp`
 - Release: `rust-mcp/target/release/rust-mcp`
+
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/rachmataditiya/odoo-rust-mcp.git
+cd odoo-rust-mcp
+
+# Step 1: Build React UI
+cd config-ui
+npm ci
+npm run build
+cd ..
+
+# Step 2: Build Rust binary
+cd rust-mcp
+cargo build --release
+```
 
 ---
 
@@ -41,42 +79,105 @@ cargo build --release
 # Linux/macOS
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Windows
-# Download and run rustup-init.exe from https://rustup.rs/
+# Windows: Download and run rustup-init.exe from https://rustup.rs/
 ```
 
-### 2. Clone and Build
+Verify: `rustc --version` (must be 1.85+)
+
+### 2. Install Node.js
+
+Use [nvm](https://github.com/nvm-sh/nvm) or download from [nodejs.org](https://nodejs.org/):
+
+```bash
+nvm install 20
+nvm use 20
+```
+
+Verify: `node --version` (must be 20+)
+
+### 3. Clone and Build
 
 ```bash
 git clone https://github.com/rachmataditiya/odoo-rust-mcp.git
-cd odoo-rust-mcp/rust-mcp
-cargo build
+cd odoo-rust-mcp
+
+# Build config UI first
+cd config-ui && npm ci && npm run build && cd ..
+
+# Build Rust server
+cd rust-mcp && cargo build && cd ..
 ```
 
-### 3. Configure Environment
+### 4. Configure Environment
 
 ```bash
 # Create config directory
 mkdir -p ~/.config/odoo-rust-mcp
 
-# Create env file
-cat > ~/.config/odoo-rust-mcp/env <<EOF
-ODOO_URL=http://localhost:8069
-ODOO_DB=mydb
-ODOO_VERSION=18
-ODOO_USERNAME=admin
-ODOO_PASSWORD=admin
+# Create instances.json
+cat > ~/.config/odoo-rust-mcp/instances.json <<EOF
+{
+  "local": {
+    "url": "http://localhost:8069",
+    "db": "mydb",
+    "version": "18",
+    "username": "admin",
+    "password": "admin"
+  }
+}
 EOF
 ```
 
-### 4. Run the Server
+### 5. Run the Server
 
 ```bash
-# stdio transport
-./target/debug/rust-mcp --transport stdio
+# stdio transport (for AI clients)
+./rust-mcp/target/debug/rust-mcp --transport stdio
 
-# HTTP transport
-./target/debug/rust-mcp --transport http --listen 127.0.0.1:8787
+# HTTP transport (with Config UI on :3008)
+./rust-mcp/target/debug/rust-mcp --transport http --listen 127.0.0.1:8787
+```
+
+---
+
+## Config UI Development
+
+The Config UI is a React 18 + TypeScript + Tailwind CSS app in `config-ui/`.
+
+```bash
+cd config-ui
+
+# Install dependencies
+npm ci
+
+# Development server (HMR on :5173)
+npm run dev
+
+# Production build (outputs to ../rust-mcp/static/dist)
+npm run build
+
+# Type checking
+npm run typecheck
+
+# Linting
+npm run lint
+
+# Run tests
+npm test
+
+# Tests with coverage
+npm run test:coverage
+```
+
+During development, run the Rust server in one terminal and the Vite dev server in another:
+
+```bash
+# Terminal 1: Rust server
+cd rust-mcp && cargo run -- --transport http --listen 127.0.0.1:8787
+
+# Terminal 2: Vite dev server with HMR
+cd config-ui && npm run dev
+# Access UI at http://localhost:5173
 ```
 
 ---
@@ -86,19 +187,13 @@ EOF
 ### Debug Build (Fast compilation)
 
 ```bash
-cargo build
+cd rust-mcp && cargo build
 ```
 
-### Release Build (Optimized)
+### Release Build (Optimized, stripped)
 
 ```bash
-cargo build --release
-```
-
-### Build with All Features
-
-```bash
-cargo build --release --all-features
+cd rust-mcp && cargo build --release
 ```
 
 ### Cross-Compilation
@@ -106,7 +201,6 @@ cargo build --release --all-features
 Using [cross](https://github.com/cross-rs/cross):
 
 ```bash
-# Install cross
 cargo install cross
 
 # Build for Linux (from macOS/Windows)
@@ -118,58 +212,42 @@ cross build --release --target x86_64-pc-windows-msvc
 
 ---
 
-## Running Tests
-
-```bash
-cd rust-mcp
-
-# Run all tests
-cargo test
-
-# Run tests with output
-cargo test -- --nocapture
-
-# Run specific test
-cargo test test_name
-
-# Run with warnings as errors
-RUSTFLAGS='-Dwarnings' cargo test
-```
-
----
-
 ## Linting & Formatting
 
 ```bash
 cd rust-mcp
 
-# Format code
+# Format code (required before commit)
 cargo fmt
 
 # Check formatting (CI mode)
 cargo fmt --check
 
-# Run clippy linter
-cargo clippy
-
-# Run clippy with all warnings
-cargo clippy -- -W clippy::all
+# Run clippy linter (must pass with zero warnings)
+cargo clippy -- -D warnings
 ```
+
+CI will **fail** if `cargo fmt` or `cargo clippy` produce any output.
 
 ---
 
 ## Docker Build
 
+The Dockerfile is at `rust-mcp/Dockerfile` and uses a multi-stage build:
+
+1. **Builder stage**: Installs Node.js 20, builds React UI, then builds Rust binary
+2. **Runtime stage**: Debian slim with just the binary and static assets
+
 ```bash
 # From repository root
-docker build -t odoo-rust-mcp:latest .
+docker build -f rust-mcp/Dockerfile -t odoo-rust-mcp:latest .
 
 # Run container
 docker run -d \
   -e ODOO_URL=http://host.docker.internal:8069 \
   -e ODOO_DB=mydb \
   -e ODOO_API_KEY=your-key \
-  -p 8787:8787 \
+  -p 8787:8787 -p 3008:3008 \
   odoo-rust-mcp:latest
 ```
 
@@ -186,22 +264,19 @@ docker compose up --build
 
 ---
 
-## Config UI Development
-
-The Config UI is a React application in `config-ui/`.
+## Release Process
 
 ```bash
-cd config-ui
-
-# Install dependencies
-npm install
-
-# Development server
-npm run dev
-
-# Production build
-npm run build
+./scripts/release.sh 0.3.31
 ```
+
+This script:
+1. Bumps version in `rust-mcp/Cargo.toml` and `config-ui/package.json`
+2. Commits with message `chore: bump version to 0.3.31`
+3. Pushes to remote
+4. Creates and pushes git tag `v0.3.31`
+
+The tag triggers GitHub Actions to build multi-platform binaries, Docker images, and packages.
 
 ---
 
@@ -235,7 +310,7 @@ Recommended extensions:
 
 ```bash
 # Clean build artifacts
-cargo clean
+cd rust-mcp && cargo clean
 
 # Update dependencies
 cargo update
@@ -243,6 +318,16 @@ cargo update
 # Rebuild
 cargo build
 ```
+
+### Missing static/dist
+
+If you get "static/dist directory not found" at runtime, rebuild the React UI:
+
+```bash
+cd config-ui && npm ci && npm run build
+```
+
+The built assets must be at `rust-mcp/static/dist/` before the Rust binary runs.
 
 ### Missing system libraries (Linux)
 
@@ -257,4 +342,4 @@ sudo dnf install gcc openssl-devel
 ### Slow compilation
 
 - Use `cargo build` (debug) instead of `cargo build --release`
-- Consider using [sccache](https://github.com/mozilla/sccache)
+- Consider [sccache](https://github.com/mozilla/sccache)

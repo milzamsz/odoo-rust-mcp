@@ -2,6 +2,8 @@
 
 Built-in prompts provide context and guidance to AI assistants when working with Odoo.
 
+Prompts are defined in `prompts.json` and support hot-reload -- changes take effect immediately without restarting the server.
+
 ---
 
 ## Available Prompts

@@ -6,7 +6,7 @@ This guide walks you through installing and configuring odoo-rust-mcp for your f
 
 - **Odoo Instance**: A running Odoo server (v16-19+)
 - **Credentials**: API Key (for v19+) or Username/Password (for v16-18)
-- **AI Client**: Cursor, Claude Desktop, or other MCP-compatible client
+- **AI Client**: Cursor, Claude Desktop, Claude Code, Windsurf, or other MCP-compatible client
 
 ## Installation Options
 
@@ -21,7 +21,7 @@ Download the latest release for your platform:
 | macOS Apple Silicon | `rust-mcp-aarch64-apple-darwin.tar.gz` |
 | Linux x64 | `rust-mcp-x86_64-unknown-linux-gnu.tar.gz` |
 
-**Download URL**: https://github.com/rachmataditiya/odoo-rust-mcp/releases/latest
+**Download URL**: [github.com/rachmataditiya/odoo-rust-mcp/releases/latest](https://github.com/rachmataditiya/odoo-rust-mcp/releases/latest)
 
 **Windows Installation:**
 ```powershell
@@ -60,9 +60,13 @@ docker run -d --name odoo-mcp \
   -e ODOO_URL=https://your-odoo.com \
   -e ODOO_DB=mydb \
   -e ODOO_API_KEY=your-key \
-  -p 8787:8787 \
+  -p 8787:8787 -p 3008:3008 \
   ghcr.io/rachmataditiya/odoo-rust-mcp:latest
 ```
+
+### Option 5: Build from Source
+
+See [Building from Source](../developer/building.md) for full instructions.
 
 ---
 
@@ -70,8 +74,9 @@ docker run -d --name odoo-mcp \
 
 ### Step 1: Create Instance Configuration
 
-Create `instances.json`:
+Create `instances.json` with your Odoo connection details:
 
+**Odoo 19+ (API Key authentication):**
 ```json
 {
   "production": {
@@ -82,20 +87,38 @@ Create `instances.json`:
 }
 ```
 
-> **For Odoo < 19**, use `username` and `password` instead of `apiKey`, plus add `"version": "18"`.
-
-### Step 2: Set Environment Variables
-
-Create `.env` file:
-
-```bash
-ODOO_INSTANCES_JSON=/path/to/instances.json
-
-# Optional: Enable write tools
-ODOO_ENABLE_WRITE_TOOLS=true
+**Odoo 16-18 (Username/Password authentication):**
+```json
+{
+  "production": {
+    "url": "https://your-odoo.com",
+    "db": "production",
+    "version": "18",
+    "username": "admin",
+    "password": "admin"
+  }
+}
 ```
 
-### Step 3: Configure Your AI Client
+**Multi-instance (mix and match):**
+```json
+{
+  "production": {
+    "url": "https://prod.example.com",
+    "db": "production",
+    "apiKey": "prod_api_key"
+  },
+  "staging": {
+    "url": "https://staging.example.com",
+    "db": "staging",
+    "version": "18",
+    "username": "admin",
+    "password": "admin"
+  }
+}
+```
+
+### Step 2: Configure Your AI Client
 
 **Cursor (`~/.cursor/mcp.json`):**
 
@@ -129,23 +152,83 @@ ODOO_ENABLE_WRITE_TOOLS=true
 }
 ```
 
+**Claude Code (`.mcp.json` in project root):**
+
+```json
+{
+  "mcpServers": {
+    "odoo": {
+      "command": "rust-mcp",
+      "args": ["--transport", "stdio"],
+      "env": {
+        "ODOO_INSTANCES_JSON": "/path/to/instances.json"
+      }
+    }
+  }
+}
+```
+
+**Windsurf**: Follow Windsurf's MCP configuration guide. The server configuration is identical -- use `rust-mcp --transport stdio` as the command.
+
 ---
 
 ## Verify Installation
 
-1. Restart your AI client
-2. Ask: "List available Odoo tools"
-3. The assistant should show tools like `odoo_search`, `odoo_read`, etc.
+### Step 1: Validate Configuration
 
-**Test a simple query:**
+```bash
+rust-mcp validate-config
+```
+
+This checks that your `instances.json` is valid and all required fields are present.
+
+### Step 2: Test in Your AI Client
+
+Restart your AI client, then ask:
+
+```
+List available Odoo tools
+```
+
+The assistant should respond with the 24 available tools (e.g., `odoo_search`, `odoo_read`, `odoo_create`, etc.).
+
+### Step 3: Run a Simple Query
+
 ```
 Search for the first 5 partners in my Odoo instance
+```
+
+If using multi-instance, specify which one:
+
+```
+Search for the first 5 partners in my production instance
+```
+
+---
+
+## CLI Reference
+
+```
+rust-mcp [OPTIONS] [COMMAND]
+
+Commands:
+  validate-config    Validate Odoo instance configuration
+
+Options:
+  --transport <MODE>              Transport: stdio, http, ws (default: stdio)
+  --listen <ADDR>                 Listen address for http/ws (default: 127.0.0.1:8787)
+  --enable-cleanup-tools          Enable destructive cleanup tools
+  --config-server-port <PORT>     Config UI port (default: 3008)
+  --config-dir <DIR>              Config directory override
+  -h, --help                      Print help
+  -V, --version                   Print version
 ```
 
 ---
 
 ## Next Steps
 
-- [Configuration Guide](./configuration.md) - Advanced configuration options
-- [Tools Reference](./tools-reference.md) - Complete tool documentation
-- [Use Cases](./use-cases.md) - Real-world examples
+- [Configuration Guide](./configuration.md) - Advanced configuration, protocol selection, environment variables
+- [Tools Reference](./tools-reference.md) - Complete tool documentation with examples
+- [Use Cases](./use-cases.md) - Real-world examples and workflows
+- [Deployment](./deployment.md) - Docker, Kubernetes, and service deployment

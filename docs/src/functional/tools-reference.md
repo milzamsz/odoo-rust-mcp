@@ -1,6 +1,6 @@
 # Tools Reference
 
-Complete reference for all 22 tools available in odoo-rust-mcp.
+Complete reference for all 24 tools available in odoo-rust-mcp.
 
 ---
 

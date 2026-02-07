@@ -101,6 +101,70 @@ Find all draft invoices for this month and post them.
 
 ---
 
+## Multi-Instance Workflow
+
+### Compare Data Across Environments
+
+```
+Count the number of active products in both production and staging instances.
+```
+
+**Tools used:** `odoo_count` (called twice with different `instance` values)
+
+```json
+// First call
+{"instance": "production", "model": "product.product", "domain": [["active", "=", true]]}
+
+// Second call
+{"instance": "staging", "model": "product.product", "domain": [["active", "=", true]]}
+```
+
+---
+
+### Verify Staging Before Go-Live
+
+```
+Compare the number of sale orders in staging vs production
+to make sure test data won't leak.
+```
+
+**Tools used:** `odoo_count` on both instances, `odoo_search_read` to inspect differences
+
+---
+
+## HR & Employees
+
+### Employee Directory Lookup
+
+```
+Search for all employees in the Sales department and show
+their name, job title, and work email.
+```
+
+**Tool used:** `odoo_search_read` on `hr.employee`
+
+```json
+{
+  "instance": "production",
+  "model": "hr.employee",
+  "domain": [["department_id.name", "=", "Sales"]],
+  "fields": ["name", "job_title", "work_email"],
+  "limit": 50
+}
+```
+
+---
+
+### Leave Balance Check
+
+```
+Show me all approved leaves for this month with employee name and leave type.
+```
+
+**Tool used:** `odoo_search_read` on `hr.leave`
+
+---
+
 ## Contacts
 
 ### Bulk Update Partners
@@ -190,6 +254,34 @@ Show me the fields and their types for the sale.order model.
 
 ---
 
+### Chained Discovery Workflow
+
+A typical model discovery workflow chains multiple tools:
+
+1. **List models** to find relevant ones:
+   ```
+   List models matching "stock" in my production instance.
+   ```
+
+2. **Get metadata** for the model of interest:
+   ```
+   Show me the fields for stock.picking.
+   ```
+
+3. **Search records** to see real data:
+   ```
+   Show me 5 recent stock pickings with their state, partner, and scheduled date.
+   ```
+
+4. **Understand defaults** for creating new records:
+   ```
+   Get default values for a new stock.picking.
+   ```
+
+**Tools used:** `odoo_list_models` -> `odoo_get_model_metadata` -> `odoo_search_read` -> `odoo_default_get`
+
+---
+
 ## Best Practices
 
 ### 1. Always specify fields
@@ -230,3 +322,13 @@ Run a dry run of database cleanup first to see what would be affected.
   "dryRun": true
 }
 ```
+
+### 5. Specify the instance name
+
+When using multi-instance setups, always specify which instance to target:
+
+```
+Search for partners in my **staging** instance.
+```
+
+If omitted, the server will use the first/default instance.

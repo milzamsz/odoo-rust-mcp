@@ -35,7 +35,7 @@ Called by clients to establish a session.
     "protocolVersion": "2025-03-26",
     "serverInfo": {
       "name": "odoo-rust-mcp",
-      "version": "1.0.0"
+      "version": "0.3.30"
     },
     "capabilities": {
       "tools": {},
@@ -177,76 +177,116 @@ List Odoo resources.
 
 ## Operation Types
 
-Internal operation types mapped from `tools.json`:
+Internal operation types mapped from `tools.json` via `op.type`:
 
-| Type | Description |
-|------|-------------|
-| `search` | Search for record IDs |
-| `search_read` | Search and read records |
-| `read` | Read records by IDs |
-| `create` | Create new record |
-| `write` | Update records |
-| `unlink` | Delete records |
-| `search_count` | Count records |
-| `execute` | Execute model method |
-| `workflow_action` | Call workflow action |
-| `generate_report` | Generate PDF report |
-| `get_model_metadata` | Get model fields |
-| `list_models` | List available models |
-| `check_access` | Check permissions |
-| `create_batch` | Batch create records |
-| `read_group` | Aggregate data |
-| `name_search` | Autocomplete search |
-| `name_get` | Get display names |
-| `default_get` | Get default values |
-| `copy` | Duplicate record |
-| `onchange` | Simulate onchange |
-| `database_cleanup` | Clean database |
-| `deep_cleanup` | Deep clean database |
+| Type | Tool Name | Description |
+|------|-----------|-------------|
+| `search` | `odoo_search` | Search for record IDs |
+| `search_read` | `odoo_search_read` | Search and read records |
+| `read` | `odoo_read` | Read records by IDs |
+| `create` | `odoo_create` | Create new record |
+| `write` | `odoo_update` | Update records |
+| `unlink` | `odoo_delete` | Delete records |
+| `search_count` | `odoo_count` | Count records |
+| `execute` | `odoo_execute` | Execute model method |
+| `workflow_action` | `odoo_workflow_action` | Call workflow action |
+| `generate_report` | `odoo_generate_report` | Generate PDF report |
+| `get_model_metadata` | `odoo_get_model_metadata` | Get model fields |
+| `list_models` | `odoo_list_models` | List available models |
+| `check_access` | `odoo_check_access` | Check permissions |
+| `create_batch` | `odoo_create_batch` | Batch create records |
+| `read_group` | `odoo_read_group` | Aggregate data |
+| `name_search` | `odoo_name_search` | Autocomplete search |
+| `name_get` | `odoo_name_get` | Get display names |
+| `default_get` | `odoo_default_get` | Get default values |
+| `copy` | `odoo_copy` | Duplicate record |
+| `onchange` | `odoo_onchange` | Simulate onchange |
+| `database_cleanup` | `odoo_database_cleanup` | Clean database |
+| `deep_cleanup` | `odoo_deep_cleanup` | Deep clean database |
 
 ---
 
-## HTTP Endpoints
+## MCP HTTP Endpoints
 
-When running in HTTP transport mode:
+When running in HTTP transport mode (`--transport http`):
+
+### MCP Streamable HTTP (per MCP spec)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/mcp` | POST | MCP JSON-RPC requests |
-| `/mcp` | GET | SSE stream |
-| `/mcp` | DELETE | Terminate session |
-| `/health` | GET | Health check |
-| `/openapi.json` | GET | OpenAPI spec |
+| `/mcp` | POST | Send JSON-RPC messages |
+| `/mcp` | GET | Open SSE stream for server-to-client notifications |
+| `/mcp` | DELETE | Terminate a session |
 
-### Health Check
+### Legacy Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/sse` | GET | Legacy SSE transport |
+| `/messages` | POST | Legacy message endpoint |
+
+### Public Endpoints (no auth)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/openapi.json` | GET | OpenAPI specification |
+
+### Health Check Response
 
 ```json
 {
-  "status": "ok",
-  "version": "1.0.0",
-  "instance": {
-    "name": "production",
-    "reachable": true
-  }
+  "service": "odoo-rust-mcp",
+  "status": "ok"
 }
 ```
 
 ---
 
-## Config UI API
+## Config UI API (Port 3008)
 
-Config server on port 3008:
+### Authentication
+
+The Config UI uses Bearer token authentication. Token is stored in `localStorage` as `mcp_config_token` and sent via the `Authorization: Bearer {token}` header.
+
+### Public Endpoints (no auth required)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/config/instances` | GET/POST | Manage instances |
-| `/api/config/tools` | GET/POST | Manage tools |
-| `/api/config/prompts` | GET/POST | Manage prompts |
-| `/api/config/server` | GET/POST | Manage server config |
-| `/api/config/auth/status` | GET | Auth status |
-| `/api/config/auth/enable` | POST | Enable/disable auth |
-| `/api/config/auth/token/generate` | POST | Generate auth token |
-| `/health` | GET | Health check |
+| `/health` | GET | Config server health check |
+| `/api/auth/status` | GET | Check authentication status |
+| `/api/auth/login` | POST | Login with username/password |
+| `/api/auth/logout` | POST | Logout and invalidate token |
+
+### Protected Endpoints (require auth)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/config/instances` | GET | Get instances configuration |
+| `/api/config/instances` | POST | Save instances configuration |
+| `/api/config/tools` | GET | Get tools configuration |
+| `/api/config/tools` | POST | Save tools configuration |
+| `/api/config/prompts` | GET | Get prompts configuration |
+| `/api/config/prompts` | POST | Save prompts configuration |
+| `/api/config/server` | GET | Get server configuration |
+| `/api/config/server` | POST | Save server configuration |
+| `/api/auth/change-password` | POST | Change Config UI password |
+| `/api/auth/mcp-auth-status` | GET | Get MCP HTTP auth status |
+| `/api/auth/mcp-auth-enabled` | POST | Enable/disable MCP HTTP auth |
+| `/api/auth/generate-mcp-token` | POST | Generate new MCP auth token |
+
+### Static Files
+
+The React UI is served as a fallback via `ServeDir` from the `static/dist/` directory.
+
+### Config Server Health Check Response
+
+```json
+{
+  "service": "odoo-rust-mcp-config",
+  "status": "ok"
+}
+```
 
 ---
 
@@ -257,12 +297,15 @@ Config server on port 3008:
 ```
 POST /json/2/{db}/{model}/{method}
 Authorization: Bearer {api_key}
+Content-Type: application/json
 ```
 
 ### JSON-RPC API (<v19)
 
 ```
 POST /jsonrpc
+Content-Type: application/json
+
 {
   "jsonrpc": "2.0",
   "method": "call",
@@ -278,13 +321,13 @@ POST /jsonrpc
 
 ## Error Codes
 
-| Code | Description |
-|------|-------------|
-| -32700 | Parse error |
-| -32600 | Invalid request |
-| -32601 | Method not found |
-| -32602 | Invalid params |
-| -32603 | Internal error |
-| -32000 | Odoo error |
-| -32001 | Authentication error |
-| -32002 | Access denied |
+| Code | Category | Description |
+|------|----------|-------------|
+| -32700 | Parse error | Invalid JSON |
+| -32600 | Invalid request | Malformed JSON-RPC |
+| -32601 | Method not found | Unknown MCP method |
+| -32602 | Invalid params | Missing or invalid parameters |
+| -32603 | Internal error | Server-side error |
+| -32000 | Odoo error | Error from Odoo API |
+| -32001 | Authentication error | Invalid credentials |
+| -32002 | Access denied | Insufficient permissions |

@@ -32,27 +32,46 @@ git checkout -b feature/your-feature-name
 git checkout -b fix/your-bug-fix
 ```
 
-### 3. Make Changes
+### 3. Build the Project
+
+The React UI must be built before the Rust binary. See [Building from Source](building.md) for details.
+
+```bash
+# Build config UI first
+cd config-ui && npm ci && npm run build && cd ..
+
+# Build Rust server
+cd rust-mcp && cargo build && cd ..
+```
+
+### 4. Make Changes
 
 Follow the [coding standards](#coding-standards) below.
 
-### 4. Test Your Changes
+### 5. Test Your Changes
 
 ```bash
+# Rust tests and linting
 cd rust-mcp
 cargo test
-cargo clippy
+cargo clippy -- -D warnings
 cargo fmt --check
+
+# Config UI tests and linting (if you changed config-ui/)
+cd ../config-ui
+npm test
+npm run typecheck
+npm run lint
 ```
 
-### 5. Commit
+### 6. Commit
 
 ```bash
 git add .
 git commit -m "Add feature: description of what you did"
 ```
 
-### 6. Push and Create PR
+### 7. Push and Create PR
 
 ```bash
 git push origin feature/your-feature-name
@@ -68,9 +87,10 @@ Then create a Pull Request on GitHub.
 
 - Follow [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
 - Use `cargo fmt` for formatting
-- Fix all `cargo clippy` warnings
+- Fix all `cargo clippy` warnings (CI runs with `-D warnings`)
 - Use `Result<T, E>` for error handling (avoid panics)
 - Document public APIs with doc comments
+- Edition: Rust 2024 (requires rustc 1.85+)
 
 **Example documentation:**
 ```rust
@@ -87,6 +107,14 @@ pub fn my_function() -> Result<()> {
     // ...
 }
 ```
+
+### TypeScript Style (Config UI)
+
+- React 18 with functional components and hooks
+- TypeScript strict mode
+- Tailwind CSS for styling
+- Vitest for tests
+- Follow existing patterns in `config-ui/src/`
 
 ### Commit Messages
 
@@ -106,7 +134,7 @@ Fixes #42
 
 ## Adding New Tools
 
-Tools are defined in `tools.json`:
+Tools are defined declaratively in `tools.json`. No Rust code changes are needed for simple tools.
 
 ### 1. Add Tool Definition
 
@@ -134,13 +162,19 @@ Edit `rust-mcp/config/tools.json`:
 }
 ```
 
-### 2. Implement Operation
+### 2. Implement Operation Handler (if new op type)
 
-Add handler in `rust-mcp/src/odoo/operations.rs`.
+If your tool uses an existing `op.type` (e.g., `search_read`, `execute`), no Rust changes are needed.
+
+For a new operation type, add a handler in `rust-mcp/src/mcp/tools.rs`:
+
+1. Add a new `op_my_operation()` async function
+2. Add the type to the `execute_op()` match statement
+3. Write tests
 
 ### 3. Update Seed Defaults
 
-Copy changes to `rust-mcp/config-defaults/tools.json`.
+Copy changes to `rust-mcp/config-defaults/tools.json` so new installations get the tool.
 
 ### 4. Add Tests
 
@@ -148,9 +182,9 @@ Write tests for the new tool.
 
 ### 5. Update Documentation
 
-Update `docs/functional/tools-reference.md`.
+Update `docs/src/functional/tools-reference.md`.
 
-> **Note:** Avoid `anyOf`, `oneOf`, `allOf`, `$ref` in JSON Schema (Cursor compatibility).
+> **Note:** Avoid `anyOf`, `oneOf`, `allOf`, `$ref` in JSON Schema -- Cursor rejects these.
 
 ---
 
@@ -170,24 +204,76 @@ Update `config-defaults/prompts.json` and documentation.
 
 ---
 
+## Contributing to Config UI
+
+The Config UI is in `config-ui/` and uses React 18 + TypeScript + Vite + Tailwind CSS.
+
+### Development Workflow
+
+```bash
+cd config-ui
+
+# Install dependencies
+npm ci
+
+# Start development server with HMR
+npm run dev
+# Access at http://localhost:5173
+
+# In another terminal, start the Rust server
+cd rust-mcp && cargo run -- --transport http --listen 127.0.0.1:8787
+```
+
+### Project Structure
+
+```
+config-ui/src/
++-- App.tsx              # Main app (5-tab layout with auth)
++-- components/tabs/     # InstancesTab, ToolsTab, PromptsTab, ServerTab, SecurityTab
++-- hooks/               # useConfig, useAuth custom hooks
++-- __tests__/           # Vitest tests
++-- types.ts             # TypeScript types mirroring Rust config structs
+```
+
+### Adding a New Tab
+
+1. Create `config-ui/src/components/tabs/MyNewTab.tsx`
+2. Add the tab to `App.tsx`
+3. Create types in `types.ts` if needed
+4. Add tests in `__tests__/`
+
+---
+
 ## Pull Request Checklist
 
-- [ ] Code follows project style
+### Rust Changes
+
 - [ ] Tests pass: `cargo test`
-- [ ] Linting passes: `cargo clippy`
+- [ ] Linting passes: `cargo clippy -- -D warnings`
 - [ ] Formatting correct: `cargo fmt --check`
-- [ ] Documentation updated
-- [ ] Commit messages are clear
+
+### Config UI Changes
+
+- [ ] Tests pass: `npm test`
+- [ ] Type checking passes: `npm run typecheck`
+- [ ] Linting passes: `npm run lint`
+- [ ] Production build succeeds: `npm run build`
+
+### General
+
+- [ ] Documentation updated (if applicable)
+- [ ] Commit messages are clear and descriptive
 - [ ] PR description explains changes
+- [ ] Both `config-defaults/` and `config/` updated (if adding tools/prompts)
 
 ---
 
 ## Review Process
 
 1. Submit PR with clear description
-2. Maintainers review code quality and tests
-3. Address feedback
-4. Ensure CI passes
+2. CI must pass (build-ui, tests, clippy, fmt, coverage)
+3. Maintainers review code quality and tests
+4. Address feedback
 5. Merge!
 
 ---
@@ -203,5 +289,3 @@ Update `config-defaults/prompts.json` and documentation.
 ## License
 
 By contributing, you agree that your contributions will be licensed under AGPL-3.0.
-
-Thank you for contributing! 🚗

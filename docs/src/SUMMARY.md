@@ -8,6 +8,7 @@
     - [Tools Reference](functional/tools-reference.md)
     - [Prompts Reference](functional/prompts-reference.md)
     - [Use Cases](functional/use-cases.md)
+    - [Deployment](functional/deployment.md)
 
 - [Developer Documentation]()
     - [Building](developer/building.md)

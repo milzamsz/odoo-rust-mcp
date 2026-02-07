@@ -4,7 +4,7 @@ How to run and write tests for odoo-rust-mcp.
 
 ---
 
-## Running Tests
+## Rust Tests
 
 ### Unit Tests
 
@@ -20,16 +20,56 @@ cargo test -- --nocapture
 # Run specific test
 cargo test test_search_operation
 
-# Run tests with warnings as errors
+# Run tests with warnings as errors (same as CI)
 RUSTFLAGS='-Dwarnings' cargo test
 ```
 
-### Integration Tests
+### Config Manager Tests
+
+The config manager has dedicated unit and integration tests that run with sequential threading to avoid port conflicts:
 
 ```bash
-# Run integration tests (requires Odoo instance)
-cargo test --test integration_tests
+cd rust-mcp
+
+# Unit tests (in-process)
+cargo test --lib config_manager -- --nocapture --test-threads=1
+
+# Integration tests (spawns actual HTTP server)
+cargo test --test config_manager -- --nocapture
 ```
+
+### Cross-Platform Tests
+
+Tests run on Linux, macOS, and Windows in CI:
+
+```bash
+# Run all tests with all features enabled (same as CI matrix)
+cargo test --all-features
+```
+
+---
+
+## Config UI Tests
+
+The React Config UI uses Vitest with Istanbul coverage:
+
+```bash
+cd config-ui
+
+# Run tests
+npm test
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Type checking (not tests, but catches errors)
+npm run typecheck
+
+# Linting
+npm run lint
+```
+
+Coverage output is written to `config-ui/coverage/` in Cobertura XML format.
 
 ---
 
@@ -37,7 +77,7 @@ cargo test --test integration_tests
 
 ### WebSocket Smoke Client
 
-End-to-end validation of MCP operations:
+End-to-end validation of MCP operations against a running server:
 
 ```bash
 cd rust-mcp
@@ -49,7 +89,7 @@ cargo run --release --bin ws_smoke_client -- \
 
 **Expected output:**
 ```
-tools/list: 22 tools
+tools/list: 24 tools
 - odoo_search
 - odoo_search_read
 - odoo_read
@@ -68,9 +108,22 @@ curl http://127.0.0.1:8787/health
 **Expected:**
 ```json
 {
-  "status": "ok",
-  "version": "1.0.0",
-  "instance": {"name": "default", "reachable": true}
+  "service": "odoo-rust-mcp",
+  "status": "ok"
+}
+```
+
+### Config UI Health Check
+
+```bash
+curl http://127.0.0.1:3008/health
+```
+
+**Expected:**
+```json
+{
+  "service": "odoo-rust-mcp-config",
+  "status": "ok"
 }
 ```
 
@@ -87,24 +140,30 @@ curl http://127.0.0.1:8787/health
 
 ### Authentication
 
-- [ ] **Odoo 19+**: Test API key authentication
-- [ ] **Odoo <19**: Test username/password authentication
+- [ ] **Odoo 19+**: Test API key authentication (JSON-2 client)
+- [ ] **Odoo <19**: Test username/password authentication (JSON-RPC client)
 - [ ] **Multi-instance**: Test switching between instances
+- [ ] **MCP HTTP auth**: Test Bearer token authentication
 
 ### Tools
 
-- [ ] **Read tools**: search, search_read, read, count
-- [ ] **Write tools**: create, update, delete
+- [ ] **Read tools**: search, search_read, read, count, name_search, name_get
+- [ ] **Write tools**: create, create_batch, update, delete, copy
 - [ ] **Workflow tools**: execute, workflow_action
-- [ ] **Metadata tools**: list_models, get_model_metadata
+- [ ] **Metadata tools**: list_models, get_model_metadata, default_get, check_access
+- [ ] **Advanced tools**: read_group, onchange, generate_report
+- [ ] **Cleanup tools**: database_cleanup, deep_cleanup (requires `ODOO_ENABLE_CLEANUP_TOOLS=true`)
 
 ### Config UI
 
 - [ ] Login with default credentials
 - [ ] Change password
-- [ ] Edit tools.json
-- [ ] Edit instances
-- [ ] Enable/disable auth
+- [ ] Edit instances (add, modify, remove)
+- [ ] Edit tools (enable/disable)
+- [ ] Edit prompts
+- [ ] Edit server metadata
+- [ ] Enable/disable MCP HTTP auth
+- [ ] Generate MCP auth token
 
 ---
 
@@ -144,61 +203,112 @@ async fn test_odoo_client() {
 }
 ```
 
-### Mock Testing
-
-```rust
-#[test]
-fn test_with_mock() {
-    let mock_response = json!({
-        "records": [{"id": 1, "name": "Test"}]
-    });
-
-    let client = MockOdooClient::with_response(mock_response);
-    let result = client.search_read("res.partner", &[]).await;
-    assert_eq!(result.records.len(), 1);
-}
-```
-
 ---
 
 ## Test Coverage
 
-Check test coverage:
+### Rust Coverage (cargo-tarpaulin)
 
 ```bash
-# Install cargo-tarpaulin
+cd rust-mcp
+
+# Install tarpaulin
 cargo install cargo-tarpaulin
 
-# Run coverage
-cargo tarpaulin --out Html
+# Generate HTML report
+cargo tarpaulin --all-targets --all-features --out Html
+
+# Generate Cobertura XML (for CI upload)
+cargo tarpaulin --all-targets --all-features --out xml --output-dir coverage
 ```
 
-Open `tarpaulin-report.html` to view results.
+### TypeScript Coverage (Istanbul via Vitest)
+
+```bash
+cd config-ui
+npm run test:coverage
+```
+
+Coverage reports are uploaded to Codecov in CI.
 
 ---
 
-## CI/CD Testing
+## CI/CD Pipeline
 
-GitHub Actions runs on every PR:
+GitHub Actions runs on every push to `main` and on pull requests. The pipeline has 4 stages:
 
-```yaml
-# .github/workflows/ci.yml
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test
-      - run: cargo clippy -- -D warnings
-      - run: cargo fmt --check
+### Stage 1: Build UI
+
+Builds the React Config UI first (required dependency for all other jobs):
+
+```
+build-ui
+  -> npm ci
+  -> npm run build
+  -> Upload artifact: config-ui-dist
+```
+
+### Stage 2: Parallel Quality Checks
+
+All run in parallel after `build-ui` completes:
+
+| Job | Description |
+|-----|-------------|
+| **check** | `cargo check --all-features` |
+| **fmt** | `cargo fmt --all --check` |
+| **clippy** | `cargo clippy -- -D warnings` |
+| **test** | `cargo test` on Linux, macOS, Windows |
+| **ui-tests** | `npm test` (Vitest) |
+| **coverage** | Rust (tarpaulin) + TypeScript (Istanbul), uploaded to Codecov |
+| **security** | `cargo audit` |
+| **config-tests** | Config manager unit + integration tests |
+| **config-integration** | Builds release binary, starts HTTP server, tests endpoints |
+| **helm-validation** | `helm lint` + `helm template` validation |
+| **docker-test** | Docker image build test |
+
+### Stage 3: Build Release Binary
+
+Runs after quality checks pass:
+
+```
+build-release (needs: build-ui, check, fmt, clippy, ui-tests)
+  -> Download config-ui-dist artifact
+  -> cargo build --release
+```
+
+### Stage 4: Service Integration Tests
+
+Tests real deployment scenarios:
+
+| Job | Description |
+|-----|-------------|
+| **test-systemd-service** | Installs binary + systemd unit, tests lifecycle (start/restart/stop), tests HTTP + MCP endpoints |
+| **test-macos-service** | Builds and runs binary on macOS, tests HTTP + MCP endpoints |
+
+### Pipeline Diagram
+
+```
+build-ui
+    |
+    +---> check --------+
+    +---> fmt ----------+
+    +---> clippy -------+---> build-release ---> test-systemd-service
+    +---> ui-tests -----+
+    +---> test (matrix)
+    +---> coverage
+    +---> security
+    +---> config-tests
+    +---> config-integration
+    +---> helm-validation
+    +---> docker-test
+    +---> test-macos-service
 ```
 
 ---
 
 ## Test Configuration
 
-For tests requiring Odoo connection, set environment:
+For tests requiring an Odoo connection, set environment variables:
 
 ```bash
 export TEST_ODOO_URL=http://localhost:8069

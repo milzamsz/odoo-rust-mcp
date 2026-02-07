@@ -187,6 +187,7 @@ pub fn load_odoo_env() -> anyhow::Result<OdooEnvConfig> {
                     username,
                     password,
                     version,
+                    protocol: OdooProtocol::default(),
                     timeout_ms: std::env::var("ODOO_TIMEOUT_MS")
                         .ok()
                         .and_then(|v| v.parse().ok()),
