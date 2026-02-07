@@ -12,10 +12,10 @@ WORKDIR /app
 
 # Install build dependencies (including Node.js for React UI)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config \
-    libssl-dev \
-    ca-certificates \
-    curl \
+  pkg-config \
+  libssl-dev \
+  ca-certificates \
+  curl \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20
@@ -49,11 +49,11 @@ RUN npm run build
 
 # Verify UI build output
 RUN if [ -d /app/rust-mcp/static/dist ] && [ "$(ls -A /app/rust-mcp/static/dist 2>/dev/null)" ]; then \
-        echo "✓ UI build output found at /app/rust-mcp/static/dist"; \
-        find /app/rust-mcp/static/dist -type f | head -5; \
-    else \
-        echo "⚠ Warning: UI build output not found at expected location"; \
-    fi
+  echo "✓ UI build output found at /app/rust-mcp/static/dist"; \
+  find /app/rust-mcp/static/dist -type f | head -5; \
+  else \
+  echo "⚠ Warning: UI build output not found at expected location"; \
+  fi
 
 # Back to Rust directory for final build
 WORKDIR /app/rust-mcp
@@ -64,14 +64,14 @@ RUN cargo build --release --verbose 2>&1 | tail -100
 
 # Verify binary exists
 RUN if [ ! -f /app/rust-mcp/target/release/rust-mcp ]; then \
-        echo "ERROR: Binary not found at /app/rust-mcp/target/release/rust-mcp"; \
-        echo "Contents of /app/rust-mcp/target/release:"; \
-        ls -la /app/rust-mcp/target/release/ 2>/dev/null || echo "Directory does not exist"; \
-        exit 1; \
-    else \
-        echo "✓ Binary found at /app/rust-mcp/target/release/rust-mcp"; \
-        ls -lh /app/rust-mcp/target/release/rust-mcp; \
-    fi
+  echo "ERROR: Binary not found at /app/rust-mcp/target/release/rust-mcp"; \
+  echo "Contents of /app/rust-mcp/target/release:"; \
+  ls -la /app/rust-mcp/target/release/ 2>/dev/null || echo "Directory does not exist"; \
+  exit 1; \
+  else \
+  echo "✓ Binary found at /app/rust-mcp/target/release/rust-mcp"; \
+  ls -lh /app/rust-mcp/target/release/rust-mcp; \
+  fi
 
 # Let Docker fail with a clear error if binary doesn't exist
 # This will help diagnose the issue
@@ -84,14 +84,14 @@ FROM debian:bookworm-slim
 # OCI Labels for container registry
 LABEL org.opencontainers.image.title="Odoo Rust MCP Server"
 LABEL org.opencontainers.image.description="Model Context Protocol server for Odoo integration"
-LABEL org.opencontainers.image.source="https://github.com/rachmataditiya/odoo-rust-mcp"
+LABEL org.opencontainers.image.source="https://github.com/milzamsz/odoo-rust-mcp"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
-LABEL org.opencontainers.image.vendor="Rachmat Aditiya"
+LABEL org.opencontainers.image.vendor="Milzam (Arkana)"
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
+  ca-certificates \
+  curl \
   && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security (Kubernetes best practice)
@@ -122,7 +122,7 @@ EXPOSE 8787 3008
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD curl -sf http://localhost:8787/mcp -X POST -H "Content-Type: application/json" \
-      -d '{"jsonrpc":"2.0","id":1,"method":"ping"}' || exit 1
+  -d '{"jsonrpc":"2.0","id":1,"method":"ping"}' || exit 1
 
 # Environment defaults
 ENV MCP_TOOLS_JSON=/config/tools.json
