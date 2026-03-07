@@ -267,3 +267,61 @@ Files: `instances.json`, `tools.json`, `prompts.json`, `server.json`, `env`
 | Windows Service | Windows background service |
 
 See [Deployment Guide](./deployment.md) for detailed instructions.
+
+---
+
+## Configuration FAQ & Best Practices
+
+### MCP Client vs Server Config
+
+There are two distinct layers of configuration in the MCP ecosystem:
+
+1.  **MCP Client Config** (`claude_desktop_config.json` or `.mcp.json`)
+    *   **Role**: Tells the AI client (Claude Desktop, Claude Code) *how to run* the MCP server binary.
+    *   **Content**: Binary path, command-line arguments (e.g., `--transport stdio`), and environment variables.
+    *   **Example**: "Run `rust-mcp.exe` and give it access to `instances.json`".
+
+2.  **MCP Server Config** (`instances.json`, `tools.json`)
+    *   **Role**: Tells the MCP server *how to connect* to Odoo and *what tools* to expose.
+    *   **Content**: Odoo URLs, databases, API keys, tool definitions.
+    *   **Example**: "Connect to `https://odoo-prod.com` using API key `xyz`".
+
+### Best Practices
+
+1.  **Use API Keys for Odoo 19+**
+    *   Always prefer API keys over username/password.
+    *   API keys are stateless, more secure, and easier to revoke.
+
+2.  **Project-Specific Config**
+    *   Use `.mcp.json` in your project root for project-specific MCP settings (supported by Claude Code).
+    *   This allows you to share MCP configurations with your team without requiring global setup.
+
+    ```json
+    // .mcp.json in project root
+    {
+      "mcpServers": {
+        "odoo": {
+          "command": "rust-mcp",
+          "args": ["--transport", "stdio"],
+          "env": {
+            "ODOO_INSTANCES_JSON": "${PWD}/instances.json"
+          }
+        }
+      }
+    }
+    ```
+
+3.  **Security**
+    *   **Never commit `instances.json`** to version control if it contains real credentials. Add it to `.gitignore`.
+    *   Use separate instances for Development (`localhost`) and Staging/Production.
+
+### Authentication Methods: API Key vs Username/Password
+
+| Feature | API Key (Recommended) | Username/Password (Legacy) |
+| :--- | :--- | :--- |
+| **Supported Versions** | Odoo 19+ (JSON-2 API) | All Versions (JSON-RPC) |
+| **Security** | High (Revocable, Scoped) | Medium (Exposes User Credentials) |
+| **Performance** | Stateless (1 Request) | Stateful (Login + Session) |
+| **Configuration** | Simple (`url`, `db`, `apiKey`) | Complex (`url`, `db`, `version`, `user`, `pass`) |
+
+**Recommendation**: Use API Keys whenever possible. Only use Username/Password for Odoo 17/18 or if you specifically need legacy JSON-RPC behavior.

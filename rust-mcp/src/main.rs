@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::ErrorKind;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -521,6 +522,14 @@ fn migrate_single_to_multi_instance(config_dir: &std::path::Path) {
     }
 }
 
+fn is_addr_in_use_error(err: &anyhow::Error) -> bool {
+    err.chain().any(|cause| {
+        cause
+            .downcast_ref::<std::io::Error>()
+            .is_some_and(|io_err| io_err.kind() == ErrorKind::AddrInUse)
+    })
+}
+
 #[derive(Debug, Clone, ValueEnum)]
 enum TransportMode {
     Stdio,
@@ -622,15 +631,23 @@ async fn main() -> anyhow::Result<()> {
 
     // Clone auth config for config server to trigger reloads
     let auth_config_for_config_server = http_auth_config.clone();
+    let config_server_port = cli.config_server_port;
     tokio::spawn(async move {
         if let Err(e) = start_config_server(
-            cli.config_server_port,
+            config_server_port,
             config_dir,
             Some(auth_config_for_config_server),
         )
         .await
         {
-            error!("Config server error: {}", e);
+            if is_addr_in_use_error(&e) {
+                warn!(
+                    "Config server port {} is already in use; reusing existing Config UI instance",
+                    config_server_port
+                );
+            } else {
+                error!("Config server error: {}", e);
+            }
         }
     });
 
