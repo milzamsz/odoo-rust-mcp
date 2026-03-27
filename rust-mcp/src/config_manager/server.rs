@@ -19,6 +19,7 @@ use tracing::{error, info, warn};
 
 use super::{ConfigManager, ConfigWatcher};
 use crate::mcp::http::AuthConfig as HttpAuthConfig;
+use crate::mcp::tools::OdooClientPool;
 use crate::odoo::config::OdooInstanceConfig;
 use crate::odoo::unified_client::OdooClient;
 
@@ -99,6 +100,8 @@ struct AppState {
     env_file_path: PathBuf,
     /// HTTP auth config for hot-reload (optional - only when HTTP transport is used)
     http_auth_config: Option<HttpAuthConfig>,
+    /// MCP client pool for hot-reload when instances.json changes (optional)
+    pool: Option<OdooClientPool>,
 }
 
 // Session token validity duration (24 hours)
@@ -161,6 +164,7 @@ pub async fn start_config_server(
     port: u16,
     config_dir: std::path::PathBuf,
     http_auth_config: Option<HttpAuthConfig>,
+    pool: Option<OdooClientPool>,
 ) -> anyhow::Result<()> {
     let config_manager = ConfigManager::new(config_dir.clone());
     let config_watcher = Arc::new(ConfigWatcher::new(config_dir.clone())?);
@@ -180,6 +184,7 @@ pub async fn start_config_server(
         auth_config,
         env_file_path,
         http_auth_config,
+        pool,
     };
 
     // Serve static files from dist directory (React app)
@@ -192,6 +197,12 @@ pub async fn start_config_server(
             "static/dist directory not found at {:?}. Please build the React UI first with: cd config-ui && npm run build",
             static_dir_final
         );
+    }
+
+    // Serve built mdBook documentation at /docs/ (optional — no error if not found)
+    let docs_dir = find_docs_dir();
+    if let Some(ref d) = docs_dir {
+        info!("Serving documentation from: {:?}", d);
     }
 
     // Protected routes (require auth)
@@ -226,9 +237,16 @@ pub async fn start_config_server(
         .route("/api/auth/login", post(login))
         .route("/api/auth/logout", post(logout));
 
-    let app = Router::new()
+    let mut app = Router::new()
         .merge(public_routes)
-        .merge(protected_routes)
+        .merge(protected_routes);
+
+    // Mount docs at /docs/ when the built book directory is available
+    if let Some(ref docs_path) = docs_dir {
+        app = app.nest_service("/docs", ServeDir::new(docs_path));
+    }
+
+    let app = app
         // Serve static files (React app) - use fallback_service for root path
         .fallback_service(ServeDir::new(&static_dir_final))
         .layer(CorsLayer::permissive())
@@ -302,6 +320,55 @@ fn find_static_dir() -> PathBuf {
         warn!("static/dist directory not found in any location. Please build the React UI first with: cd config-ui && npm run build");
         std::path::PathBuf::from("static/dist")
     })
+}
+
+/// Find the built mdBook documentation directory (docs/book/).
+/// Returns None when the docs haven't been built yet — the /docs route is simply
+/// not mounted in that case, so the server still starts cleanly.
+fn find_docs_dir() -> Option<PathBuf> {
+    let candidates: &[&str] = &[
+        // Running from rust-mcp/ working directory
+        "../docs/book",
+        // Running from project root
+        "docs/book",
+    ];
+
+    for rel in candidates {
+        let p = std::path::Path::new(rel);
+        if p.exists() && p.is_dir() {
+            if let Ok(canonical) = p.canonicalize() {
+                return Some(canonical);
+            }
+        }
+    }
+
+    // Relative to executable
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(exe_dir) = exe.parent()
+    {
+        let candidate = exe_dir.join("../docs/book");
+        if candidate.exists()
+            && candidate.is_dir()
+            && let Ok(canonical) = candidate.canonicalize()
+        {
+            return Some(canonical);
+        }
+    }
+
+    // Relative to current working directory (project root variant)
+    if let Ok(cwd) = std::env::current_dir() {
+        for rel in &["docs/book", "../docs/book"] {
+            let candidate = cwd.join(rel);
+            if candidate.exists()
+                && candidate.is_dir()
+                && let Ok(canonical) = candidate.canonicalize()
+            {
+                return Some(canonical);
+            }
+        }
+    }
+
+    None
 }
 
 // =============================================================================
@@ -733,6 +800,10 @@ async fn update_instances(
         Ok(result) => {
             if result.success {
                 state.config_watcher.notify("instances.json");
+                // Hot-reload the MCP client pool so tool calls use the new instances immediately
+                if let Some(ref pool) = state.pool {
+                    pool.reload().await;
+                }
                 let mut response = json!({
                     "status": "saved",
                     "message": result.message

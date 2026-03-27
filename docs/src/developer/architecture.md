@@ -176,12 +176,38 @@ Maps tool `op.type` to handler functions. All 22 operation types:
 | `database_cleanup` | `op_database_cleanup()` | Clean database |
 | `deep_cleanup` | `op_deep_cleanup()` | Deep clean database |
 
-### 5. Odoo Client Pool
+### 5. Odoo Client Pool (`mcp/tools.rs`)
 
-- `OdooClientPool` maintains a `HashMap` of clients per instance name
-- `pool.get(instance_name)` creates client on first use, returns cached thereafter
-- Clients implement the `OdooClient` trait (`unified_client.rs`)
-- Version detection determines JSON-2 vs JSON-RPC client
+`OdooClientPool` is a cloneable, thread-safe wrapper around the loaded instance configuration:
+
+```rust
+pub struct OdooClientPool {
+    env:     Arc<RwLock<OdooEnvConfig>>,           // hot-reloadable config
+    clients: Arc<Mutex<HashMap<String, OdooClient>>>, // cached per-instance clients
+    pub metadata_cache: MetadataCache,
+}
+```
+
+Key behaviours:
+
+| Method | Description |
+|--------|-------------|
+| `from_env()` | Loads instances from `ODOO_INSTANCES_JSON` / env vars |
+| `get(name)` | Returns cached client or creates a new one; reads config under `RwLock` |
+| `instance_names()` | Returns available instance names (lock-free `try_read`) |
+| `reload()` | **Hot-reload**: re-reads `ODOO_INSTANCES_JSON`, swaps config under write lock, clears client cache |
+
+#### Bidirectional instance sync
+
+The pool and Config UI stay in sync through two paths:
+
+1. **Config UI → pool** (`server.rs → pool.reload()`): After `update_instances` saves `instances.json`, it calls `pool.reload().await`. The `std::sync::RwLock` write guard is released *before* the async `clients.lock().await` to keep the future `Send`-safe.
+
+2. **Env vars → `instances.json`** (`main.rs → sync_env_instances_to_file()`): At startup, if `ODOO_INSTANCES` contains instances not yet in `instances.json`, they are merged in additively so they appear in the Config UI.
+
+#### Thread-safety note
+
+`OdooClientPool` uses `std::sync::RwLock` (not Tokio's) for the config field because `instance_names()` is called from synchronous contexts. The lock is never held across an `.await` point.
 
 ### 6. Metadata Cache (`mcp/cache.rs`)
 
@@ -194,9 +220,27 @@ Maps tool `op.type` to handler functions. All 22 operation types:
 
 Web-based configuration UI on port 3008.
 
-- **Manager** (`manager.rs`): CRUD operations for JSON config files
-- **Watcher** (`watcher.rs`): File system monitoring for external changes
-- **Server** (`server.rs`): Axum HTTP server with REST API and static file serving
+- **Manager** (`manager.rs`): CRUD operations for JSON config files with backup/rollback
+- **Watcher** (`watcher.rs`): File system monitoring; triggers Registry reload for `tools.json` / `prompts.json` / `server.json`; notifies the pool when `instances.json` changes
+- **Server** (`server.rs`): Axum HTTP server with:
+  - REST API for all config CRUD and auth management
+  - Instance connection test endpoint (`POST /api/config/instances/{name}/test`)
+  - Static file serving for the React UI (`/` via `ServeDir`)
+  - Optional docs serving at `/docs/` when `docs/book/` is present
+
+The `AppState` struct carries an `Option<OdooClientPool>` so the REST handlers can trigger `pool.reload()` when instances are saved:
+
+```rust
+struct AppState {
+    config_manager:   ConfigManager,
+    config_watcher:   Arc<ConfigWatcher>,
+    sessions:         Arc<RwLock<HashMap<String, SessionInfo>>>,
+    auth_config:      DynamicAuthConfig,
+    env_file_path:    PathBuf,
+    http_auth_config: Option<HttpAuthConfig>,
+    pool:             Option<OdooClientPool>,   // for instance hot-reload
+}
+```
 
 ---
 
@@ -229,27 +273,42 @@ Web-based configuration UI on port 3008.
 ### Configuration Hot-Reload Flow
 
 ```
-1. User edits config file (or uses Config UI)
+Tools / Prompts / Server config:
+
+1. User saves via Config UI (or edits file directly)
       |
-2. File watcher detects change (watcher.rs)
+2. ConfigWatcher detects change
       |
-3. Config manager reloads affected file (manager.rs)
+3. Registry reloads tool/prompt/server definitions
       |
-4. Registry is updated with new definitions
-      |
-5. Next MCP request uses updated configuration
+4. Next MCP tools/list or tools/call uses updated config
       (no restart needed)
+
+Instances:
+
+1. User saves instances in Config UI
+      |
+2. ConfigManager writes instances.json
+      |
+3. update_instances handler calls pool.reload().await
+      |
+4. OdooClientPool re-reads ODOO_INSTANCES_JSON,
+   swaps OdooEnvConfig under RwLock, clears client cache
+      |
+5. Next tool call uses updated credentials immediately
 ```
 
 ---
 
 ## Thread Safety
 
-- `Arc<RwLock>` for shared configuration state (Registry)
-- `Arc<RwLock<HashMap>>` for metadata cache
-- Async/await with Tokio multi-threaded runtime
-- Configuration changes trigger atomic swaps
-- No locking during Odoo API calls
+| Shared State | Mechanism | Notes |
+|-------------|-----------|-------|
+| Registry (tools/prompts/server) | `Arc<RwLock<T>>` (Tokio) | Read-heavy; write on reload |
+| OdooClientPool.env | `Arc<std::sync::RwLock<T>>` | Sync lock; never held across `.await` |
+| OdooClientPool.clients | `Arc<tokio::sync::Mutex<T>>` | Async lock; cleared on reload |
+| MetadataCache | `Arc<RwLock<HashMap>>` (Tokio) | TTL-based; per `(instance, model)` key |
+| Sessions (Config UI) | `Arc<tokio::sync::RwLock<T>>` | 24-hour session tokens |
 
 ---
 

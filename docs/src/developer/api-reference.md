@@ -263,7 +263,8 @@ The Config UI uses Bearer token authentication. Token is stored in `localStorage
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/config/instances` | GET | Get instances configuration |
-| `/api/config/instances` | POST | Save instances configuration |
+| `/api/config/instances` | POST | Save instances configuration; triggers `OdooClientPool.reload()` |
+| `/api/config/instances/{name}/test` | POST | Test connectivity for a specific instance |
 | `/api/config/tools` | GET | Get tools configuration |
 | `/api/config/tools` | POST | Save tools configuration |
 | `/api/config/prompts` | GET | Get prompts configuration |
@@ -275,9 +276,30 @@ The Config UI uses Bearer token authentication. Token is stored in `localStorage
 | `/api/auth/mcp-auth-enabled` | POST | Enable/disable MCP HTTP auth |
 | `/api/auth/generate-mcp-token` | POST | Generate new MCP auth token |
 
-### Static Files
+#### Instance connection test
 
-The React UI is served as a fallback via `ServeDir` from the `static/dist/` directory.
+`POST /api/config/instances/{name}/test`
+
+Tests the connection to a named Odoo instance by loading its config from `instances.json`, creating a client, and calling `health_check()` (which runs a lightweight `search_count` on `ir.model`). The test runs server-side so it bypasses browser CORS restrictions.
+
+**Response (success):**
+```json
+{ "ok": true, "latency_ms": 142 }
+```
+
+**Response (failure):**
+```json
+{ "ok": false, "error": "Connection refused (os error 111)" }
+```
+
+### Static Files and Documentation
+
+| Path | Source | Notes |
+|------|--------|-------|
+| `/` (fallback) | `static/dist/` | Built React UI via `ServeDir` |
+| `/docs/` | `docs/book/` | Built mdBook docs; only mounted when directory exists |
+
+The documentation route is discovered at startup by `find_docs_dir()`, which searches for `docs/book/` relative to the working directory and executable path. If the docs have not been built (`mdbook build`), the `/docs/` route is simply not registered — the server starts normally.
 
 ### Config Server Health Check Response
 

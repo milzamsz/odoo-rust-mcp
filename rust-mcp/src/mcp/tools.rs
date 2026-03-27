@@ -1,9 +1,10 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use base64::Engine;
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex;
+use tracing::{info, warn};
 
 use crate::cleanup;
 use crate::mcp::cache::MetadataCache;
@@ -14,9 +15,10 @@ use crate::odoo::unified_client::OdooClient;
 
 /// Shared state: parsed env + instantiated clients per instance.
 /// Supports both Odoo 19+ (JSON-2 API) and Odoo < 19 (JSON-RPC).
+/// The env is wrapped in RwLock to support hot-reload when instances.json changes.
 #[derive(Clone)]
 pub struct OdooClientPool {
-    env: Arc<OdooEnvConfig>,
+    env: Arc<RwLock<OdooEnvConfig>>,
     clients: Arc<Mutex<HashMap<String, OdooClient>>>,
     pub metadata_cache: MetadataCache,
 }
@@ -25,7 +27,7 @@ impl OdooClientPool {
     pub fn from_env() -> anyhow::Result<Self> {
         let env = load_odoo_env()?;
         Ok(Self {
-            env: Arc::new(env),
+            env: Arc::new(RwLock::new(env)),
             clients: Arc::new(Mutex::new(HashMap::new())),
             metadata_cache: MetadataCache::new(),
         })
@@ -39,25 +41,67 @@ impl OdooClientPool {
             }
         }
 
-        let cfg = self.env.instances.get(instance).ok_or_else(|| {
-            let available = self
+        // Read config under lock (no await while lock is held)
+        let client = {
+            let env = self
                 .env
-                .instances
-                .keys()
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(", ");
-            anyhow::anyhow!("Unknown Odoo instance '{instance}'. Available: {available}")
-        })?;
+                .read()
+                .map_err(|e| anyhow::anyhow!("Instance config lock poisoned: {e}"))?;
+            let cfg = env.instances.get(instance).ok_or_else(|| {
+                let available = env
+                    .instances
+                    .keys()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                anyhow::anyhow!("Unknown Odoo instance '{instance}'. Available: {available}")
+            })?;
+            OdooClient::new(cfg)?
+        };
 
-        let client = OdooClient::new(cfg)?;
         let mut guard = self.clients.lock().await;
         guard.insert(instance.to_string(), client.clone());
         Ok(client)
     }
 
     pub fn instance_names(&self) -> Vec<String> {
-        self.env.instances.keys().cloned().collect()
+        self.env
+            .read()
+            .map(|env| env.instances.keys().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    /// Hot-reload instances from ODOO_INSTANCES_JSON.
+    /// Called by the config server when instances.json is saved via the Config UI.
+    /// Clears cached clients so next call creates fresh ones with the new config.
+    pub async fn reload(&self) {
+        match load_odoo_env() {
+            Ok(new_env) => {
+                let count = new_env.instances.len();
+                // Write lock scope — must NOT hold std::sync lock across .await
+                let write_ok = match self.env.write() {
+                    Ok(mut env) => {
+                        *env = new_env;
+                        true
+                    }
+                    Err(e) => {
+                        warn!("OdooClientPool: lock poisoned during reload: {e}");
+                        false
+                    }
+                };
+                if write_ok {
+                    // Lock is released before this .await
+                    self.clients.lock().await.clear();
+                    info!("OdooClientPool: hot-reloaded {} instance(s)", count);
+                }
+            }
+            Err(e) => {
+                warn!(
+                    "OdooClientPool: reload failed, keeping current config: {}",
+                    e
+                );
+            }
+        }
     }
 }
 

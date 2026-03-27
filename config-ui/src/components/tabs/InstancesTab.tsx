@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, RefreshCw, Database, Key, User, Wifi, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Plus, Edit2, Trash2, RefreshCw, Database, Key, User, Wifi, Loader2, CheckCircle2, XCircle, Download, Upload, AlertTriangle } from 'lucide-react';
 import { useConfig } from '../../hooks/useConfig';
 import { Card } from '../Card';
 import { Button } from '../Button';
@@ -22,12 +22,24 @@ type ConnStatus =
   | { status: 'ok'; latency: number }
   | { status: 'error'; error: string };
 
+type ImportMode = 'merge' | 'replace';
+
+interface ImportPreview {
+  incoming: InstanceConfig;
+  conflicts: string[];   // names that exist in both
+  newNames: string[];    // names only in incoming
+  mode: ImportMode;
+}
+
 export function InstancesTab() {
   const { load, save, status, loading } = useConfig('instances');
   const [config, setConfig] = useState<InstanceConfig>({});
   const [showForm, setShowForm] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [connStatuses, setConnStatuses] = useState<Record<string, ConnStatus>>({});
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadInstances();
@@ -42,6 +54,73 @@ export function InstancesTab() {
       console.error('Failed to load instances:', error);
     }
   };
+
+  // ── Export ──────────────────────────────────────────────────────────────────
+
+  const handleExport = () => {
+    const json = JSON.stringify(config, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `odoo-instances-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ── Import ──────────────────────────────────────────────────────────────────
+
+  const handleImportClick = () => {
+    setImportError(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset so same file can be re-selected
+    e.target.value = '';
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        if (typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null) {
+          setImportError('Invalid file: expected a JSON object mapping instance names to configs.');
+          return;
+        }
+        const incoming = parsed as InstanceConfig;
+        const existingNames = new Set(Object.keys(config));
+        const conflicts = Object.keys(incoming).filter(n => existingNames.has(n));
+        const newNames = Object.keys(incoming).filter(n => !existingNames.has(n));
+        setImportPreview({ incoming, conflicts, newNames, mode: 'merge' });
+        setImportError(null);
+      } catch {
+        setImportError('Invalid JSON file. Please select a valid instances export.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImportConfirm = async () => {
+    if (!importPreview) return;
+    try {
+      let merged: InstanceConfig;
+      if (importPreview.mode === 'replace') {
+        merged = { ...importPreview.incoming };
+      } else {
+        // merge: incoming entries overwrite conflicts, keep non-conflicting existing
+        merged = { ...config, ...importPreview.incoming };
+      }
+      await save(merged);
+      await loadInstances();
+      setImportPreview(null);
+    } catch (error) {
+      console.error('Failed to import instances:', error);
+    }
+  };
+
+  // ── Connection test ─────────────────────────────────────────────────────────
 
   const testConnection = async (name: string) => {
     setConnStatuses(prev => ({ ...prev, [name]: { status: 'checking' } }));
@@ -69,20 +148,13 @@ export function InstancesTab() {
     await Promise.all(names.map(name => testConnection(name)));
   };
 
-  const handleAdd = () => {
-    setEditingName(null);
-    setShowForm(true);
-  };
+  // ── CRUD ────────────────────────────────────────────────────────────────────
 
-  const handleEdit = (name: string) => {
-    setEditingName(name);
-    setShowForm(true);
-  };
+  const handleAdd = () => { setEditingName(null); setShowForm(true); };
+  const handleEdit = (name: string) => { setEditingName(name); setShowForm(true); };
 
   const handleDelete = async (name: string) => {
-    if (!confirm(`Are you sure you want to delete the instance "${name}"?`)) {
-      return;
-    }
+    if (!confirm(`Are you sure you want to delete the instance "${name}"?`)) return;
     try {
       const updatedConfig = { ...config };
       delete updatedConfig[name];
@@ -96,9 +168,7 @@ export function InstancesTab() {
   const handleSaveInstance = async (name: string, data: InstanceConfig[string]) => {
     try {
       const updatedConfig = { ...config };
-      if (editingName && editingName !== name) {
-        delete updatedConfig[editingName];
-      }
+      if (editingName && editingName !== name) delete updatedConfig[editingName];
       updatedConfig[name] = data;
       await save(updatedConfig);
       await loadInstances();
@@ -114,27 +184,74 @@ export function InstancesTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-3xl font-bold text-gray-900">Odoo Instances</h2>
           <p className="mt-2 text-gray-600">
             Configure your Odoo instance connections. Changes are applied immediately with hot reload.
           </p>
         </div>
-        <Button
-          onClick={handleAdd}
-          icon={<Plus size={18} />}
-          variant="primary"
-          disabled={loading}
-        >
-          Add Instance
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            onClick={handleImportClick}
+            icon={<Upload size={16} />}
+            variant="ghost"
+            disabled={loading}
+          >
+            Import
+          </Button>
+          <Button
+            onClick={handleExport}
+            icon={<Download size={16} />}
+            variant="ghost"
+            disabled={instances.length === 0 || loading}
+          >
+            Export
+          </Button>
+          <Button
+            onClick={handleAdd}
+            icon={<Plus size={18} />}
+            variant="primary"
+            disabled={loading}
+          >
+            Add Instance
+          </Button>
+        </div>
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
       {status && (
         <StatusMessage
           status={status}
           onDismiss={status.type === 'error' ? () => {} : undefined}
+        />
+      )}
+
+      {importError && (
+        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <XCircle size={16} className="flex-shrink-0" />
+          {importError}
+          <button onClick={() => setImportError(null)} className="ml-auto text-red-500 hover:text-red-700">✕</button>
+        </div>
+      )}
+
+      {/* Import confirmation dialog */}
+      {importPreview && (
+        <ImportConfirmDialog
+          preview={importPreview}
+          onModeChange={(mode) => setImportPreview(p => p ? { ...p, mode } : p)}
+          onConfirm={handleImportConfirm}
+          onCancel={() => setImportPreview(null)}
+          loading={loading}
         />
       )}
 
@@ -145,12 +262,7 @@ export function InstancesTab() {
           </h3>
           <div className="flex gap-2">
             {instances.length > 0 && (
-              <Button
-                onClick={testAll}
-                icon={<Wifi size={16} />}
-                variant="ghost"
-                size="sm"
-              >
+              <Button onClick={testAll} icon={<Wifi size={16} />} variant="ghost" size="sm">
                 Test All
               </Button>
             )}
@@ -170,36 +282,27 @@ export function InstancesTab() {
           <div className="text-center py-16">
             <Database className="mx-auto text-gray-400 mb-3" size={48} />
             <p className="text-gray-500 mb-4">No instances configured</p>
-            <Button onClick={handleAdd} icon={<Plus size={16} />} variant="primary">
-              Add Your First Instance
-            </Button>
+            <div className="flex justify-center gap-3">
+              <Button onClick={handleAdd} icon={<Plus size={16} />} variant="primary">
+                Add Your First Instance
+              </Button>
+              <Button onClick={handleImportClick} icon={<Upload size={16} />} variant="ghost">
+                Import from File
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    URL
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Database
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Auth Type
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Version
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-                    Actions
-                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">URL</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Database</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Auth Type</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Version</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -207,15 +310,12 @@ export function InstancesTab() {
                   const authType = instance.apiKey ? 'API Key' : 'Username/Password';
                   const AuthIcon = instance.apiKey ? Key : User;
                   const cs = connStatuses[name] ?? { status: 'idle' };
-
                   return (
                     <tr key={name} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <Database size={16} className="text-blue-600 flex-shrink-0" />
-                          <code className="font-mono text-sm font-medium text-gray-900">
-                            {name}
-                          </code>
+                          <code className="font-mono text-sm font-medium text-gray-900">{name}</code>
                         </div>
                       </td>
                       <td className="px-4 py-4">
@@ -230,9 +330,7 @@ export function InstancesTab() {
                         </a>
                       </td>
                       <td className="px-4 py-4">
-                        <code className="text-sm text-gray-700 font-mono">
-                          {instance.db}
-                        </code>
+                        <code className="text-sm text-gray-700 font-mono">{instance.db}</code>
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-1.5">
@@ -295,20 +393,141 @@ export function InstancesTab() {
           instanceData={editingName ? config[editingName] : null}
           existingNames={existingNames}
           onSave={handleSaveInstance}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingName(null);
-          }}
+          onCancel={() => { setShowForm(false); setEditingName(null); }}
         />
       )}
     </div>
   );
 }
 
+// ── Import Confirmation Dialog ─────────────────────────────────────────────────
+
+interface ImportConfirmDialogProps {
+  preview: ImportPreview;
+  onModeChange: (mode: ImportMode) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}
+
+function ImportConfirmDialog({ preview, onModeChange, onConfirm, onCancel, loading }: ImportConfirmDialogProps) {
+  const totalIncoming = Object.keys(preview.incoming).length;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Upload size={20} className="text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Import Instances</h3>
+              <p className="text-sm text-gray-500">
+                {totalIncoming} instance{totalIncoming !== 1 ? 's' : ''} found in file
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {/* Summary */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-green-700">{preview.newNames.length}</div>
+              <div className="text-xs text-green-600 mt-0.5">New instances</div>
+            </div>
+            <div className={`border rounded-lg p-3 text-center ${preview.conflicts.length > 0 ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
+              <div className={`text-2xl font-bold ${preview.conflicts.length > 0 ? 'text-amber-700' : 'text-gray-400'}`}>
+                {preview.conflicts.length}
+              </div>
+              <div className={`text-xs mt-0.5 ${preview.conflicts.length > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                Conflicts
+              </div>
+            </div>
+          </div>
+
+          {/* Conflict names */}
+          {preview.conflicts.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle size={14} className="text-amber-600 flex-shrink-0" />
+                <span className="text-xs font-medium text-amber-700">
+                  These instances already exist and will be overwritten:
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {preview.conflicts.map(n => (
+                  <code key={n} className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-mono">
+                    {n}
+                  </code>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Import mode */}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">Import mode</p>
+            <div className="space-y-2">
+              <label className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-gray-50 has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50">
+                <input
+                  type="radio"
+                  name="importMode"
+                  value="merge"
+                  checked={preview.mode === 'merge'}
+                  onChange={() => onModeChange('merge')}
+                  className="mt-0.5"
+                />
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Merge</div>
+                  <div className="text-xs text-gray-500">
+                    Add new instances and overwrite conflicts. Existing non-conflicting instances are kept.
+                  </div>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-gray-50 has-[:checked]:border-red-400 has-[:checked]:bg-red-50">
+                <input
+                  type="radio"
+                  name="importMode"
+                  value="replace"
+                  checked={preview.mode === 'replace'}
+                  onChange={() => onModeChange('replace')}
+                  className="mt-0.5"
+                />
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Replace all</div>
+                  <div className="text-xs text-gray-500">
+                    Remove all existing instances and use only the imported ones.
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+          <Button variant="ghost" onClick={onCancel} disabled={loading}>
+            Cancel
+          </Button>
+          <Button
+            variant={preview.mode === 'replace' ? 'danger' : 'primary'}
+            onClick={onConfirm}
+            loading={loading}
+            icon={<Upload size={16} />}
+          >
+            {preview.mode === 'replace' ? 'Replace All' : `Import ${totalIncoming}`}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Connection status badge ───────────────────────────────────────────────────
+
 function ConnectionStatusBadge({ cs }: { cs: ConnStatus }) {
-  if (cs.status === 'idle') {
-    return <span className="text-xs text-gray-400">—</span>;
-  }
+  if (cs.status === 'idle') return <span className="text-xs text-gray-400">—</span>;
   if (cs.status === 'checking') {
     return (
       <div className="flex items-center gap-1.5 text-xs text-gray-500">

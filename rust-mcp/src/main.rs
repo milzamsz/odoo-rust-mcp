@@ -522,6 +522,67 @@ fn migrate_single_to_multi_instance(config_dir: &std::path::Path) {
     }
 }
 
+/// Direction 2 sync: if ODOO_INSTANCES env var contains instances that are not
+/// yet in instances.json, add them so they appear in the Config UI.
+/// This runs once at startup and only adds — never overwrites existing entries.
+fn sync_env_instances_to_file() {
+    // Only relevant when ODOO_INSTANCES (inline JSON) is set
+    let Ok(raw) = std::env::var("ODOO_INSTANCES") else {
+        return;
+    };
+    let raw = raw.trim();
+    if raw.is_empty() || !(raw.starts_with('{') || raw.starts_with('[')) {
+        return;
+    }
+
+    // Only merge if we know where instances.json lives
+    let Ok(instances_path) = std::env::var("ODOO_INSTANCES_JSON") else {
+        return;
+    };
+    let instances_path = instances_path.trim();
+    if instances_path.is_empty() {
+        return;
+    }
+
+    let env_instances: std::collections::HashMap<String, serde_json::Value> =
+        match serde_json::from_str(raw) {
+            Ok(v) => v,
+            Err(e) => {
+                warn!("sync_env_instances_to_file: failed to parse ODOO_INSTANCES: {e}");
+                return;
+            }
+        };
+
+    let mut file_instances: std::collections::HashMap<String, serde_json::Value> =
+        fs::read_to_string(instances_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+
+    let mut added = 0usize;
+    for (name, config) in env_instances {
+        if !file_instances.contains_key(&name) {
+            file_instances.insert(name, config);
+            added += 1;
+        }
+    }
+
+    if added > 0 {
+        match serde_json::to_string_pretty(&file_instances) {
+            Ok(json_str) => {
+                if let Err(e) = fs::write(instances_path, json_str) {
+                    warn!("sync_env_instances_to_file: failed to write instances.json: {e}");
+                } else {
+                    info!(
+                        "Synced {added} instance(s) from ODOO_INSTANCES env var into instances.json"
+                    );
+                }
+            }
+            Err(e) => warn!("sync_env_instances_to_file: failed to serialize: {e}"),
+        }
+    }
+}
+
 fn is_addr_in_use_error(err: &anyhow::Error) -> bool {
     err.chain().any(|cause| {
         cause
@@ -602,6 +663,10 @@ async fn main() -> anyhow::Result<()> {
     // Auto-load user config from ~/.config/odoo-rust-mcp/
     setup_user_config();
 
+    // Direction 2: If ODOO_INSTANCES env var has instances not yet in instances.json,
+    // merge them in so they are visible and editable via the Config UI.
+    sync_env_instances_to_file();
+
     // Handle subcommands first
     if let Some(command) = cli.command {
         match command {
@@ -616,6 +681,9 @@ async fn main() -> anyhow::Result<()> {
     let registry = Arc::new(Registry::from_env());
     registry.initial_load().await?;
     registry.start_watchers();
+
+    // Clone pool for the config server before moving it into the handler
+    let pool_for_config_server = pool.clone();
 
     // Cleanup tool gating is handled via tool guards (e.g. requiresEnvTrue=ODOO_ENABLE_CLEANUP_TOOLS).
     // We keep the CLI flag for compatibility, but it only affects the env var via clap env binding.
@@ -637,6 +705,7 @@ async fn main() -> anyhow::Result<()> {
             config_server_port,
             config_dir,
             Some(auth_config_for_config_server),
+            Some(pool_for_config_server),
         )
         .await
         {

@@ -5,6 +5,7 @@
 - [Functional Documentation]()
     - [Getting Started](functional/getting-started.md)
     - [Configuration](functional/configuration.md)
+    - [Config UI Guide](functional/config-ui.md)
     - [Tools Reference](functional/tools-reference.md)
     - [Prompts Reference](functional/prompts-reference.md)
     - [Use Cases](functional/use-cases.md)

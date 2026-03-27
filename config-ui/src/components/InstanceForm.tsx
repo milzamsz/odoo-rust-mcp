@@ -275,7 +275,7 @@ export function InstanceForm({ instanceName, instanceData, existingNames, onSave
                 value={version}
                 onChange={(e) => setVersion(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., 16, 17, 18"
+                placeholder="e.g., 16, 17, 18, 19"
               />
             </div>
           </div>

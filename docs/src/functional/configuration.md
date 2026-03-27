@@ -192,6 +192,10 @@ Access the visual configuration interface at `http://localhost:3008`.
 4. Configure instances in **Instances** tab
 5. Optionally enable MCP HTTP authentication in **Security** tab
 
+![Config UI login screen](../images/config-ui/login.png)
+
+*The default sign-in screen on port 3008. Credentials are sourced from the Config UI environment variables.*
+
 ### Hot-Reload
 
 Changes made through the Config UI or by directly editing JSON config files take effect immediately. The file watcher detects changes and reloads the MCP registry without restarting the server.

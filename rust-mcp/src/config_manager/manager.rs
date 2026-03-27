@@ -92,9 +92,22 @@ impl ConfigManager {
         serde_json::from_str(content).map_err(|e| format!("Invalid JSON: {}", e))
     }
 
+    /// Resolve the authoritative instances.json path.
+    /// Prefers ODOO_INSTANCES_JSON env var so the Config UI and the MCP pool
+    /// always read/write the same file regardless of config_dir.
+    fn instances_path(&self) -> PathBuf {
+        if let Ok(p) = std::env::var("ODOO_INSTANCES_JSON") {
+            let p = p.trim().to_string();
+            if !p.is_empty() {
+                return PathBuf::from(p);
+            }
+        }
+        self.config_dir.join("instances.json")
+    }
+
     /// Load instances config from file
     pub async fn load_instances(&self) -> anyhow::Result<Value> {
-        let path = self.config_dir.join("instances.json");
+        let path = self.instances_path();
 
         if !path.exists() {
             warn!(
@@ -124,7 +137,7 @@ impl ConfigManager {
 
     /// Save instances config to file with backup and rollback support
     pub async fn save_instances(&self, config: Value) -> anyhow::Result<ConfigResult> {
-        let path = self.config_dir.join("instances.json");
+        let path = self.instances_path();
 
         // Validate JSON structure
         if !config.is_object() {
