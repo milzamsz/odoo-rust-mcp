@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, RefreshCw, Database, Key, User } from 'lucide-react';
+import { Plus, Edit2, Trash2, RefreshCw, Database, Key, User, Wifi, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useConfig } from '../../hooks/useConfig';
 import { Card } from '../Card';
 import { Button } from '../Button';
@@ -7,11 +7,27 @@ import { StatusMessage } from '../StatusMessage';
 import { InstanceForm } from '../InstanceForm';
 import type { InstanceConfig } from '../../types';
 
+const TOKEN_STORAGE_KEY = 'mcp_config_token';
+
+function getAuthHeaders(): HeadersInit {
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
+type ConnStatus =
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | { status: 'ok'; latency: number }
+  | { status: 'error'; error: string };
+
 export function InstancesTab() {
   const { load, save, status, loading } = useConfig('instances');
   const [config, setConfig] = useState<InstanceConfig>({});
   const [showForm, setShowForm] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
+  const [connStatuses, setConnStatuses] = useState<Record<string, ConnStatus>>({});
 
   useEffect(() => {
     loadInstances();
@@ -21,9 +37,36 @@ export function InstancesTab() {
     try {
       const data = await load() as InstanceConfig;
       setConfig(data);
+      setConnStatuses({});
     } catch (error) {
       console.error('Failed to load instances:', error);
     }
+  };
+
+  const testConnection = async (name: string) => {
+    setConnStatuses(prev => ({ ...prev, [name]: { status: 'checking' } }));
+    try {
+      const res = await fetch(`/api/config/instances/${encodeURIComponent(name)}/test`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setConnStatuses(prev => ({ ...prev, [name]: { status: 'ok', latency: data.latency_ms } }));
+      } else {
+        setConnStatuses(prev => ({
+          ...prev,
+          [name]: { status: 'error', error: data.error || 'Connection failed' },
+        }));
+      }
+    } catch {
+      setConnStatuses(prev => ({ ...prev, [name]: { status: 'error', error: 'Network error' } }));
+    }
+  };
+
+  const testAll = async () => {
+    const names = Object.keys(config);
+    await Promise.all(names.map(name => testConnection(name)));
   };
 
   const handleAdd = () => {
@@ -40,7 +83,6 @@ export function InstancesTab() {
     if (!confirm(`Are you sure you want to delete the instance "${name}"?`)) {
       return;
     }
-
     try {
       const updatedConfig = { ...config };
       delete updatedConfig[name];
@@ -51,16 +93,13 @@ export function InstancesTab() {
     }
   };
 
-  const handleSaveInstance = async (name: string, data: any) => {
+  const handleSaveInstance = async (name: string, data: InstanceConfig[string]) => {
     try {
       const updatedConfig = { ...config };
-
       if (editingName && editingName !== name) {
         delete updatedConfig[editingName];
       }
-
       updatedConfig[name] = data;
-
       await save(updatedConfig);
       await loadInstances();
       setShowForm(false);
@@ -104,15 +143,27 @@ export function InstancesTab() {
           <h3 className="text-lg font-semibold text-gray-900">
             Configured Instances ({instances.length})
           </h3>
-          <Button
-            onClick={loadInstances}
-            loading={loading}
-            icon={<RefreshCw size={16} />}
-            variant="ghost"
-            size="sm"
-          >
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            {instances.length > 0 && (
+              <Button
+                onClick={testAll}
+                icon={<Wifi size={16} />}
+                variant="ghost"
+                size="sm"
+              >
+                Test All
+              </Button>
+            )}
+            <Button
+              onClick={loadInstances}
+              loading={loading}
+              icon={<RefreshCw size={16} />}
+              variant="ghost"
+              size="sm"
+            >
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {instances.length === 0 ? (
@@ -143,6 +194,9 @@ export function InstancesTab() {
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                     Version
                   </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                    Status
+                  </th>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
                     Actions
                   </th>
@@ -151,8 +205,8 @@ export function InstancesTab() {
               <tbody className="divide-y divide-gray-200">
                 {instances.map(([name, instance]) => {
                   const authType = instance.apiKey ? 'API Key' : 'Username/Password';
-                  const authIcon = instance.apiKey ? Key : User;
-                  const AuthIcon = authIcon;
+                  const AuthIcon = instance.apiKey ? Key : User;
+                  const cs = connStatuses[name] ?? { status: 'idle' };
 
                   return (
                     <tr key={name} className="hover:bg-gray-50 transition-colors">
@@ -196,7 +250,20 @@ export function InstancesTab() {
                         )}
                       </td>
                       <td className="px-4 py-4">
+                        <ConnectionStatusBadge cs={cs} />
+                      </td>
+                      <td className="px-4 py-4">
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => testConnection(name)}
+                            className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Test connection"
+                            disabled={cs.status === 'checking'}
+                          >
+                            {cs.status === 'checking'
+                              ? <Loader2 size={16} className="animate-spin" />
+                              : <Wifi size={16} />}
+                          </button>
                           <button
                             onClick={() => handleEdit(name)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -234,6 +301,34 @@ export function InstancesTab() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function ConnectionStatusBadge({ cs }: { cs: ConnStatus }) {
+  if (cs.status === 'idle') {
+    return <span className="text-xs text-gray-400">—</span>;
+  }
+  if (cs.status === 'checking') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+        <Loader2 size={13} className="animate-spin" />
+        <span>Checking…</span>
+      </div>
+    );
+  }
+  if (cs.status === 'ok') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-green-700">
+        <CheckCircle2 size={13} />
+        <span>{cs.latency}ms</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-red-600" title={cs.error}>
+      <XCircle size={13} />
+      <span className="max-w-[120px] truncate">{cs.error}</span>
     </div>
   );
 }

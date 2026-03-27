@@ -1,6 +1,6 @@
 use axum::{
     Json, Router,
-    extract::State,
+    extract::{Path, State},
     http::{HeaderMap, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -19,6 +19,8 @@ use tracing::{error, info, warn};
 
 use super::{ConfigManager, ConfigWatcher};
 use crate::mcp::http::AuthConfig as HttpAuthConfig;
+use crate::odoo::config::OdooInstanceConfig;
+use crate::odoo::unified_client::OdooClient;
 
 /// Session info stored in memory
 #[derive(Clone)]
@@ -197,6 +199,7 @@ pub async fn start_config_server(
         // Config endpoints
         .route("/api/config/instances", get(get_instances))
         .route("/api/config/instances", post(update_instances))
+        .route("/api/config/instances/{name}/test", post(test_instance_connection))
         .route("/api/config/tools", get(get_tools))
         .route("/api/config/tools", post(update_tools))
         .route("/api/config/prompts", get(get_prompts))
@@ -583,6 +586,75 @@ async fn generate_mcp_token_endpoint(State(state): State<AppState>) -> impl Into
     (
         StatusCode::OK,
         Json(GenerateMcpTokenResponse { token: new_token }),
+    )
+        .into_response()
+}
+
+// =============================================================================
+// Instance Connection Test
+// =============================================================================
+
+async fn test_instance_connection(
+    State(state): State<AppState>,
+    Path(name): Path<String>,
+) -> impl IntoResponse {
+    let instances_json = match state.config_manager.load_instances().await {
+        Ok(v) => v,
+        Err(e) => {
+            error!("Failed to load instances for test: {}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "ok": false, "error": format!("Failed to load instances: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let instance_value = match instances_json.get(&name) {
+        Some(v) => v.clone(),
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(json!({ "ok": false, "error": format!("Instance '{name}' not found") })),
+            )
+                .into_response();
+        }
+    };
+
+    let cfg: OdooInstanceConfig = match serde_json::from_value(instance_value) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "ok": false, "error": format!("Invalid instance config: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let client = match OdooClient::new(&cfg) {
+        Ok(c) => c,
+        Err(e) => {
+            return (
+                StatusCode::OK,
+                Json(json!({ "ok": false, "error": format!("Failed to create client: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let start = Instant::now();
+    let ok = client.health_check().await;
+    let latency_ms = start.elapsed().as_millis() as u64;
+
+    info!(
+        "Connection test for '{}': ok={}, latency={}ms",
+        name, ok, latency_ms
+    );
+
+    (
+        StatusCode::OK,
+        Json(json!({ "ok": ok, "latency_ms": latency_ms })),
     )
         .into_response()
 }
