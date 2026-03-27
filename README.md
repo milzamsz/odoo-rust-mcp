@@ -17,6 +17,46 @@ Rust implementation of an **Odoo MCP server** (Model Context Protocol), supporti
 - **Odoo 19+**: JSON-2 External API (`/json/2/...`) with API key authentication
 - **Odoo < 19**: JSON-RPC (`/jsonrpc`) with username/password authentication
 
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+  - [Homebrew (macOS/Linux)](#option-1-homebrew-macoslinux---recommended)
+  - [APT (Debian/Ubuntu)](#option-2-apt-debianubuntu)
+  - [Download binary](#option-3-download-and-install)
+  - [Build from source](#option-4-build-from-source)
+- [Configuration](#configuration-environment-variables)
+  - [Multi-instance setup](#multi-instance-recommended)
+  - [Single-instance setup](#single-instance-fallback)
+  - [Disabling tools](#disabling-tools)
+- [Running the Server](#run-stdio)
+  - [stdio transport](#run-stdio)
+  - [HTTP transport](#run-streamable-http)
+  - [WebSocket transport](#run-websocket--standalone-server)
+  - [Docker Compose](#run-with-docker-compose)
+  - [Kubernetes](#run-with-kubernetes)
+  - [Helm](#run-with-helm)
+  - [Background service](#run-as-background-service)
+- [Authentication (HTTP)](#authentication-http-transport)
+- [Advanced Features](#advanced-features)
+  - [Metadata caching](#metadata-caching)
+  - [MCP Resources](#mcp-resources)
+  - [Config Web UI (port 3008)](#configuration-server-web-ui)
+- [AI Client Configuration](#claude-desktop-config-example)
+  - [Claude Desktop](#claude-desktop-config-example)
+  - [Cursor](#cursor-config-example)
+  - [ChatGPT Desktop (OpenAI)](#chatgpt-desktop-openai-codex-config-example)
+- [Tools Reference](#tools)
+- [Prompts Reference](#prompts)
+- [Example Tool Calls](#example-tool-calls)
+- [Security](#security)
+- [Release Process](#release-process)
+
+---
+
 ### Features
 
 - MCP over **stdio** (Cursor / Claude Desktop style)
@@ -389,16 +429,19 @@ A web-based configuration interface is available on port **3008** for managing `
 - **Error handling**: Automatic backup and restore if configuration becomes corrupted
 - **MCP HTTP Auth Management**: Enable/disable authentication and generate tokens directly from UI
 - **Config UI Credentials Management**: Change login username and password from the UI
-- **Tool enable/disable checkboxes** (e.g., toggle `ODOO_ENABLE_CLEANUP_TOOLS`)
+- **Group-based tool management**: Enable/disable tools by group — **Read Operations**, **Write Operations**, **Cleanup Operations** — with per-group and per-tool toggles
+- **Instance connection test**: Test Odoo connectivity per instance directly from the UI with live latency display
 - **Automatic file watching and hot reload** (no server restart needed)
 - **User notifications**: Success, error, and warning messages displayed in the UI
 - **REST API endpoints** for programmatic access:
   - `GET /api/config/{instances|tools|prompts|server}` - Retrieve config
   - `POST /api/config/{instances|tools|prompts|server}` - Update config
-  - `GET /api/config/auth/status` - Get MCP auth status
-  - `POST /api/config/auth/enable` - Enable/disable MCP HTTP auth
-  - `POST /api/config/auth/token/generate` - Generate new MCP auth token
-  - `POST /api/config/auth/credentials` - Update Config UI credentials
+  - `POST /api/config/instances/{name}/test` - Test Odoo connection for a named instance
+  - `GET /api/auth/status` - Get auth status
+  - `GET /api/auth/mcp-auth-status` - Get MCP HTTP auth status
+  - `POST /api/auth/mcp-auth-enabled` - Enable/disable MCP HTTP auth
+  - `POST /api/auth/generate-mcp-token` - Generate new MCP auth token
+  - `POST /api/auth/change-password` - Update Config UI password
   - `GET /health` - Health check
 
 **Environment variables:**
@@ -1038,11 +1081,35 @@ export ODOO_ENABLE_CLEANUP_TOOLS=true
 
 ### Tools
 
-Tools are defined by `tools.json` (authoritative). The default seed includes tools like:
-- `odoo_search`, `odoo_search_read`, `odoo_read`, `odoo_create`, `odoo_update`, `odoo_delete`
-- `odoo_execute`, `odoo_count`, `odoo_workflow_action`, `odoo_generate_report`, `odoo_get_model_metadata`
-- `odoo_list_models`, `odoo_check_access`, `odoo_create_batch`
-- cleanup tools (`odoo_database_cleanup`, `odoo_deep_cleanup`) guarded by `ODOO_ENABLE_CLEANUP_TOOLS=true`
+Tools are defined by `tools.json` (authoritative). The default seed includes 22 tools grouped by category:
+
+**Read Operations:**
+- `odoo_search` — search record IDs by domain
+- `odoo_search_read` — search + read in one call
+- `odoo_read` — read specific records by ID
+- `odoo_count` — count records matching a domain
+- `odoo_read_group` — aggregate / group-by queries
+- `odoo_name_search` — search by name (autocomplete style)
+- `odoo_name_get` — get display names for record IDs
+- `odoo_default_get` — get default field values for a model
+- `odoo_get_model_metadata` — fields, types, and descriptions for a model
+- `odoo_list_models` — list all accessible models
+- `odoo_check_access` — check CRUD access rights
+- `odoo_onchange` — simulate onchange events
+
+**Write Operations:**
+- `odoo_create` — create a single record
+- `odoo_update` — update records by ID
+- `odoo_delete` — delete records by ID
+- `odoo_execute` — call any model method
+- `odoo_workflow_action` — trigger workflow buttons (e.g., confirm, validate)
+- `odoo_generate_report` — generate PDF reports (base64)
+- `odoo_copy` — duplicate a record
+- `odoo_create_batch` — bulk create up to 100 records
+
+**Cleanup Operations** (guarded by `ODOO_ENABLE_CLEANUP_TOOLS=true`):
+- `odoo_database_cleanup` — remove orphaned records and attachments
+- `odoo_deep_cleanup` — deep vacuum of obsolete data
 
 Supported `op.type` values (used in `tools.json`):
 - `search`, `search_read`, `read`, `create`, `write`, `unlink`
@@ -1494,6 +1561,111 @@ If you have `MCP_AUTH_TOKEN` set on the server, configure Cursor with the token 
 
 Note: Generate a secure token with `openssl rand -hex 32` and set `MCP_AUTH_TOKEN` on the server.
 
+### ChatGPT Desktop (OpenAI Codex) config example
+
+ChatGPT Desktop supports MCP servers in two ways: via the **in-app UI** (easiest) or by editing **`config.toml`** directly.
+
+---
+
+#### Method 1: Add via the ChatGPT Desktop App (GUI)
+
+> Requires ChatGPT Desktop app with MCP support enabled.
+
+**Step 1 — Start the MCP server in HTTP mode** (if not already running):
+```bash
+cd rust-mcp
+./target/release/rust-mcp --transport http --listen 127.0.0.1:8787
+```
+
+**Step 2 — Open ChatGPT Desktop settings:**
+
+1. Open the **ChatGPT** desktop app
+2. Click on your profile icon (top-right or bottom-left depending on version)
+3. Select **Settings**
+4. Navigate to **Connected apps** → **MCP Servers** (or **Tools** → **Add tool**)
+
+**Step 3 — Add the server:**
+
+| Field | Value |
+|-------|-------|
+| **Name** | `odoo-mcp` |
+| **URL** | `http://127.0.0.1:8787/mcp` |
+| **Auth** | None (or Bearer token if `MCP_AUTH_ENABLED=true`) |
+
+5. Click **Add** / **Save**
+6. The Odoo tools will now appear in your ChatGPT conversation toolbar
+
+> **Note:** The MCP server must be running before ChatGPT can connect. Start it with `--transport http` as shown above, or run it as a [background service](#run-as-background-service).
+
+---
+
+#### Method 2: Edit `config.toml` directly
+
+ChatGPT Desktop reads MCP configuration from:
+
+| OS | Path |
+|----|------|
+| Windows | `%USERPROFILE%\.codex\config.toml` |
+| macOS | `~/.codex/config.toml` |
+| Linux | `~/.codex/config.toml` |
+
+**HTTP transport (recommended — connect to already-running server):**
+
+First start the server:
+```bash
+cd rust-mcp
+./target/release/rust-mcp --transport http --listen 127.0.0.1:8787
+```
+
+Add to `~/.codex/config.toml`:
+```toml
+[mcp_servers.odoo-mcp]
+url = 'http://127.0.0.1:8787/mcp'
+disabled = false
+```
+
+**With Bearer Token Authentication:**
+```toml
+[mcp_servers.odoo-mcp]
+url = 'http://127.0.0.1:8787/mcp'
+disabled = false
+
+[mcp_servers.odoo-mcp.headers]
+Authorization = 'Bearer your-secure-token-here'
+```
+
+**stdio transport (server launched on demand by ChatGPT):**
+
+```toml
+# macOS / Linux
+[mcp_servers.odoo-mcp]
+command = '/absolute/path/to/rust-mcp'
+args = ['--transport', 'stdio']
+disabled = false
+
+[mcp_servers.odoo-mcp.env]
+ODOO_INSTANCES_JSON = '/absolute/path/to/instances.json'
+MCP_TOOLS_JSON = '/absolute/path/to/config/tools.json'
+MCP_PROMPTS_JSON = '/absolute/path/to/config/prompts.json'
+MCP_SERVER_JSON = '/absolute/path/to/config/server.json'
+```
+
+**Windows:**
+```toml
+[mcp_servers.odoo-mcp]
+command = 'C:\path\to\rust-mcp\target\release\rust-mcp.exe'
+args = ['--transport', 'stdio']
+disabled = false
+
+[mcp_servers.odoo-mcp.env]
+ODOO_INSTANCES_JSON = 'C:\path\to\instances.json'
+MCP_TOOLS_JSON = 'C:\path\to\config\tools.json'
+MCP_PROMPTS_JSON = 'C:\path\to\config\prompts.json'
+MCP_SERVER_JSON = 'C:\path\to\config\server.json'
+```
+
+After saving `config.toml`, **restart ChatGPT Desktop** for changes to take effect.
+
 ### Test / smoke
 
 Run unit tests (no warnings):
@@ -1541,52 +1713,54 @@ prompts/list: odoo_common_models, odoo_domain_filters
 
 ## Release Process
 
-Untuk membuat release baru, ada **2 file yang harus di-update versinya**:
+To create a new release, **2 files must have their versions updated**:
 
-1. `rust-mcp/Cargo.toml` - field `version`
-2. `config-ui/package.json` - field `version`
+1. `rust-mcp/Cargo.toml` — `version` field
+2. `config-ui/package.json` — `version` field
+
+Both versions must always stay in sync.
 
 ### Quick Release (Recommended)
 
-Gunakan script helper yang sudah disediakan:
+Use the provided helper script:
 
 ```bash
-# Bump version, commit, push, dan create tag sekaligus
-./scripts/release.sh 0.3.15
+# Bump version, commit, push, and create tag in one step
+./scripts/release.sh 0.3.31
 ```
 
-Script ini akan:
-- Update version di `Cargo.toml` dan `package.json`
-- Commit perubahan
-- Push ke remote
-- Create dan push git tag (yang akan trigger GitHub Actions release workflow)
+This script will:
+- Update the version in `Cargo.toml` and `package.json`
+- Commit the changes
+- Push to remote
+- Create and push a git tag (which triggers the GitHub Actions release workflow)
 
 ### Manual Release
 
-Jika ingin manual:
+To release manually:
 
 ```bash
-# 1. Update version di 2 file
-# Edit rust-mcp/Cargo.toml: version = "0.3.15"
-# Edit config-ui/package.json: "version": "0.3.15"
+# 1. Update version in both files
+# Edit rust-mcp/Cargo.toml: version = "0.3.31"
+# Edit config-ui/package.json: "version": "0.3.31"
 
-# 2. Commit dan push
+# 2. Commit and push
 git add rust-mcp/Cargo.toml config-ui/package.json
-git commit -m "chore: bump version to 0.3.15"
+git commit -m "chore: bump version to 0.3.31"
 git push
 
-# 3. Create dan push tag (akan trigger GitHub Actions)
-git tag v0.3.15
-git push origin v0.3.15
+# 3. Create and push tag (triggers GitHub Actions)
+git tag v0.3.31
+git push origin v0.3.31
 ```
 
-### GitHub Actions akan otomatis:
+### GitHub Actions will automatically:
 
-- Build binaries untuk semua platform (Linux, macOS, Windows)
+- Build binaries for all platforms (Linux, macOS, Windows)
 - Build Docker image
 - Build Debian package
-- Create GitHub release dengan artifacts
+- Create GitHub release with artifacts
 - Update Homebrew formula
 - Update APT repository
 
-Monitor progress: https://github.com/rachmataditiya/odoo-rust-mcp/actions
+Monitor progress: https://github.com/milzamsz/odoo-rust-mcp/actions
