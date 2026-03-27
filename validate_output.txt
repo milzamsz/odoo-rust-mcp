@@ -1,0 +1,21 @@
+﻿Validating 6 Odoo instance(s)...
+
+ΓÇó local-v19 (http://odoo19.local): Γ£ù FAIL - health check failed
+ΓÇó local-ee (http://localhost:8169): Γ£ô OK
+ΓÇó v19-mamiko (https://erp-mamiko-19-0-staging-28883719.dev.odoo.com): Γ£ù FAIL - health check failed
+ΓÇó 19-fiftyseven (https://fiftysevensg.odoo.com/): Γ£ô OK
+ΓÇó local-ce (http://localhost:8069): Γ£ô OK
+ΓÇó [AGS]v19-test (https://odoodev.kdkmpindonesia.co.id): Γ£ô OK
+.\rust-mcp.exe : Γ£ù One or more instances failed 
+validation
+At line:1 char:74
++ ... rust-mcp\instances.json"; .\rust-mcp.exe 
+validate-config 2>&1 | Out-F ...
++                               
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Γ£ù One or 
+    more...iled validation:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+Error: Validation failed
