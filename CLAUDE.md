@@ -123,6 +123,7 @@ rust-mcp/tests/              # Integration tests
 - **Dual client**: Version field in instance config determines JSON-2 API vs legacy JSON-RPC client
 - **Guard system**: `requiresEnv` / `requiresEnvTrue` in tool definitions gate access to dangerous operations
 - **JSON Schema constraint**: Avoid `anyOf`, `oneOf`, `allOf`, `$ref`, `definitions`, type arrays in tools.json - Cursor rejects these
+- **Auto UI build**: `rust-mcp/build.rs` detects when `config-ui/src` is newer than `static/dist` and runs `npm run build` automatically during `cargo build`
 
 ### Tool Execution Flow
 
