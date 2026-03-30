@@ -222,19 +222,19 @@ describe('Type Safety and Configuration', () => {
     it('should validate info status', () => {
       const status: StatusMessage = {
         message: 'Loading configuration...',
-        type: 'info',
+        type: 'loading',
       };
 
-      expect(status.type).toBe('info');
+      expect(status.type).toBe('loading');
     });
 
     it('should support all status types', () => {
-      const types: StatusMessage['type'][] = ['success', 'error', 'warning', 'info'];
+      const types: StatusMessage['type'][] = ['success', 'error', 'warning', 'loading'];
 
       expect(types).toContain('success');
       expect(types).toContain('error');
       expect(types).toContain('warning');
-      expect(types).toContain('info');
+      expect(types).toContain('loading');
     });
   });
 
@@ -327,7 +327,7 @@ describe('Type Safety and Configuration', () => {
       const isValidStatus =
         'message' in status &&
         'type' in status &&
-        ['success', 'error', 'warning', 'info'].includes(status.type as any);
+        ['success', 'error', 'warning', 'loading'].includes(status.type as any);
 
       expect(isValidStatus).toBe(true);
     });

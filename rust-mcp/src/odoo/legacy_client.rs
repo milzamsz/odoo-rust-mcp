@@ -635,8 +635,10 @@ mod tests {
             username: username.map(|s| s.to_string()),
             password: password.map(|s| s.to_string()),
             version: Some("18".to_string()),
+            protocol: Default::default(),
             timeout_ms: Some(5000),
             max_retries: Some(2),
+            tool_config: None,
             extra: HashMap::new(),
         }
     }
@@ -718,8 +720,10 @@ mod tests {
             username: Some("user".to_string()),
             password: Some("pass".to_string()),
             version: None,
+            protocol: Default::default(),
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         let client = OdooLegacyClient::new(&cfg).unwrap();

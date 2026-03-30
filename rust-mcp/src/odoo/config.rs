@@ -13,6 +13,24 @@ pub enum OdooAuthMode {
     Password,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct InstanceToolConfig {
+    #[serde(default, rename = "disabledTools")]
+    pub disabled_tools: Vec<String>,
+    #[serde(default)]
+    pub defaults: HashMap<String, Value>,
+}
+
+impl InstanceToolConfig {
+    pub fn is_tool_disabled(&self, tool_name: &str) -> bool {
+        self.disabled_tools.iter().any(|name| name == tool_name)
+    }
+
+    pub fn tool_defaults(&self, tool_name: &str) -> Option<&Value> {
+        self.defaults.get(tool_name)
+    }
+}
+
 /// Protocol to use for Odoo communication.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -49,6 +67,8 @@ pub struct OdooInstanceConfig {
     pub timeout_ms: Option<u64>,
     #[serde(default)]
     pub max_retries: Option<usize>,
+    #[serde(default, rename = "toolConfig")]
+    pub tool_config: Option<InstanceToolConfig>,
 
     // Allow extra fields in ODOO_INSTANCES JSON.
     #[serde(flatten, default)]
@@ -194,6 +214,7 @@ pub fn load_odoo_env() -> anyhow::Result<OdooEnvConfig> {
                     max_retries: std::env::var("ODOO_MAX_RETRIES")
                         .ok()
                         .and_then(|v| v.parse().ok()),
+                    tool_config: None,
                     extra: HashMap::new(),
                 },
             );
@@ -335,8 +356,10 @@ mod tests {
             username: None,
             password: None,
             version: None,
+            protocol: Default::default(),
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::ApiKey);
@@ -351,8 +374,10 @@ mod tests {
             username: Some("admin".to_string()),
             password: Some("admin".to_string()),
             version: Some("18".to_string()),
+            protocol: Default::default(),
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::Password);
@@ -367,8 +392,10 @@ mod tests {
             username: Some("admin".to_string()),
             password: Some("admin".to_string()),
             version: None,
+            protocol: Default::default(),
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::Password);
@@ -383,8 +410,10 @@ mod tests {
             username: None,
             password: None,
             version: Some("19".to_string()),
+            protocol: Default::default(),
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::ApiKey);
@@ -404,6 +433,7 @@ mod tests {
         assert_eq!(config.db, Some("mydb".to_string()));
         assert_eq!(config.api_key, Some("test-key".to_string()));
         assert_eq!(config.timeout_ms, Some(30000));
+        assert!(config.tool_config.is_none());
         assert!(config.extra.contains_key("extraField"));
     }
 
@@ -425,6 +455,37 @@ mod tests {
     }
 
     #[test]
+    fn test_instance_config_deserialize_with_tool_config() {
+        let json = r#"{
+            "url": "http://localhost:8069",
+            "db": "mydb",
+            "apiKey": "test-key",
+            "toolConfig": {
+                "disabledTools": ["odoo_create", "odoo_update"],
+                "defaults": {
+                    "odoo_search_read": {
+                        "limit": 20,
+                        "context": {
+                            "allowed_company_ids": [1]
+                        }
+                    }
+                }
+            }
+        }"#;
+        let config: OdooInstanceConfig = serde_json::from_str(json).unwrap();
+        let tool_config = config.tool_config.expect("tool config should deserialize");
+        assert!(tool_config.is_tool_disabled("odoo_create"));
+        assert!(!tool_config.is_tool_disabled("odoo_search_read"));
+        assert_eq!(
+            tool_config
+                .tool_defaults("odoo_search_read")
+                .and_then(|v| v.get("limit"))
+                .and_then(|v| v.as_u64()),
+            Some(20)
+        );
+    }
+
+    #[test]
     fn test_auth_mode_protocol_override_jsonrpc() {
         let config = OdooInstanceConfig {
             url: "http://localhost".to_string(),
@@ -436,6 +497,7 @@ mod tests {
             protocol: OdooProtocol::JsonRpc,
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::Password);
@@ -453,6 +515,7 @@ mod tests {
             protocol: OdooProtocol::Json2,
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::ApiKey);

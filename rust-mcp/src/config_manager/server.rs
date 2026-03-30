@@ -210,7 +210,10 @@ pub async fn start_config_server(
         // Config endpoints
         .route("/api/config/instances", get(get_instances))
         .route("/api/config/instances", post(update_instances))
-        .route("/api/config/instances/{name}/test", post(test_instance_connection))
+        .route(
+            "/api/config/instances/{name}/test",
+            post(test_instance_connection),
+        )
         .route("/api/config/tools", get(get_tools))
         .route("/api/config/tools", post(update_tools))
         .route("/api/config/prompts", get(get_prompts))
@@ -237,9 +240,7 @@ pub async fn start_config_server(
         .route("/api/auth/login", post(login))
         .route("/api/auth/logout", post(logout));
 
-    let mut app = Router::new()
-        .merge(public_routes)
-        .merge(protected_routes);
+    let mut app = Router::new().merge(public_routes).merge(protected_routes);
 
     // Mount docs at /docs/ when the built book directory is available
     if let Some(ref docs_path) = docs_dir {

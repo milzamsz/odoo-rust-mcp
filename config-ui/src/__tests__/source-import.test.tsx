@@ -9,13 +9,15 @@ describe('Source Code Imports', () => {
 
   it('should import and validate InstanceConfig type', () => {
     const instance: Types.InstanceConfig = {
-      url: 'https://demo.odoo.com',
-      db: 'demo',
-      username: 'admin',
-      password: 'admin',
+      demo: {
+        url: 'https://demo.odoo.com',
+        db: 'demo',
+        username: 'admin',
+        password: 'admin',
+      },
     };
-    expect(instance.url).toBe('https://demo.odoo.com');
-    expect(instance.db).toBe('demo');
+    expect(instance.demo.url).toBe('https://demo.odoo.com');
+    expect(instance.demo.db).toBe('demo');
   });
 
   it('should import and validate ToolConfig type', () => {
@@ -52,14 +54,19 @@ describe('Source Code Imports', () => {
   });
 
   it('should handle different status types', () => {
-    const types: Types.StatusMessage['type'][] = ['success', 'error', 'loading', 'warning', 'info'];
-    expect(types).toHaveLength(5);
+    const types: Types.StatusMessage['type'][] = ['success', 'error', 'loading', 'warning'];
+    expect(types).toHaveLength(4);
   });
 
   it('should validate ToolCategory type', () => {
     const category: Types.ToolCategory = {
       name: 'General',
+      description: 'General operations',
+      icon: 'settings',
+      color: 'gray',
+      bgColor: 'bg-gray-100',
       tools: [],
+      envVar: 'ENABLE_GENERAL_TOOLS',
     };
     expect(category.name).toBe('General');
     expect(Array.isArray(category.tools)).toBe(true);

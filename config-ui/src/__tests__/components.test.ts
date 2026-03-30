@@ -67,13 +67,19 @@ describe('Component Type Definitions', () => {
           url: 'http://localhost:8069',
           db: 'testdb',
           apiKey: 'key123',
+          toolConfig: {
+            disabledTools: ['odoo_create'],
+          },
         },
         existingNames: ['existing1', 'existing2'],
-        onSave: (name: string, data: any) => {},
+        availableTools: [{ name: 'odoo_create', description: 'Create records' }],
+        onSave: (_name: string, _data: any) => {},
         onCancel: () => {},
       };
       expect(formProps.instanceName).toBe('test-instance');
       expect(formProps.existingNames.length).toBe(2);
+      expect(formProps.instanceData.toolConfig.disabledTools[0]).toBe('odoo_create');
+      expect(formProps.availableTools[0].name).toBe('odoo_create');
     });
 
     it('should accept PromptForm props', () => {
@@ -101,7 +107,7 @@ describe('Component Type Definitions', () => {
     });
 
     it('should handle tools without guards', () => {
-      const tool = {
+      const tool: { name: string; description: string; guards?: { requiresEnvTrue?: string } } = {
         name: 'simple_tool',
         description: 'Simple tool without guards',
       };
@@ -110,7 +116,7 @@ describe('Component Type Definitions', () => {
 
     it('should toggle guard values', () => {
       const guards = { requiresEnvTrue: 'ENABLE_FEATURE' };
-      const newGuards = { ...guards };
+      const newGuards: { requiresEnvTrue?: string } = { ...guards };
       expect(newGuards.requiresEnvTrue).toBe('ENABLE_FEATURE');
       delete newGuards.requiresEnvTrue;
       expect(Object.keys(newGuards).length).toBe(0);
@@ -125,7 +131,7 @@ describe('Component Type Definitions', () => {
     });
 
     it('should handle tab changes', () => {
-      let activeTab = 'instances' as const;
+      let activeTab: 'instances' | 'tools' = 'instances';
       const handleTabChange = (tab: typeof activeTab) => {
         activeTab = tab;
       };
@@ -193,7 +199,7 @@ describe('Component Type Definitions', () => {
     it('should accept JSON editor configuration', () => {
       const editorProps = {
         value: { test: 'data' },
-        onChange: (value: any) => {},
+        onChange: (_value: any) => {},
         readOnly: false,
         mode: 'text' as const,
       };

@@ -94,6 +94,10 @@ impl ServerHandler for McpOdooHandler {
                     .get("arguments")
                     .cloned()
                     .unwrap_or_else(|| json!({}));
+                let instance_name = args
+                    .get("instance")
+                    .and_then(|v| v.as_str())
+                    .map(|v| v.to_string());
 
                 let Some(tool) = self.registry.get_tool(name).await else {
                     return Ok(json!({
@@ -110,16 +114,24 @@ impl ServerHandler for McpOdooHandler {
 
                 match call_tool(&self.pool, &tool, args).await {
                     Ok(v) => Ok(v),
-                    Err(e) => Ok(json!({
-                        "content": [{
-                            "type": "text",
-                            "text": serde_json::to_string_pretty(&json!({
-                                "error": e.to_string(),
-                                "tool": name,
-                            })).unwrap_or_else(|_| "{\"error\":\"unknown\"}".to_string())
-                        }],
-                        "isError": true
-                    })),
+                    Err(e) => {
+                        let mut error_payload = json!({
+                            "error": e.to_string(),
+                            "tool": name,
+                        });
+                        if let Some(instance) = instance_name {
+                            error_payload["instance"] = json!(instance);
+                        }
+
+                        Ok(json!({
+                            "content": [{
+                                "type": "text",
+                                "text": serde_json::to_string_pretty(&error_payload)
+                                    .unwrap_or_else(|_| "{\"error\":\"unknown\"}".to_string())
+                            }],
+                            "isError": true
+                        }))
+                    }
                 }
             }
             "prompts/list" => {

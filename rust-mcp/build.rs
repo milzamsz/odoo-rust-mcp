@@ -19,7 +19,11 @@ fn main() {
         eprintln!("build.rs: UI source changed — running npm run build...");
 
         // Check npm is available
-        let npm_cmd = if cfg!(target_os = "windows") { "npm.cmd" } else { "npm" };
+        let npm_cmd = if cfg!(target_os = "windows") {
+            "npm.cmd"
+        } else {
+            "npm"
+        };
 
         let status = Command::new(npm_cmd)
             .args(["run", "build"])
@@ -57,7 +61,9 @@ fn newest_mtime(dir: &Path) -> Option<SystemTime> {
 }
 
 fn visit_dir(dir: &Path, newest: &mut Option<SystemTime>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {

@@ -16,7 +16,9 @@ describe('Integration Tests', () => {
     });
 
     it('should update configs in sequence', async () => {
-      let config = { instances: {} };
+      let config: { instances: Record<string, { url: string; db: string }> } = {
+        instances: {},
+      };
 
       config = { ...config, instances: { prod: { url: 'http://prod', db: 'prod' } } };
       expect(config.instances.prod).toBeDefined();
@@ -169,7 +171,7 @@ describe('Integration Tests', () => {
 
   describe('Navigation Flow', () => {
     it('should navigate between tabs', () => {
-      let currentTab = 'instances' as const;
+      let currentTab: 'instances' | 'tools' | 'prompts' | 'server' = 'instances';
       const tabs = ['instances', 'tools', 'prompts', 'server'] as const;
 
       const switchTab = (tab: typeof currentTab) => {
@@ -298,7 +300,7 @@ describe('Integration Tests', () => {
 
     it('should debounce rapid changes', async () => {
       const mockFn = vi.fn();
-      let timeout: NodeJS.Timeout | null = null;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
 
       const debounce = (fn: () => void, delay: number) => {
         if (timeout) clearTimeout(timeout);

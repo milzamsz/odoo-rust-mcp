@@ -577,6 +577,7 @@ impl OdooClientTrait for OdooClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_odoo_client_is_legacy_modern() {
@@ -587,7 +588,6 @@ mod tests {
     #[test]
     fn test_auth_mode_selects_correct_client() {
         use super::super::config::OdooInstanceConfig;
-        use std::collections::HashMap;
 
         // Modern client (API key)
         let modern_cfg = OdooInstanceConfig {
@@ -597,8 +597,10 @@ mod tests {
             username: None,
             password: None,
             version: Some("19".to_string()),
+            protocol: Default::default(),
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         assert_eq!(modern_cfg.auth_mode(), OdooAuthMode::ApiKey);
@@ -611,8 +613,10 @@ mod tests {
             username: Some("admin".to_string()),
             password: Some("admin".to_string()),
             version: Some("18".to_string()),
+            protocol: Default::default(),
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         assert_eq!(legacy_cfg.auth_mode(), OdooAuthMode::Password);
@@ -633,6 +637,7 @@ mod tests {
             protocol: OdooProtocol::JsonRpc, // BUT forced to JsonRpc
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         // auth_mode should be Password -> Legacy Client
@@ -651,6 +656,7 @@ mod tests {
             protocol: OdooProtocol::Json2,   // BUT forced to Json2
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         // auth_mode should be ApiKey -> Modern Client

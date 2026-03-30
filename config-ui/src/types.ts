@@ -1,12 +1,21 @@
+export interface InstanceToolConfig {
+  disabledTools?: string[];
+  defaults?: Record<string, Record<string, any>>;
+}
+
+export interface InstanceDetails {
+  url: string;
+  db: string;
+  apiKey?: string;
+  username?: string;
+  password?: string;
+  version?: number | string;
+  toolConfig?: InstanceToolConfig;
+  [key: string]: any;
+}
+
 export interface InstanceConfig {
-  [key: string]: {
-    url: string;
-    db: string;
-    apiKey?: string;
-    username?: string;
-    password?: string;
-    version?: number;
-  };
+  [key: string]: InstanceDetails;
 }
 
 export interface ToolConfig {

@@ -18,8 +18,10 @@ fn create_legacy_config(url: &str) -> OdooInstanceConfig {
         username: Some("admin".to_string()),
         password: Some("admin123".to_string()),
         version: Some("18".to_string()),
+        protocol: Default::default(),
         timeout_ms: Some(5000),
         max_retries: Some(0), // No retries for faster tests
+        tool_config: None,
         extra: HashMap::new(),
     }
 }
@@ -431,8 +433,10 @@ async fn test_legacy_network_error() {
         username: Some("admin".to_string()),
         password: Some("admin123".to_string()),
         version: Some("18".to_string()),
+        protocol: Default::default(),
         timeout_ms: Some(1000),
         max_retries: Some(0), // No retries to speed up test
+        tool_config: None,
         extra: HashMap::new(),
     };
 

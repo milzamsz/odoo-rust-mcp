@@ -18,8 +18,10 @@ fn create_config(url: &str) -> OdooInstanceConfig {
         username: None,
         password: None,
         version: Some("19".to_string()),
+        protocol: Default::default(),
         timeout_ms: Some(5000),
         max_retries: Some(3),
+        tool_config: None,
         extra: HashMap::new(),
     }
 }

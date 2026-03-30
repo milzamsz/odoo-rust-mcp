@@ -588,8 +588,10 @@ mod tests {
             username: None,
             password: None,
             version: Some("19".to_string()),
+            protocol: Default::default(),
             timeout_ms: Some(5000),
             max_retries: Some(2),
+            tool_config: None,
             extra: HashMap::new(),
         }
     }
@@ -641,8 +643,10 @@ mod tests {
             username: None,
             password: None,
             version: None,
+            protocol: Default::default(),
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         let client = OdooHttpClient::new(&cfg).unwrap();
@@ -665,8 +669,10 @@ mod tests {
             username: None,
             password: None,
             version: None,
+            protocol: Default::default(),
             timeout_ms: None,
             max_retries: None,
+            tool_config: None,
             extra: HashMap::new(),
         };
         let client = OdooHttpClient::new(&cfg).unwrap();

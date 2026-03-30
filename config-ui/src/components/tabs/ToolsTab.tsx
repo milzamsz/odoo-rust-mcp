@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { useConfig } from '../../hooks/useConfig';
 import { Card } from '../Card';
@@ -6,6 +6,7 @@ import { Button } from '../Button';
 import { StatusMessage } from '../StatusMessage';
 import { ToolDetail } from '../ToolDetail';
 import type { ToolConfig } from '../../types';
+import { ALL_GROUPED_TOOL_NAMES, OTHER_TOOL_GROUP, TOOL_GROUPS } from '../../toolGroups';
 
 const AVAILABLE_GUARDS = [
   {
@@ -20,57 +21,6 @@ const AVAILABLE_GUARDS = [
   },
 ];
 
-const TOOL_GROUPS = [
-  {
-    id: 'read',
-    label: 'Read Operations',
-    headerClass: 'bg-blue-50 border-blue-200',
-    badgeClass: 'bg-blue-100 text-blue-800',
-    enableBtnClass: 'text-blue-700 border-blue-300 hover:bg-blue-100',
-    tools: [
-      'odoo_search',
-      'odoo_search_read',
-      'odoo_read',
-      'odoo_count',
-      'odoo_read_group',
-      'odoo_name_search',
-      'odoo_name_get',
-      'odoo_default_get',
-      'odoo_get_model_metadata',
-      'odoo_list_models',
-      'odoo_check_access',
-      'odoo_onchange',
-    ],
-  },
-  {
-    id: 'write',
-    label: 'Write Operations',
-    headerClass: 'bg-yellow-50 border-yellow-200',
-    badgeClass: 'bg-yellow-100 text-yellow-800',
-    enableBtnClass: 'text-yellow-700 border-yellow-300 hover:bg-yellow-100',
-    tools: [
-      'odoo_create',
-      'odoo_update',
-      'odoo_delete',
-      'odoo_execute',
-      'odoo_workflow_action',
-      'odoo_generate_report',
-      'odoo_copy',
-      'odoo_create_batch',
-    ],
-  },
-  {
-    id: 'cleanup',
-    label: 'Cleanup Operations',
-    headerClass: 'bg-red-50 border-red-200',
-    badgeClass: 'bg-red-100 text-red-800',
-    enableBtnClass: 'text-red-700 border-red-300 hover:bg-red-100',
-    tools: ['odoo_database_cleanup', 'odoo_deep_cleanup'],
-  },
-];
-
-const ALL_GROUPED_TOOL_NAMES = new Set<string>(TOOL_GROUPS.flatMap(g => g.tools));
-
 export function ToolsTab() {
   const { load, save, status, loading } = useConfig('tools');
   const [editedTools, setEditedTools] = useState<ToolConfig[]>([]);
@@ -80,18 +30,18 @@ export function ToolsTab() {
     new Set<string>([...TOOL_GROUPS.map(g => g.id), 'other'])
   );
 
-  useEffect(() => {
-    loadTools();
-  }, []);
-
-  const loadTools = async () => {
+  const loadTools = useCallback(async () => {
     try {
       const data = await load() as ToolConfig[];
       setEditedTools(data);
     } catch (error) {
       console.error('Failed to load tools:', error);
     }
-  };
+  }, [load]);
+
+  useEffect(() => {
+    void loadTools();
+  }, [loadTools]);
 
   const isToolEnabled = (tool: ToolConfig) => {
     return !tool.guards?.requiresEnvTrue;
@@ -386,8 +336,12 @@ export function ToolsTab() {
             })}
 
             {otherTools.length > 0 && (
-              <div className="border rounded-lg overflow-hidden bg-gray-50 border-gray-200">
-                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-gray-200">
+              <div
+                className={`border rounded-lg overflow-hidden ${OTHER_TOOL_GROUP.headerClass}`}
+              >
+                <div
+                  className={`flex items-center justify-between px-4 py-3 ${OTHER_TOOL_GROUP.headerClass}`}
+                >
                   <button
                     onClick={() => toggleGroupExpanded('other')}
                     className="flex items-center gap-2 flex-1 text-left min-w-0"
@@ -395,15 +349,17 @@ export function ToolsTab() {
                     {expandedGroups.has('other')
                       ? <ChevronDown size={16} className="flex-shrink-0 text-gray-600" />
                       : <ChevronRight size={16} className="flex-shrink-0 text-gray-600" />}
-                    <span className="font-semibold text-gray-900">Other</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-200 text-gray-700">
+                    <span className="font-semibold text-gray-900">{OTHER_TOOL_GROUP.label}</span>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${OTHER_TOOL_GROUP.badgeClass}`}
+                    >
                       {enabledOtherCount}/{allOtherTools.length} enabled
                     </span>
                   </button>
                   <div className="flex gap-2 ml-3 flex-shrink-0">
                     <button
                       onClick={() => toggleGroup('other', true)}
-                      className="text-xs px-2.5 py-1 border border-gray-300 rounded font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                      className={`text-xs px-2.5 py-1 border rounded font-medium transition-colors ${OTHER_TOOL_GROUP.enableBtnClass}`}
                     >
                       Enable
                     </button>

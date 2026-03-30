@@ -1,9 +1,12 @@
 use serde_json::{Value, json};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
+
+use crate::odoo::config::OdooInstanceConfig;
 
 /// Result type for config operations that may need to notify the UI
 #[derive(Debug, Clone)]
@@ -144,6 +147,21 @@ impl ConfigManager {
             return Ok(ConfigResult::error(
                 "Config must be a JSON object with instance names as keys",
             ));
+        }
+
+        let parsed_instances: HashMap<String, OdooInstanceConfig> =
+            match serde_json::from_value(config.clone()) {
+                Ok(instances) => instances,
+                Err(e) => {
+                    return Ok(ConfigResult::error(format!(
+                        "Invalid instances configuration: {}",
+                        e
+                    )));
+                }
+            };
+
+        if let Err(message) = self.validate_instance_tool_config(&parsed_instances).await {
+            return Ok(ConfigResult::error(message));
         }
 
         // Create backup before modifying
@@ -509,12 +527,87 @@ impl ConfigManager {
     pub fn config_dir(&self) -> &PathBuf {
         &self.config_dir
     }
+
+    async fn validate_instance_tool_config(
+        &self,
+        instances: &HashMap<String, OdooInstanceConfig>,
+    ) -> Result<(), String> {
+        let tool_names = extract_tool_names(
+            &self
+                .load_tools()
+                .await
+                .map_err(|e| format!("Failed to load tools for validation: {}", e))?,
+        )?;
+
+        for (instance_name, instance) in instances {
+            let Some(tool_config) = &instance.tool_config else {
+                continue;
+            };
+
+            for tool_name in &tool_config.disabled_tools {
+                if !tool_names.contains(tool_name) {
+                    return Err(format!(
+                        "Instance '{}' references unknown disabled tool '{}'",
+                        instance_name, tool_name
+                    ));
+                }
+            }
+
+            for (tool_name, defaults) in &tool_config.defaults {
+                if !tool_names.contains(tool_name) {
+                    return Err(format!(
+                        "Instance '{}' references unknown tool '{}' in defaults",
+                        instance_name, tool_name
+                    ));
+                }
+                if !defaults.is_object() {
+                    return Err(format!(
+                        "Instance '{}' defaults for tool '{}' must be a JSON object",
+                        instance_name, tool_name
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+fn extract_tool_names(tools: &Value) -> Result<HashSet<String>, String> {
+    let Some(tools_array) = tools.as_array() else {
+        return Err("Tools config must be a JSON array for validation".to_string());
+    };
+
+    let mut names = HashSet::new();
+    for tool in tools_array {
+        let Some(name) = tool.get("name").and_then(|value| value.as_str()) else {
+            return Err("Every tool entry must include a string 'name'".to_string());
+        };
+        names.insert(name.to_string());
+    }
+
+    Ok(names)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    fn write_tools_fixture(temp_dir: &TempDir, tool_names: &[&str]) {
+        let tools = json!({
+            "tools": tool_names
+                .iter()
+                .map(|name| json!({ "name": name }))
+                .collect::<Vec<_>>()
+        });
+
+        std::fs::write(
+            temp_dir.path().join("tools.json"),
+            serde_json::to_string_pretty(&tools).unwrap(),
+        )
+        .unwrap();
+    }
 
     #[tokio::test]
     async fn test_save_and_load_instances() {
@@ -561,5 +654,113 @@ mod tests {
         let result = ConfigResult::error("Failed").with_rollback();
         assert!(!result.success);
         assert!(result.rollback_performed);
+    }
+
+    #[tokio::test]
+    async fn test_save_instances_round_trips_tool_config() {
+        let temp_dir = TempDir::new().unwrap();
+        write_tools_fixture(&temp_dir, &["odoo_create", "odoo_search_read"]);
+        let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+
+        let config = json!({
+            "school-prod": {
+                "url": "https://odoo.example.com",
+                "db": "school",
+                "apiKey": "secret",
+                "toolConfig": {
+                    "disabledTools": ["odoo_create"],
+                    "defaults": {
+                        "odoo_search_read": {
+                            "limit": 20,
+                            "context": {
+                                "allowed_company_ids": [1]
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        let result = manager.save_instances(config.clone()).await.unwrap();
+        assert!(result.success, "Save should succeed: {}", result.message);
+
+        let loaded = manager.load_instances().await.unwrap();
+        assert_eq!(loaded, config);
+    }
+
+    #[tokio::test]
+    async fn test_save_instances_rejects_unknown_disabled_tool() {
+        let temp_dir = TempDir::new().unwrap();
+        write_tools_fixture(&temp_dir, &["odoo_search_read"]);
+        let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+
+        let config = json!({
+            "school-prod": {
+                "url": "https://odoo.example.com",
+                "db": "school",
+                "apiKey": "secret",
+                "toolConfig": {
+                    "disabledTools": ["odoo_create"]
+                }
+            }
+        });
+
+        let result = manager.save_instances(config).await.unwrap();
+        assert!(!result.success);
+        assert!(
+            result
+                .message
+                .contains("unknown disabled tool 'odoo_create'")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_save_instances_rejects_unknown_defaults_tool() {
+        let temp_dir = TempDir::new().unwrap();
+        write_tools_fixture(&temp_dir, &["odoo_search_read"]);
+        let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+
+        let config = json!({
+            "school-prod": {
+                "url": "https://odoo.example.com",
+                "db": "school",
+                "apiKey": "secret",
+                "toolConfig": {
+                    "defaults": {
+                        "odoo_create": {
+                            "name": "Student"
+                        }
+                    }
+                }
+            }
+        });
+
+        let result = manager.save_instances(config).await.unwrap();
+        assert!(!result.success);
+        assert!(result.message.contains("unknown tool 'odoo_create'"));
+    }
+
+    #[tokio::test]
+    async fn test_save_instances_rejects_non_object_defaults() {
+        let temp_dir = TempDir::new().unwrap();
+        write_tools_fixture(&temp_dir, &["odoo_search_read"]);
+        let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+
+        let config = json!({
+            "school-prod": {
+                "url": "https://odoo.example.com",
+                "db": "school",
+                "apiKey": "secret",
+                "toolConfig": {
+                    "defaults": {
+                        "odoo_search_read": ["invalid"]
+                    }
+                }
+            }
+        });
+
+        let result = manager.save_instances(config).await.unwrap();
+        assert!(!result.success);
+        assert!(result.message.contains("must be a JSON object"));
     }
 }

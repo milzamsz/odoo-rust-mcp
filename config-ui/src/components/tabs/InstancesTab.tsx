@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Plus, Edit2, Trash2, RefreshCw, Database, Key, User, Wifi, Loader2, CheckCircle2, XCircle, Download, Upload, AlertTriangle } from 'lucide-react';
 import { useConfig } from '../../hooks/useConfig';
 import { Card } from '../Card';
 import { Button } from '../Button';
 import { StatusMessage } from '../StatusMessage';
 import { InstanceForm } from '../InstanceForm';
-import type { InstanceConfig } from '../../types';
+import type { InstanceConfig, ToolConfig } from '../../types';
+import { countEnabledToolsForInstance } from '../../toolGroups';
 
 const TOKEN_STORAGE_KEY = 'mcp_config_token';
 
@@ -33,7 +34,9 @@ interface ImportPreview {
 
 export function InstancesTab() {
   const { load, save, status, loading } = useConfig('instances');
+  const { load: loadTools, loading: toolsLoading } = useConfig('tools');
   const [config, setConfig] = useState<InstanceConfig>({});
+  const [availableTools, setAvailableTools] = useState<ToolConfig[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [connStatuses, setConnStatuses] = useState<Record<string, ConnStatus>>({});
@@ -41,11 +44,7 @@ export function InstancesTab() {
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    loadInstances();
-  }, []);
-
-  const loadInstances = async () => {
+  const loadInstances = useCallback(async () => {
     try {
       const data = await load() as InstanceConfig;
       setConfig(data);
@@ -53,7 +52,26 @@ export function InstancesTab() {
     } catch (error) {
       console.error('Failed to load instances:', error);
     }
-  };
+  }, [load]);
+
+  const loadAvailableTools = useCallback(async () => {
+    try {
+      const data = await loadTools() as ToolConfig[];
+      setAvailableTools(data);
+    } catch (error) {
+      console.error('Failed to load tools for instance overrides:', error);
+      setAvailableTools([]);
+    }
+  }, [loadTools]);
+
+  const refreshData = useCallback(async () => {
+    await Promise.all([loadInstances(), loadAvailableTools()]);
+  }, [loadAvailableTools, loadInstances]);
+
+  useEffect(() => {
+    void loadInstances();
+    void loadAvailableTools();
+  }, [loadAvailableTools, loadInstances]);
 
   // ── Export ──────────────────────────────────────────────────────────────────
 
@@ -181,6 +199,7 @@ export function InstancesTab() {
 
   const instances = Object.entries(config);
   const existingNames = Object.keys(config);
+  const isBusy = loading || toolsLoading;
 
   return (
     <div className="space-y-6">
@@ -197,7 +216,7 @@ export function InstancesTab() {
             onClick={handleImportClick}
             icon={<Upload size={16} />}
             variant="ghost"
-            disabled={loading}
+            disabled={isBusy}
           >
             Import
           </Button>
@@ -205,7 +224,7 @@ export function InstancesTab() {
             onClick={handleExport}
             icon={<Download size={16} />}
             variant="ghost"
-            disabled={instances.length === 0 || loading}
+            disabled={instances.length === 0 || isBusy}
           >
             Export
           </Button>
@@ -213,7 +232,7 @@ export function InstancesTab() {
             onClick={handleAdd}
             icon={<Plus size={18} />}
             variant="primary"
-            disabled={loading}
+            disabled={isBusy}
           >
             Add Instance
           </Button>
@@ -251,7 +270,7 @@ export function InstancesTab() {
           onModeChange={(mode) => setImportPreview(p => p ? { ...p, mode } : p)}
           onConfirm={handleImportConfirm}
           onCancel={() => setImportPreview(null)}
-          loading={loading}
+          loading={isBusy}
         />
       )}
 
@@ -267,8 +286,8 @@ export function InstancesTab() {
               </Button>
             )}
             <Button
-              onClick={loadInstances}
-              loading={loading}
+              onClick={() => { void refreshData(); }}
+              loading={isBusy}
               icon={<RefreshCw size={16} />}
               variant="ghost"
               size="sm"
@@ -310,12 +329,23 @@ export function InstancesTab() {
                   const authType = instance.apiKey ? 'API Key' : 'Username/Password';
                   const AuthIcon = instance.apiKey ? Key : User;
                   const cs = connStatuses[name] ?? { status: 'idle' };
+                  const totalToolCount = availableTools.length;
+                  const enabledToolCount = countEnabledToolsForInstance(
+                    availableTools,
+                    instance.toolConfig?.disabledTools ?? []
+                  );
+                  const toolSummary = totalToolCount > 0
+                    ? `${enabledToolCount}/${totalToolCount} tools enabled for this instance`
+                    : 'Tool catalog unavailable';
                   return (
                     <tr key={name} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <Database size={16} className="text-blue-600 flex-shrink-0" />
-                          <code className="font-mono text-sm font-medium text-gray-900">{name}</code>
+                        <div className="flex items-start gap-2">
+                          <Database size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <code className="font-mono text-sm font-medium text-gray-900">{name}</code>
+                            <div className="mt-1 text-xs text-gray-500">{toolSummary}</div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-4">
@@ -330,7 +360,7 @@ export function InstancesTab() {
                         </a>
                       </td>
                       <td className="px-4 py-4">
-                        <code className="text-sm text-gray-700 font-mono">{instance.db}</code>
+                        <code className="text-sm text-gray-700 font-mono">{instance.db || '—'}</code>
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-1.5">
@@ -392,6 +422,7 @@ export function InstancesTab() {
           instanceName={editingName}
           instanceData={editingName ? config[editingName] : null}
           existingNames={existingNames}
+          availableTools={availableTools}
           onSave={handleSaveInstance}
           onCancel={() => { setShowForm(false); setEditingName(null); }}
         />

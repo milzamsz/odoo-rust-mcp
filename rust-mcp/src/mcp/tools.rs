@@ -48,12 +48,7 @@ impl OdooClientPool {
                 .read()
                 .map_err(|e| anyhow::anyhow!("Instance config lock poisoned: {e}"))?;
             let cfg = env.instances.get(instance).ok_or_else(|| {
-                let available = env
-                    .instances
-                    .keys()
-                    .cloned()
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let available = env.instances.keys().cloned().collect::<Vec<_>>().join(", ");
                 anyhow::anyhow!("Unknown Odoo instance '{instance}'. Available: {available}")
             })?;
             OdooClient::new(cfg)?
@@ -69,6 +64,41 @@ impl OdooClientPool {
             .read()
             .map(|env| env.instances.keys().cloned().collect())
             .unwrap_or_default()
+    }
+
+    fn apply_instance_tool_config(
+        &self,
+        instance: &str,
+        tool_name: &str,
+        args: Value,
+    ) -> Result<Value, OdooError> {
+        let tool_config = self.env.read().ok().and_then(|env| {
+            env.instances
+                .get(instance)
+                .and_then(|cfg| cfg.tool_config.clone())
+        });
+
+        let Some(tool_config) = tool_config else {
+            return Ok(args);
+        };
+
+        if tool_config.is_tool_disabled(tool_name) {
+            return Err(OdooError::InvalidResponse(format!(
+                "Tool '{tool_name}' is disabled for instance '{instance}'"
+            )));
+        }
+
+        let Some(defaults) = tool_config.tool_defaults(tool_name) else {
+            return Ok(args);
+        };
+
+        if !defaults.is_object() {
+            return Err(OdooError::InvalidResponse(format!(
+                "Tool '{tool_name}' defaults for instance '{instance}' must be a JSON object"
+            )));
+        }
+
+        Ok(deep_merge_values(defaults.clone(), args))
     }
 
     /// Hot-reload instances from ODOO_INSTANCES_JSON.
@@ -110,6 +140,12 @@ pub async fn call_tool(
     tool: &ToolDef,
     args: Value,
 ) -> Result<Value, OdooError> {
+    let args = if let Some(instance) = instance_from_args(&args, &tool.op) {
+        pool.apply_instance_tool_config(&instance, &tool.name, args)?
+    } else {
+        args
+    };
+
     execute_op(pool, &tool.op, args).await
 }
 
@@ -149,6 +185,31 @@ pub async fn execute_op(
 
 fn ptr<'a>(args: &'a Value, op: &'a OpSpec, key: &str) -> Option<&'a Value> {
     op.map.get(key).and_then(|p| args.pointer(p))
+}
+
+fn instance_from_args(args: &Value, op: &OpSpec) -> Option<String> {
+    ptr(args, op, "instance")
+        .and_then(|value| value.as_str())
+        .map(|value| value.to_string())
+}
+
+fn deep_merge_values(base: Value, overlay: Value) -> Value {
+    match (base, overlay) {
+        (Value::Object(mut base_map), Value::Object(overlay_map)) => {
+            for (key, value) in overlay_map {
+                match base_map.remove(&key) {
+                    Some(existing) => {
+                        base_map.insert(key, deep_merge_values(existing, value));
+                    }
+                    None => {
+                        base_map.insert(key, value);
+                    }
+                }
+            }
+            Value::Object(base_map)
+        }
+        (_, overlay) => overlay,
+    }
 }
 
 fn req_str(args: &Value, op: &OpSpec, key: &str) -> Result<String, OdooError> {
@@ -872,7 +933,36 @@ async fn op_create_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::odoo::config::{InstanceToolConfig, OdooEnvConfig, OdooInstanceConfig};
     use std::collections::HashMap;
+    use std::sync::{Arc, RwLock};
+    use tokio::sync::Mutex;
+
+    fn make_pool(tool_config: Option<InstanceToolConfig>) -> OdooClientPool {
+        let mut instances = HashMap::new();
+        instances.insert(
+            "school-prod".to_string(),
+            OdooInstanceConfig {
+                url: "http://localhost:8069".to_string(),
+                db: Some("school".to_string()),
+                api_key: Some("secret".to_string()),
+                username: None,
+                password: None,
+                version: Some("19".to_string()),
+                protocol: Default::default(),
+                timeout_ms: None,
+                max_retries: None,
+                tool_config,
+                extra: HashMap::new(),
+            },
+        );
+
+        OdooClientPool {
+            env: Arc::new(RwLock::new(OdooEnvConfig { instances })),
+            clients: Arc::new(Mutex::new(HashMap::new())),
+            metadata_cache: MetadataCache::new(),
+        }
+    }
 
     fn make_op(map: HashMap<String, String>) -> OpSpec {
         OpSpec {
@@ -1445,5 +1535,97 @@ mod tests {
 
         let result = ptr(&args, &op, "key");
         assert_eq!(result, Some(&json!("b")));
+    }
+
+    #[test]
+    fn test_deep_merge_values_recursively_preserves_defaults() {
+        let defaults = json!({
+            "limit": 20,
+            "context": {
+                "allowed_company_ids": [1],
+                "lang": "en_US"
+            },
+            "fields": ["name"]
+        });
+        let args = json!({
+            "context": {
+                "lang": "id_ID"
+            },
+            "fields": ["display_name"],
+            "offset": 5
+        });
+
+        let merged = deep_merge_values(defaults, args);
+
+        assert_eq!(merged["limit"], json!(20));
+        assert_eq!(merged["offset"], json!(5));
+        assert_eq!(merged["context"]["allowed_company_ids"], json!([1]));
+        assert_eq!(merged["context"]["lang"], json!("id_ID"));
+        assert_eq!(merged["fields"], json!(["display_name"]));
+    }
+
+    #[test]
+    fn test_apply_instance_tool_config_rejects_disabled_tool() {
+        let pool = make_pool(Some(InstanceToolConfig {
+            disabled_tools: vec!["odoo_create".to_string()],
+            defaults: HashMap::new(),
+        }));
+
+        let error = pool
+            .apply_instance_tool_config(
+                "school-prod",
+                "odoo_create",
+                json!({ "instance": "school-prod" }),
+            )
+            .unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("Tool 'odoo_create' is disabled for instance 'school-prod'")
+        );
+    }
+
+    #[test]
+    fn test_apply_instance_tool_config_merges_defaults_with_call_precedence() {
+        let mut defaults = HashMap::new();
+        defaults.insert(
+            "odoo_search_read".to_string(),
+            json!({
+                "limit": 20,
+                "context": {
+                    "allowed_company_ids": [1],
+                    "lang": "en_US"
+                },
+                "fields": ["name"]
+            }),
+        );
+
+        let pool = make_pool(Some(InstanceToolConfig {
+            disabled_tools: Vec::new(),
+            defaults,
+        }));
+
+        let merged = pool
+            .apply_instance_tool_config(
+                "school-prod",
+                "odoo_search_read",
+                json!({
+                    "instance": "school-prod",
+                    "context": {
+                        "lang": "id_ID"
+                    },
+                    "fields": ["display_name"],
+                    "offset": 5
+                }),
+            )
+            .unwrap();
+
+        assert_eq!(merged["instance"], json!("school-prod"));
+        assert_eq!(merged["limit"], json!(20));
+        assert_eq!(merged["offset"], json!(5));
+        assert_eq!(merged["context"]["allowed_company_ids"], json!([1]));
+        assert_eq!(merged["context"]["lang"], json!("id_ID"));
+        assert_eq!(merged["fields"], json!(["display_name"]));
     }
 }
