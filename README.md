@@ -630,9 +630,7 @@ Service endpoint: `http://127.0.0.1:8787/mcp`
 
 #### Option 3: Download and install
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases):"
-LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
-LABEL org.opencontainers.image.vendor="Milzam (Arkana)"
+Download the latest release for your platform from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases):
 | Platform | File |
 |----------|------|
 | Linux x86_64 | `rust-mcp-x86_64-unknown-linux-gnu.tar.gz` |
@@ -674,6 +672,80 @@ To uninstall:
 ```powershell
 .\install.ps1 -Uninstall
 ```
+
+##### Windows quick start
+
+If you are setting this up on a new Windows PC, this is the simplest path:
+
+1. Download `rust-mcp-x86_64-pc-windows-msvc.zip` from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases)
+2. Extract it somewhere like `C:\Users\<you>\Downloads\rust-mcp`
+3. Open **PowerShell as Administrator**
+4. Run:
+
+```powershell
+cd C:\Users\<you>\Downloads\rust-mcp
+.\install.ps1
+```
+
+After installation:
+
+- Binary path: `C:\Program Files\odoo-rust-mcp\rust-mcp.exe`
+- Config directory: `C:\ProgramData\odoo-rust-mcp\`
+- Default MCP HTTP endpoint: `http://127.0.0.1:8787/mcp`
+- Default config UI: `http://127.0.0.1:3008`
+
+Create `C:\ProgramData\odoo-rust-mcp\instances.json` with your Odoo instances, for example:
+
+```json
+{
+  "production": {
+    "url": "https://odoo.example.com",
+    "db": "production",
+    "apiKey": "YOUR_ODOO_19_API_KEY"
+  },
+  "legacy": {
+    "url": "https://legacy.example.com",
+    "db": "legacy_db",
+    "version": "18",
+    "username": "admin",
+    "password": "YOUR_PASSWORD"
+  }
+}
+```
+
+Run it manually for stdio clients:
+
+```powershell
+rust-mcp --transport stdio
+```
+
+Or start the local HTTP server:
+
+```powershell
+rust-mcp --transport http --listen 127.0.0.1:8787
+```
+
+To install it as a background service on Windows:
+
+```powershell
+cd C:\Users\<you>\Downloads\rust-mcp
+.\install.ps1 -Service
+```
+
+That creates a Scheduled Task named `OdooRustMcpService`. Useful commands:
+
+```powershell
+Start-ScheduledTask -TaskName OdooRustMcpService
+Stop-ScheduledTask -TaskName OdooRustMcpService
+Get-ScheduledTask -TaskName OdooRustMcpService | Select-Object State
+```
+
+When you use `-Service`, also review:
+
+- `C:\ProgramData\odoo-rust-mcp\instances.json`
+- `C:\ProgramData\odoo-rust-mcp\env.ps1`
+
+`env.ps1` controls config UI auth, optional MCP bearer auth, and the config file paths used by the background service.
 
 **Manual (without installer):**
 ```bash
@@ -1662,6 +1734,20 @@ ODOO_INSTANCES_JSON = 'C:\path\to\instances.json'
 MCP_TOOLS_JSON = 'C:\path\to\config\tools.json'
 MCP_PROMPTS_JSON = 'C:\path\to\config\prompts.json'
 MCP_SERVER_JSON = 'C:\path\to\config\server.json'
+```
+
+**Windows (installed via `install.ps1`):**
+```toml
+[mcp_servers.odoo-mcp]
+command = 'C:\Program Files\odoo-rust-mcp\rust-mcp.exe'
+args = ['--transport', 'stdio']
+disabled = false
+
+[mcp_servers.odoo-mcp.env]
+ODOO_INSTANCES_JSON = 'C:\ProgramData\odoo-rust-mcp\instances.json'
+MCP_TOOLS_JSON = 'C:\ProgramData\odoo-rust-mcp\tools.json'
+MCP_PROMPTS_JSON = 'C:\ProgramData\odoo-rust-mcp\prompts.json'
+MCP_SERVER_JSON = 'C:\ProgramData\odoo-rust-mcp\server.json'
 ```
 
 After saving `config.toml`, **restart ChatGPT Desktop** for changes to take effect.
