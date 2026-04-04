@@ -192,6 +192,18 @@ MCP_SERVER_JSON={config_path}/server.json
     )
 }
 
+fn has_explicit_odoo_instances_env() -> bool {
+    std::env::var("ODOO_INSTANCES")
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false)
+}
+
+fn should_auto_set_instances_json(instances_file_exists: bool) -> bool {
+    instances_file_exists
+        && std::env::var("ODOO_INSTANCES_JSON").is_err()
+        && !has_explicit_odoo_instances_env()
+}
+
 /// Setup user config directory and load environment variables
 fn setup_user_config() {
     let Some(config_dir) = get_config_dir() else {
@@ -264,8 +276,9 @@ fn setup_user_config() {
         migrate_env_file(&env_file);
     }
 
-    // Set ODOO_INSTANCES_JSON to user config if not already set and file exists
-    if std::env::var("ODOO_INSTANCES_JSON").is_err() && instances_file.exists() {
+    // Prefer an explicitly configured ODOO_INSTANCES snapshot over auto-linking
+    // the runtime to instances.json.
+    if should_auto_set_instances_json(instances_file.exists()) {
         // SAFETY: This is called early in main() before any threads are spawned,
         // and we're setting a new env var (not modifying an existing one being read).
         unsafe {
@@ -834,4 +847,73 @@ async fn run_http_with_auth(
 ) -> anyhow::Result<()> {
     info!("MCP server listening (http) on {}", listen);
     mcp_http::serve_with_auth(handler, listen, auth).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_auto_set_instances_json;
+
+    struct EnvGuard {
+        key: &'static str,
+        original: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: Option<&str>) -> Self {
+            let original = std::env::var(key).ok();
+            match value {
+                Some(value) => {
+                    // SAFETY: Tests in this module manipulate env vars in a controlled scope.
+                    unsafe { std::env::set_var(key, value) };
+                }
+                None => {
+                    // SAFETY: Tests in this module manipulate env vars in a controlled scope.
+                    unsafe { std::env::remove_var(key) };
+                }
+            }
+            Self { key, original }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            match &self.original {
+                Some(value) => {
+                    // SAFETY: Tests in this module manipulate env vars in a controlled scope.
+                    unsafe { std::env::set_var(self.key, value) };
+                }
+                None => {
+                    // SAFETY: Tests in this module manipulate env vars in a controlled scope.
+                    unsafe { std::env::remove_var(self.key) };
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn auto_sets_instances_json_when_no_env_source_is_present() {
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
+        let _instances = EnvGuard::set("ODOO_INSTANCES", None);
+
+        assert!(should_auto_set_instances_json(true));
+    }
+
+    #[test]
+    fn skips_auto_setting_instances_json_when_instances_env_is_present() {
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
+        let _instances = EnvGuard::set(
+            "ODOO_INSTANCES",
+            Some(r#"{"prod":{"url":"http://localhost:8069"}}"#),
+        );
+
+        assert!(!should_auto_set_instances_json(true));
+    }
+
+    #[test]
+    fn skips_auto_setting_instances_json_when_path_is_already_set() {
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", Some("/tmp/instances.json"));
+        let _instances = EnvGuard::set("ODOO_INSTANCES", None);
+
+        assert!(!should_auto_set_instances_json(true));
+    }
 }

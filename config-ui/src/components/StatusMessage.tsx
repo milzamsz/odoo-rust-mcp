@@ -1,13 +1,15 @@
 
 import { CheckCircle, AlertCircle, AlertTriangle, Loader2, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { StatusMessage as StatusMessageType } from '../types';
 
 interface StatusMessageProps {
   status: StatusMessageType;
   onDismiss?: () => void;
+  iconOverride?: LucideIcon;
 }
 
-export function StatusMessage({ status, onDismiss }: StatusMessageProps) {
+export function StatusMessage({ status, onDismiss, iconOverride }: StatusMessageProps) {
   const variants = {
     loading: {
       icon: Loader2,
@@ -44,7 +46,7 @@ export function StatusMessage({ status, onDismiss }: StatusMessageProps) {
   };
 
   const config = variants[status.type];
-  const Icon = config.icon;
+  const Icon = iconOverride ?? config.icon;
 
   return (
     <div

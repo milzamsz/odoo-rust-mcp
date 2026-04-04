@@ -18,6 +18,23 @@ export interface InstanceConfig {
   [key: string]: InstanceDetails;
 }
 
+export type InstanceEnvSyncState = 'synced' | 'out_of_sync' | 'not_synced';
+
+export interface InstancesSyncStatusResponse {
+  configured: boolean;
+  synced_count: number;
+  total_count: number;
+  instances: Record<string, InstanceEnvSyncState>;
+  extra_env_instances: string[];
+}
+
+export interface SyncInstancesEnvResponse extends InstancesSyncStatusResponse {
+  status: string;
+  message: string;
+  restart_required: boolean;
+  instances_synced: number;
+}
+
 export interface ToolConfig {
   name: string;
   description?: string;

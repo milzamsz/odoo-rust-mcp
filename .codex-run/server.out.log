@@ -1,0 +1,47 @@
+[2m2026-04-04T09:54:11.551171Z[0m [32m INFO[0m [2mrust_mcp[0m[2m:[0m Loading environment from: "C:\\Users\\MILZAM\\.config\\odoo-rust-mcp\\env"
+[2m2026-04-04T09:54:11.552631Z[0m [32m INFO[0m [2mrust_mcp[0m[2m:[0m   Set ODOO_INSTANCES_JSON=C:\Projects\MCP\odoo-rust-mcp\instances.json
+[2m2026-04-04T09:54:11.553235Z[0m [32m INFO[0m [2mrust_mcp[0m[2m:[0m   Set CONFIG_UI_USERNAME=admin
+[2m2026-04-04T09:54:11.553820Z[0m [32m INFO[0m [2mrust_mcp[0m[2m:[0m   Set CONFIG_UI_PASSWORD=***
+[2m2026-04-04T09:54:11.554448Z[0m [32m INFO[0m [2mrust_mcp[0m[2m:[0m   Set MCP_AUTH_ENABLED=false
+[2m2026-04-04T09:54:11.555136Z[0m [32m INFO[0m [2mrust_mcp[0m[2m:[0m   Set MCP_TOOLS_JSON=C:\Users\MILZAM\.config\odoo-rust-mcp/tools.json
+[2m2026-04-04T09:54:11.555692Z[0m [32m INFO[0m [2mrust_mcp[0m[2m:[0m   Set MCP_PROMPTS_JSON=C:\Users\MILZAM\.config\odoo-rust-mcp/prompts.json
+[2m2026-04-04T09:54:11.556029Z[0m [32m INFO[0m [2mrust_mcp[0m[2m:[0m   Set MCP_SERVER_JSON=C:\Users\MILZAM\.config\odoo-rust-mcp/server.json
+[2m2026-04-04T09:54:11.561746Z[0m [32m INFO[0m [2mrust_mcp::mcp::registry[0m[2m:[0m tools config loaded [3mpath[0m[2m=[0mC:\Users\MILZAM\.config\odoo-rust-mcp/tools.json
+[2m2026-04-04T09:54:11.562226Z[0m [32m INFO[0m [2mrust_mcp::mcp::registry[0m[2m:[0m prompts config loaded [3mpath[0m[2m=[0mC:\Users\MILZAM\.config\odoo-rust-mcp/prompts.json
+[2m2026-04-04T09:54:11.562540Z[0m [32m INFO[0m [2mrust_mcp::mcp::registry[0m[2m:[0m server config loaded [3mpath[0m[2m=[0mC:\Users\MILZAM\.config\odoo-rust-mcp/server.json
+[2m2026-04-04T09:54:11.563842Z[0m [32m INFO[0m [2mrust_mcp::mcp::registry[0m[2m:[0m watching config directory [3mdir[0m[2m=[0mC:\Users\MILZAM\.config\odoo-rust-mcp
+[2m2026-04-04T09:54:11.564297Z[0m [32m INFO[0m [2mrust_mcp[0m[2m:[0m Config server will start on port 3008 (inspired by Peugeot 3008)
+[2m2026-04-04T09:54:11.564546Z[0m [32m INFO[0m [2mrust_mcp::config_manager::server[0m[2m:[0m Config UI authentication enabled for user: admin
+[2m2026-04-04T09:54:11.564606Z[0m [32m INFO[0m [2mrust_mcp[0m[2m:[0m MCP server listening (http) on 127.0.0.1:8787
+[2m2026-04-04T09:54:11.565184Z[0m [32m INFO[0m [2mrust_mcp::config_manager::watcher[0m[2m:[0m Config watcher started for "C:\\Users\\MILZAM\\.config\\odoo-rust-mcp"
+[2m2026-04-04T09:54:11.565297Z[0m [32m INFO[0m [2mrust_mcp::config_manager::server[0m[2m:[0m Serving static files from: "\\\\?\\C:\\Projects\\MCP\\odoo-rust-mcp\\rust-mcp\\static\\dist"
+[2m2026-04-04T09:54:11.566111Z[0m [32m INFO[0m [2mrust_mcp::config_manager::server[0m[2m:[0m Serving documentation from: "\\\\?\\C:\\Projects\\MCP\\odoo-rust-mcp\\docs\\book"
+[2m2026-04-04T09:54:11.567935Z[0m [32m INFO[0m [2mrust_mcp::config_manager::server[0m[2m:[0m Config server listening on http://0.0.0.0:3008
+[2m2026-04-04T09:55:20.287847Z[0m [32m INFO[0m [2mrust_mcp::config_manager::server[0m[2m:[0m User 'admin' logged in
+[2m2026-04-04T09:55:20.348168Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded server config from "C:\\Users\\MILZAM\\.config\\odoo-rust-mcp\\server.json"
+[2m2026-04-04T09:55:25.003777Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:55:25.012967Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded tools config from "C:\\Users\\MILZAM\\.config\\odoo-rust-mcp\\tools.json"
+[2m2026-04-04T09:55:25.014447Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:55:51.998354Z[0m [32m INFO[0m [2mrust_mcp::mcp::http[0m[2m:[0m Session terminated: e9862590-dce8-47c4-a56a-7bd87aa9d935
+[2m2026-04-04T09:56:30.560918Z[0m [32m INFO[0m [2mrust_mcp::config_manager::server[0m[2m:[0m User 'admin' logged in
+[2m2026-04-04T09:56:30.572032Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded server config from "C:\\Users\\MILZAM\\.config\\odoo-rust-mcp\\server.json"
+[2m2026-04-04T09:56:32.247649Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded tools config from "C:\\Users\\MILZAM\\.config\\odoo-rust-mcp\\tools.json"
+[2m2026-04-04T09:56:32.256687Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:56:32.258285Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:56:36.624784Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:56:36.631290Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:56:36.633469Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded tools config from "C:\\Users\\MILZAM\\.config\\odoo-rust-mcp\\tools.json"
+[2m2026-04-04T09:56:41.798805Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:56:41.826991Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:56:41.847437Z[0m [32m INFO[0m [2mrust_mcp::config_manager::server[0m[2m:[0m Synced 13 instance(s) from the Config UI into ODOO_INSTANCES
+[2m2026-04-04T09:56:41.854019Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:56:42.011636Z[0m [32m INFO[0m [2mrust_mcp::mcp::registry[0m[2m:[0m tools config loaded [3mpath[0m[2m=[0mC:\Users\MILZAM\.config\odoo-rust-mcp/tools.json
+[2m2026-04-04T09:56:42.016382Z[0m [32m INFO[0m [2mrust_mcp::mcp::registry[0m[2m:[0m prompts config loaded [3mpath[0m[2m=[0mC:\Users\MILZAM\.config\odoo-rust-mcp/prompts.json
+[2m2026-04-04T09:56:42.016628Z[0m [32m INFO[0m [2mrust_mcp::mcp::registry[0m[2m:[0m server config loaded [3mpath[0m[2m=[0mC:\Users\MILZAM\.config\odoo-rust-mcp/server.json
+[2m2026-04-04T09:57:29.501224Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:57:29.506992Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:57:29.507841Z[0m [32m INFO[0m [2mrust_mcp::config_manager::server[0m[2m:[0m Synced 13 instance(s) from the Config UI into ODOO_INSTANCES
+[2m2026-04-04T09:57:29.523708Z[0m [32m INFO[0m [2mrust_mcp::config_manager::manager[0m[2m:[0m Loaded instances config from "C:\\Projects\\MCP\\odoo-rust-mcp\\instances.json"
+[2m2026-04-04T09:57:29.715110Z[0m [32m INFO[0m [2mrust_mcp::mcp::registry[0m[2m:[0m tools config loaded [3mpath[0m[2m=[0mC:\Users\MILZAM\.config\odoo-rust-mcp/tools.json
+[2m2026-04-04T09:57:29.720138Z[0m [32m INFO[0m [2mrust_mcp::mcp::registry[0m[2m:[0m prompts config loaded [3mpath[0m[2m=[0mC:\Users\MILZAM\.config\odoo-rust-mcp/prompts.json
+[2m2026-04-04T09:57:29.720354Z[0m [32m INFO[0m [2mrust_mcp::mcp::registry[0m[2m:[0m server config loaded [3mpath[0m[2m=[0mC:\Users\MILZAM\.config\odoo-rust-mcp/server.json

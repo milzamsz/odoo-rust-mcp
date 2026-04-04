@@ -1,0 +1,4 @@
+   Compiling rust-mcp v0.3.30 (C:\Projects\MCP\odoo-rust-mcp\rust-mcp)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.28s
+     Running `rust-mcp\target\debug\rust-mcp.exe --transport http --listen 127.0.0.1:8787 --config-server-port 3008`
+error: process didn't exit successfully: `rust-mcp\target\debug\rust-mcp.exe --transport http --listen 127.0.0.1:8787 --config-server-port 3008` (exit code: 0xffffffff)

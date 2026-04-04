@@ -71,4 +71,29 @@ describe('Source Code Imports', () => {
     expect(category.name).toBe('General');
     expect(Array.isArray(category.tools)).toBe(true);
   });
+
+  it('should import and validate instance env sync types', () => {
+    const state: Types.InstanceEnvSyncState = 'out_of_sync';
+    const status: Types.InstancesSyncStatusResponse = {
+      configured: true,
+      synced_count: 1,
+      total_count: 2,
+      instances: {
+        alpha: 'synced',
+        beta: state,
+      },
+      extra_env_instances: ['legacy'],
+    };
+    const syncResponse: Types.SyncInstancesEnvResponse = {
+      status: 'synced',
+      message: 'Synced 2 instance(s) to env',
+      restart_required: true,
+      instances_synced: 2,
+      ...status,
+    };
+
+    expect(status.instances.beta).toBe('out_of_sync');
+    expect(syncResponse.restart_required).toBe(true);
+    expect(syncResponse.instances_synced).toBe(2);
+  });
 });

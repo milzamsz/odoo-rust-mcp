@@ -7,16 +7,23 @@ globalThis.fetch = vi.fn(async () => {
   throw new Error('fetch is not mocked');
 });
 
+function resetStorage() {
+  if (typeof localStorage.clear === 'function') {
+    localStorage.clear();
+    return;
+  }
+
+  localStorage.removeItem('mcp_config_token');
+}
+
 describe('useConfig Hook', () => {
   beforeEach(() => {
-    // Clear localStorage before each test
-    localStorage.clear();
-    // Reset fetch mock
+    resetStorage();
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    localStorage.clear();
+    resetStorage();
   });
 
   describe('Type Validation', () => {
