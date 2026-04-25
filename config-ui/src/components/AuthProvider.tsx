@@ -1,9 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { AuthContextType, AuthStatus } from '../types';
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
-const TOKEN_STORAGE_KEY = 'mcp_config_token';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import type { AuthStatus } from '../types';
+import { AuthContext, TOKEN_STORAGE_KEY } from './AuthContext';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -95,12 +92,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth(): AuthContextType {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }

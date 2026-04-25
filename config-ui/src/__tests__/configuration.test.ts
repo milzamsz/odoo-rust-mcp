@@ -117,7 +117,7 @@ describe('Type Safety and Configuration', () => {
       };
 
       expect(tool.name).toBe('custom_tool');
-      expect((tool as any).customField).toBe('custom_value');
+      expect(tool.customField).toBe('custom_value');
     });
 
     it('should validate multiple tools', () => {
@@ -155,7 +155,7 @@ describe('Type Safety and Configuration', () => {
       };
 
       expect(server.serverName).toBeTruthy();
-      expect((server as any).version).toBe('0.3.28');
+      expect(server.version).toBe('0.3.28');
     });
   });
 
@@ -322,12 +322,12 @@ describe('Type Safety and Configuration', () => {
     });
 
     it('should validate status message type', () => {
-      const status = { message: 'Test', type: 'success' };
+      const status = { message: 'Test', type: 'success' } as const;
 
       const isValidStatus =
         'message' in status &&
         'type' in status &&
-        ['success', 'error', 'warning', 'loading'].includes(status.type as any);
+        ['success', 'error', 'warning', 'loading'].includes(status.type);
 
       expect(isValidStatus).toBe(true);
     });

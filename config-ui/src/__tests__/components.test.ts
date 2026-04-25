@@ -73,7 +73,7 @@ describe('Component Type Definitions', () => {
         },
         existingNames: ['existing1', 'existing2'],
         availableTools: [{ name: 'odoo_create', description: 'Create records' }],
-        onSave: (_name: string, _data: any) => {},
+        onSave: () => undefined,
         onCancel: () => {},
       };
       expect(formProps.instanceName).toBe('test-instance');
@@ -199,7 +199,7 @@ describe('Component Type Definitions', () => {
     it('should accept JSON editor configuration', () => {
       const editorProps = {
         value: { test: 'data' },
-        onChange: (_value: any) => {},
+        onChange: () => undefined,
         readOnly: false,
         mode: 'text' as const,
       };

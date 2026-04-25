@@ -319,18 +319,19 @@ async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
 
     for instance in instances {
         match pool.get(&instance).await {
-            Ok(client) => {
-                if client.health_check().await {
+            Ok(client) => match client.health_probe().await {
+                Ok(()) => {
                     instance_health.insert(instance.clone(), json!({"reachable": true}));
                     any_reachable = true;
-                } else {
+                }
+                Err(e) => {
                     instance_health.insert(
                         instance.clone(),
-                        json!({"reachable": false, "error": "health check failed"}),
+                        json!({"reachable": false, "error": e.to_string()}),
                     );
                     any_unreachable = true;
                 }
-            }
+            },
             Err(e) => {
                 instance_health.insert(
                     instance.clone(),

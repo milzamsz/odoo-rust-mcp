@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import { Button } from './Button';
+import { getInstanceTags, parseInstanceTagsInput } from '../instanceTags';
 import type { InstanceDetails, ToolConfig } from '../types';
 import {
   ALL_GROUPED_TOOL_NAMES,
@@ -21,6 +22,13 @@ interface InstanceFormProps {
 
 type AuthType = 'apiKey' | 'userPass';
 
+const inputBaseClassName =
+  'w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+function getInputClassName(hasError: boolean, extraClassName = '') {
+  return `${inputBaseClassName} ${hasError ? 'border-red-400' : 'border-slate-300'} ${extraClassName}`.trim();
+}
+
 export function InstanceForm({
   instanceName,
   instanceData,
@@ -37,6 +45,7 @@ export function InstanceForm({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [version, setVersion] = useState('');
+  const [tagsInput, setTagsInput] = useState('');
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
@@ -47,8 +56,9 @@ export function InstanceForm({
     if (instanceName && instanceData) {
       setName(instanceName);
       setUrl(instanceData.url);
-      setDb(instanceData.db);
+      setDb(instanceData.db || '');
       setVersion(instanceData.version ? String(instanceData.version) : '');
+      setTagsInput(getInstanceTags(instanceData).join(', '));
 
       if (instanceData.apiKey) {
         setAuthType('apiKey');
@@ -74,6 +84,7 @@ export function InstanceForm({
       setUsername('');
       setPassword('');
       setVersion('');
+      setTagsInput('');
       setDisabledTools([]);
     }
     setErrors({});
@@ -105,6 +116,7 @@ export function InstanceForm({
 
   const disabledToolSet = useMemo(() => new Set(disabledTools), [disabledTools]);
   const enabledToolCount = countEnabledToolsForInstance(availableTools, disabledTools);
+  const dbRequired = authType === 'userPass';
 
   const setToolEnabled = (toolName: string, enabled: boolean) => {
     setDisabledTools((current) => {
@@ -148,8 +160,8 @@ export function InstanceForm({
       newErrors.url = 'URL is required';
     }
 
-    if (!db.trim()) {
-      newErrors.db = 'Database name is required';
+    if (dbRequired && !db.trim()) {
+      newErrors.db = 'Database name is required when using username/password authentication';
     }
 
     if (authType === 'apiKey' && !apiKey.trim()) {
@@ -181,8 +193,13 @@ export function InstanceForm({
     const data: InstanceDetails = {
       ...(instanceData ?? {}),
       url: url.trim(),
-      db: db.trim(),
     };
+    const trimmedDb = db.trim();
+    if (trimmedDb) {
+      data.db = trimmedDb;
+    } else {
+      delete data.db;
+    }
 
     if (authType === 'apiKey') {
       data.apiKey = apiKey.trim();
@@ -199,6 +216,16 @@ export function InstanceForm({
     } else {
       delete data.version;
     }
+
+    const normalizedTags = parseInstanceTagsInput(tagsInput);
+    if (normalizedTags.length > 0) {
+      data.tags = normalizedTags;
+    } else {
+      delete data.tags;
+    }
+
+    // Legacy instances may still include aliases in raw API responses.
+    delete data['aliases'];
 
     const sanitizedDisabledTools = filterKnownDisabledTools(availableTools, disabledTools)
       .sort((left, right) => left.localeCompare(right));
@@ -306,195 +333,308 @@ export function InstanceForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <div>
-            <h3 className="text-xl font-semibold text-gray-900">
-              {instanceName ? 'Edit Instance' : 'Add New Instance'}
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Global tools still come from the Tools tab. These settings only decide which tools
-              stay enabled for this instance.
-            </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 shadow-2xl">
+        <div className="border-b border-slate-200 bg-white px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-600">
+                Instance Setup
+              </div>
+              <h3 className="mt-2 text-2xl font-semibold text-slate-950">
+                {instanceName ? 'Edit Instance' : 'Add New Instance'}
+              </h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Capture the connection details, choose the right authentication flow, and decide
+                which tools should stay available for this instance only.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-full border border-slate-200 bg-slate-50 p-2 text-slate-400 transition-colors hover:border-slate-300 hover:bg-white hover:text-slate-600"
+              aria-label="Close instance form"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="text-gray-400 transition-colors hover:text-gray-600"
-          >
-            <X size={24} />
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="space-y-6 p-6">
-            <section className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Instance Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={!!instanceName}
-                  className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.name ? 'border-red-500' : 'border-gray-300'
-                  } ${instanceName ? 'cursor-not-allowed bg-gray-100' : ''}`}
-                  placeholder="e.g., production, local, staging"
-                />
-                {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  URL <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.url ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., https://odoo.example.com"
-                />
-                {errors.url && <p className="mt-1 text-sm text-red-600">{errors.url}</p>}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Database Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={db}
-                  onChange={(e) => setDb(e.target.value)}
-                  className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.db ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., production_db"
-                />
-                {errors.db && <p className="mt-1 text-sm text-red-600">{errors.db}</p>}
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Authentication Method <span className="text-red-500">*</span>
-                </label>
-                <div className="flex gap-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      value="userPass"
-                      checked={authType === 'userPass'}
-                      onChange={(e) => setAuthType(e.target.value as AuthType)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm text-gray-700">Username & Password</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      value="apiKey"
-                      checked={authType === 'apiKey'}
-                      onChange={(e) => setAuthType(e.target.value as AuthType)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm text-gray-700">API Key</span>
-                  </label>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-base font-semibold text-slate-950">Connection Identity</h4>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Keep the instance name short and stable. The URL, database, and version drive
+                    how the backend connects.
+                  </p>
+                </div>
+                <div className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                  Hot reload applies after save
                 </div>
               </div>
 
-              {authType === 'userPass' ? (
-                <>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">
-                      Username <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.username ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="e.g., admin@example.com"
-                    />
-                    {errors.username && (
-                      <p className="mt-1 text-sm text-red-600">{errors.username}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">
-                      Password <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.password ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Enter password"
-                    />
-                    {errors.password && (
-                      <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-                    )}
-                  </div>
-                </>
-              ) : (
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
-                    API Key <span className="text-red-500">*</span>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Instance Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className={`w-full rounded-lg border px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.apiKey ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter API key"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={!!instanceName}
+                    className={getInputClassName(
+                      Boolean(errors.name),
+                      instanceName ? 'cursor-not-allowed bg-slate-100 text-slate-500' : ''
+                    )}
+                    placeholder="e.g., production, local, staging"
                   />
-                  {errors.apiKey && <p className="mt-1 text-sm text-red-600">{errors.apiKey}</p>}
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    This canonical name is what tools and resources now use.
+                  </p>
+                  {errors.name && <p className="mt-1.5 text-sm text-red-600">{errors.name}</p>}
                 </div>
-              )}
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Odoo Version
-                </label>
-                <input
-                  type="text"
-                  value={version}
-                  onChange={(e) => setVersion(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., 16, 17, 18, 19"
-                />
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    URL <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    className={getInputClassName(Boolean(errors.url))}
+                    placeholder="e.g., https://odoo.example.com"
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Use the public Odoo base URL that the MCP server should contact.
+                  </p>
+                  {errors.url && <p className="mt-1.5 text-sm text-red-600">{errors.url}</p>}
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Database Name {dbRequired && <span className="text-red-500">*</span>}
+                  </label>
+                  <input
+                    type="text"
+                    value={db}
+                    onChange={(e) => setDb(e.target.value)}
+                    className={getInputClassName(Boolean(errors.db), 'font-mono text-[13px]')}
+                    placeholder={
+                      dbRequired ? 'e.g., production_db' : 'Optional for single-tenant Odoo 19'
+                    }
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    {dbRequired
+                      ? 'Required for username/password connections and JSON-RPC flows.'
+                      : 'Optional for API key connections on Odoo 19. Leave blank for simple single-tenant setups, or enter the exact database name when the server expects one.'}
+                  </p>
+                  {errors.db && <p className="mt-1.5 text-sm text-red-600">{errors.db}</p>}
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Odoo Version
+                  </label>
+                  <input
+                    type="text"
+                    value={version}
+                    onChange={(e) => setVersion(e.target.value)}
+                    className={getInputClassName(false)}
+                    placeholder="e.g., 16, 17, 18, 19"
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Version helps the backend choose the expected protocol and auth flow.
+                  </p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label
+                    htmlFor="instance-tags"
+                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                  >
+                    Tags
+                  </label>
+                  <textarea
+                    id="instance-tags"
+                    value={tagsInput}
+                    onChange={(e) => setTagsInput(e.target.value)}
+                    className={getInputClassName(false, 'min-h-[88px]')}
+                    placeholder="e.g., prod, kdkmp, finance"
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Separate tags with commas or new lines. Tags help search and filter the
+                    Odoo Instances list.
+                  </p>
+                </div>
               </div>
             </section>
 
-            <section className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-4 flex items-start justify-between gap-4">
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-5">
+                <h4 className="text-base font-semibold text-slate-950">Authentication</h4>
+                <p className="mt-1 text-sm text-slate-600">
+                  Pick the auth style that matches the target Odoo instance. The form will show
+                  only the fields needed for that flow.
+                </p>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <label
+                  className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+                    authType === 'apiKey'
+                      ? 'border-blue-300 bg-blue-50 shadow-sm'
+                      : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    value="apiKey"
+                    checked={authType === 'apiKey'}
+                    onChange={(e) => setAuthType(e.target.value as AuthType)}
+                    className="sr-only"
+                  />
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">API Key</div>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Best for Odoo 19 and JSON-2 connections.
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                        authType === 'apiKey'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-slate-200 text-slate-500'
+                      }`}
+                    >
+                      {authType === 'apiKey' ? 'Selected' : 'Available'}
+                    </span>
+                  </div>
+                </label>
+
+                <label
+                  className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+                    authType === 'userPass'
+                      ? 'border-blue-300 bg-blue-50 shadow-sm'
+                      : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    value="userPass"
+                    checked={authType === 'userPass'}
+                    onChange={(e) => setAuthType(e.target.value as AuthType)}
+                    className="sr-only"
+                  />
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">
+                        Username & Password
+                      </div>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Use for legacy Odoo deployments and JSON-RPC.
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                        authType === 'userPass'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-slate-200 text-slate-500'
+                      }`}
+                    >
+                      {authType === 'userPass' ? 'Selected' : 'Available'}
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <div className={`mt-5 grid gap-4 ${authType === 'userPass' ? 'md:grid-cols-2' : ''}`}>
+                {authType === 'userPass' ? (
+                  <>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                        Username <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className={getInputClassName(Boolean(errors.username))}
+                        placeholder="e.g., admin@example.com"
+                      />
+                      {errors.username && (
+                        <p className="mt-1.5 text-sm text-red-600">{errors.username}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                        Password <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={getInputClassName(Boolean(errors.password))}
+                        placeholder="Enter password"
+                      />
+                      {errors.password && (
+                        <p className="mt-1.5 text-sm text-red-600">{errors.password}</p>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                      API Key <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      className={getInputClassName(Boolean(errors.apiKey), 'font-mono text-[13px]')}
+                      placeholder="Enter API key"
+                    />
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      Leave the database blank only when the Odoo 19 host can resolve the tenant
+                      automatically.
+                    </p>
+                    {errors.apiKey && (
+                      <p className="mt-1.5 text-sm text-red-600">{errors.apiKey}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-slate-900/[0.02] p-5">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h4 className="text-base font-semibold text-gray-900">Per-Instance Tool Access</h4>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Use the same tool groups as the global Tools screen, then fine-tune individual
-                    tools for this instance. Global security guards still apply at runtime.
+                  <h4 className="text-base font-semibold text-slate-950">Per-Instance Tool Access</h4>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Start from the shared tool catalog, then trim access for this specific instance.
+                    Global guards still apply at runtime.
                   </p>
                 </div>
-                <div className="rounded-lg bg-white px-3 py-2 text-xs text-gray-600 shadow-sm">
-                  {enabledToolCount}/{availableTools.length} enabled
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right shadow-sm">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Enabled
+                  </div>
+                  <div className="mt-1 text-lg font-semibold text-slate-900">
+                    {enabledToolCount}/{availableTools.length}
+                  </div>
                 </div>
               </div>
 
               {availableTools.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-500">
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
                   Global tools are not available yet. Refresh the Instances page after tools load if
-                  you want to edit per-instance access.
+                  you want to tune per-instance access.
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -522,7 +662,7 @@ export function InstanceForm({
             </section>
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
+          <div className="flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
             <Button type="button" variant="ghost" onClick={onCancel}>
               Cancel
             </Button>

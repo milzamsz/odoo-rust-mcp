@@ -199,9 +199,7 @@ fn has_explicit_odoo_instances_env() -> bool {
 }
 
 fn should_auto_set_instances_json(instances_file_exists: bool) -> bool {
-    instances_file_exists
-        && std::env::var("ODOO_INSTANCES_JSON").is_err()
-        && !has_explicit_odoo_instances_env()
+    instances_file_exists && std::env::var("ODOO_INSTANCES_JSON").is_err()
 }
 
 /// Setup user config directory and load environment variables
@@ -247,13 +245,16 @@ fn setup_user_config() {
     let instances_file = config_dir.join("instances.json");
 
     // Try to migrate single-instance config to multi-instance
-    // This will create instances.json from ODOO_URL/DB/etc if they exist
-    if !instances_file.exists() {
+    // This will create instances.json from ODOO_URL/DB/etc if they exist.
+    // Skip this when multi-instance inline env is explicitly configured.
+    if !instances_file.exists() && !has_explicit_odoo_instances_env() {
         migrate_single_to_multi_instance(&config_dir);
     }
 
-    // Create default instances.json if still doesn't exist (fresh install)
-    if !instances_file.exists() {
+    // Create default instances.json if still doesn't exist (fresh install).
+    // Skip the template when ODOO_INSTANCES is explicitly configured so env-only
+    // setups keep working and are not shadowed by an empty local file.
+    if !instances_file.exists() && !has_explicit_odoo_instances_env() {
         if let Err(e) = fs::write(&instances_file, DEFAULT_INSTANCES_TEMPLATE) {
             warn!(
                 "Failed to create default instances.json {:?}: {}",
@@ -276,8 +277,10 @@ fn setup_user_config() {
         migrate_env_file(&env_file);
     }
 
-    // Prefer an explicitly configured ODOO_INSTANCES snapshot over auto-linking
-    // the runtime to instances.json.
+    // Prefer the file-backed instances.json whenever it exists, unless the caller
+    // explicitly points the runtime somewhere else via ODOO_INSTANCES_JSON.
+    // ODOO_INSTANCES is treated as a sync/bridge snapshot rather than the primary
+    // editable source of truth for local runs.
     if should_auto_set_instances_json(instances_file.exists()) {
         // SAFETY: This is called early in main() before any threads are spawned,
         // and we're setting a new env var (not modifying an existing one being read).
@@ -574,8 +577,8 @@ fn sync_env_instances_to_file() {
 
     let mut added = 0usize;
     for (name, config) in env_instances {
-        if !file_instances.contains_key(&name) {
-            file_instances.insert(name, config);
+        if let std::collections::hash_map::Entry::Vacant(entry) = file_instances.entry(name) {
+            entry.insert(config);
             added += 1;
         }
     }
@@ -899,14 +902,14 @@ mod tests {
     }
 
     #[test]
-    fn skips_auto_setting_instances_json_when_instances_env_is_present() {
+    fn still_auto_sets_instances_json_when_instances_env_is_present() {
         let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
         let _instances = EnvGuard::set(
             "ODOO_INSTANCES",
             Some(r#"{"prod":{"url":"http://localhost:8069"}}"#),
         );
 
-        assert!(!should_auto_set_instances_json(true));
+        assert!(should_auto_set_instances_json(true));
     }
 
     #[test]

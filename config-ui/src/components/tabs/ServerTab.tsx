@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Save, RefreshCw, Info, Plus, Trash2 } from 'lucide-react';
 import { useConfig } from '../../hooks/useConfig';
 import { Card } from '../Card';
 import { Button } from '../Button';
 import { StatusMessage } from '../StatusMessage';
+import { RuntimeEnvSnapshotCard } from '../RuntimeEnvSnapshotCard';
 import type { ServerConfig } from '../../types';
 
 export function ServerTab() {
@@ -13,11 +14,7 @@ export function ServerTab() {
   const [protocolVersionDefault, setProtocolVersionDefault] = useState('');
   const [customFields, setCustomFields] = useState<{ key: string; value: string }[]>([]);
 
-  useEffect(() => {
-    loadServer();
-  }, []);
-
-  const loadServer = async () => {
+  const loadServer = useCallback(async () => {
     try {
       const data = await load() as ServerConfig;
       setServerName(data.serverName || '');
@@ -31,7 +28,11 @@ export function ServerTab() {
     } catch (error) {
       console.error('Failed to load server config:', error);
     }
-  };
+  }, [load]);
+
+  useEffect(() => {
+    loadServer();
+  }, [loadServer]);
 
   const handleSave = async () => {
     try {
@@ -83,6 +84,8 @@ export function ServerTab() {
           onDismiss={status.type === 'error' ? () => {} : undefined}
         />
       )}
+
+      <RuntimeEnvSnapshotCard />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">

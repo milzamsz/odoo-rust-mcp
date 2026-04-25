@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Lock, User, AlertCircle, Loader2 } from 'lucide-react';
-import { useAuth } from './AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import packageJson from '../../package.json';
 
 export function LoginForm() {

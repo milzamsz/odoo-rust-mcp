@@ -17,6 +17,8 @@ mod tests {
             timeout_ms: Some(30_000),
             max_retries: Some(3),
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
 
@@ -40,6 +42,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
 
@@ -65,6 +69,8 @@ mod tests {
                 timeout_ms: Some(30_000),
                 max_retries: Some(5),
                 tool_config: None,
+                tags: Vec::new(),
+                aliases: Vec::new(),
                 extra: HashMap::new(),
             },
         );
@@ -93,6 +99,8 @@ mod tests {
                 timeout_ms: Some(20_000),
                 max_retries: Some(2),
                 tool_config: None,
+                tags: Vec::new(),
+                aliases: Vec::new(),
                 extra: HashMap::new(),
             },
         );
@@ -110,6 +118,8 @@ mod tests {
                 timeout_ms: Some(25_000),
                 max_retries: Some(3),
                 tool_config: None,
+                tags: Vec::new(),
+                aliases: Vec::new(),
                 extra: HashMap::new(),
             },
         );
@@ -133,6 +143,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
 
@@ -152,6 +164,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
 

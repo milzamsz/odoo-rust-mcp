@@ -20,7 +20,9 @@ use tracing::{error, info, warn};
 use super::{ConfigManager, ConfigWatcher};
 use crate::mcp::http::AuthConfig as HttpAuthConfig;
 use crate::mcp::tools::OdooClientPool;
-use crate::odoo::config::OdooInstanceConfig;
+use crate::odoo::config::{
+    OdooInstanceConfig, RuntimeInstancesSourceKind, detect_runtime_instances_source,
+};
 use crate::odoo::unified_client::OdooClient;
 
 /// Session info stored in memory
@@ -346,10 +348,11 @@ fn find_docs_dir() -> Option<PathBuf> {
 
     for rel in candidates {
         let p = std::path::Path::new(rel);
-        if p.exists() && p.is_dir() {
-            if let Ok(canonical) = p.canonicalize() {
-                return Some(canonical);
-            }
+        if p.exists()
+            && p.is_dir()
+            && let Ok(canonical) = p.canonicalize()
+        {
+            return Some(canonical);
         }
     }
 
@@ -680,6 +683,20 @@ enum InstanceEnvSyncState {
     NotSynced,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum AlternateSourceState {
+    MatchesRuntime,
+    Stale,
+    Unreadable,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct AlternateInstancesSource {
+    path: String,
+    status: AlternateSourceState,
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct InstancesSyncStatusResponse {
     configured: bool,
@@ -687,6 +704,10 @@ struct InstancesSyncStatusResponse {
     total_count: usize,
     instances: HashMap<String, InstanceEnvSyncState>,
     extra_env_instances: Vec<String>,
+    runtime_source_kind: String,
+    instances_source_path: Option<String>,
+    env_file_path: String,
+    alternate_sources: Vec<AlternateInstancesSource>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -734,7 +755,51 @@ async fn sync_instances_to_env(State(state): State<AppState>) -> impl IntoRespon
             .into_response();
     }
 
-    let serialized_instances = match serde_json::to_string(&instances) {
+    let normalized_instances = match state
+        .config_manager
+        .normalize_instances_config(instances.clone())
+        .await
+    {
+        Ok(value) => value,
+        Err(e) => {
+            error!("Failed to normalize instances for env sync: {}", e);
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": format!("Invalid instances config: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    if normalized_instances != instances {
+        match state.config_manager.save_instances(instances).await {
+            Ok(result) if result.success => {}
+            Ok(result) => {
+                error!(
+                    "Failed to normalize instances file during env sync: {}",
+                    result.message
+                );
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": result.message })),
+                )
+                    .into_response();
+            }
+            Err(e) => {
+                error!(
+                    "Failed to rewrite normalized instances file during env sync: {}",
+                    e
+                );
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": format!("Failed to normalize instances file: {e}") })),
+                )
+                    .into_response();
+            }
+        }
+    }
+
+    let serialized_instances = match serde_json::to_string(&normalized_instances) {
         Ok(value) => value,
         Err(e) => {
             error!("Failed to serialize instances for env sync: {}", e);
@@ -759,15 +824,6 @@ async fn sync_instances_to_env(State(state): State<AppState>) -> impl IntoRespon
             .into_response();
     }
 
-    if let Err(e) = deactivate_env_var(&state.env_file_path, "ODOO_INSTANCES_JSON") {
-        error!("Failed to deactivate ODOO_INSTANCES_JSON: {}", e);
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": format!("Failed to deactivate ODOO_INSTANCES_JSON: {e}") })),
-        )
-            .into_response();
-    }
-
     let sync_status =
         match build_instances_sync_status(&state.config_manager, &state.env_file_path).await {
             Ok(sync_status) => sync_status,
@@ -785,7 +841,7 @@ async fn sync_instances_to_env(State(state): State<AppState>) -> impl IntoRespon
     let response = SyncInstancesEnvResponse {
         status: "synced".to_string(),
         message: format!(
-            "Synced {} instance(s) to ODOO_INSTANCES in the env file. Restart required to apply.",
+            "Synced {} instance(s) to ODOO_INSTANCES in the env file. Env-based launches may require a restart to pick up the snapshot.",
             sync_status.total_count
         ),
         restart_required: true,
@@ -855,19 +911,38 @@ async fn test_instance_connection(
     };
 
     let start = Instant::now();
-    let ok = client.health_check().await;
+    let probe = client.health_probe().await;
     let latency_ms = start.elapsed().as_millis() as u64;
 
-    info!(
-        "Connection test for '{}': ok={}, latency={}ms",
-        name, ok, latency_ms
-    );
-
-    (
-        StatusCode::OK,
-        Json(json!({ "ok": ok, "latency_ms": latency_ms })),
-    )
-        .into_response()
+    match probe {
+        Ok(()) => {
+            info!(
+                "Connection test for '{}': ok=true, latency={}ms",
+                name, latency_ms
+            );
+            (
+                StatusCode::OK,
+                Json(json!({ "ok": true, "latency_ms": latency_ms })),
+            )
+                .into_response()
+        }
+        Err(e) => {
+            let error_message = e.to_string();
+            info!(
+                "Connection test for '{}': ok=false, latency={}ms, error={}",
+                name, latency_ms, error_message
+            );
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "ok": false,
+                    "latency_ms": latency_ms,
+                    "error": error_message,
+                })),
+            )
+                .into_response()
+        }
+    }
 }
 
 fn read_env_file_lines(env_file_path: &PathBuf) -> Vec<String> {
@@ -943,6 +1018,7 @@ fn update_env_var(env_file_path: &PathBuf, key: &str, value: &str) -> anyhow::Re
     write_env_file_lines(env_file_path, &lines)
 }
 
+#[cfg(test)]
 fn deactivate_env_var(env_file_path: &PathBuf, key: &str) -> anyhow::Result<()> {
     let mut lines = read_env_file_lines(env_file_path);
     let mut changed = false;
@@ -979,6 +1055,56 @@ fn parse_env_instances_value(raw: &str) -> anyhow::Result<HashMap<String, Value>
 
     serde_json::from_str(&content)
         .map_err(|e| anyhow::anyhow!("Failed to parse ODOO_INSTANCES file '{raw}': {e}"))
+}
+
+fn canonicalize_lossy(path: &std::path::Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+}
+
+fn candidate_alternate_instance_paths(active_path: &std::path::Path) -> Vec<PathBuf> {
+    let active_canonical = canonicalize_lossy(active_path);
+    let mut candidates = Vec::new();
+
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("instances.json"));
+        if let Some(parent) = cwd.parent() {
+            candidates.push(parent.join("instances.json"));
+        }
+    }
+
+    if let Ok(exe_path) = std::env::current_exe()
+        && let Some(exe_dir) = exe_path.parent()
+    {
+        candidates.push(exe_dir.join("instances.json"));
+        candidates.push(exe_dir.join("../instances.json"));
+        candidates.push(exe_dir.join("../../instances.json"));
+        candidates.push(exe_dir.join("../../../instances.json"));
+    }
+
+    candidates.sort();
+    candidates.dedup();
+    candidates
+        .into_iter()
+        .filter(|candidate| candidate.exists())
+        .filter(|candidate| canonicalize_lossy(candidate) != active_canonical)
+        .collect()
+}
+
+fn compare_instance_file_to_runtime(
+    runtime_instances: &Value,
+    candidate_path: &PathBuf,
+) -> AlternateSourceState {
+    let Ok(content) = std::fs::read_to_string(candidate_path) else {
+        return AlternateSourceState::Unreadable;
+    };
+
+    match serde_json::from_str::<Value>(&content) {
+        Ok(candidate_value) if candidate_value == *runtime_instances => {
+            AlternateSourceState::MatchesRuntime
+        }
+        Ok(_) => AlternateSourceState::Stale,
+        Err(_) => AlternateSourceState::Unreadable,
+    }
 }
 
 async fn build_instances_sync_status(
@@ -1024,12 +1150,38 @@ async fn build_instances_sync_status(
         .collect();
     extra_env_instances.sort();
 
+    let runtime_source = detect_runtime_instances_source();
+    let instances_source_path = runtime_source.path.clone();
+    let alternate_sources = instances_source_path
+        .as_ref()
+        .map(|active_path| {
+            candidate_alternate_instance_paths(active_path)
+                .into_iter()
+                .map(|path| AlternateInstancesSource {
+                    path: path.display().to_string(),
+                    status: compare_instance_file_to_runtime(&instances, &path),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     Ok(InstancesSyncStatusResponse {
         configured,
         synced_count,
         total_count: instances_obj.len(),
         instances: instances_status,
         extra_env_instances,
+        runtime_source_kind: runtime_source.kind.as_str().to_string(),
+        instances_source_path: match runtime_source.kind {
+            RuntimeInstancesSourceKind::InstancesJson => {
+                instances_source_path.map(|path| path.display().to_string())
+            }
+            RuntimeInstancesSourceKind::InlineEnv | RuntimeInstancesSourceKind::SingleInstance => {
+                None
+            }
+        },
+        env_file_path: env_file_path.display().to_string(),
+        alternate_sources,
     })
 }
 
@@ -1256,13 +1408,28 @@ async fn update_server(
 #[cfg(test)]
 mod tests {
     use super::{
-        InstanceEnvSyncState, build_instances_sync_status, deactivate_env_var,
-        read_active_env_vars, update_env_var,
+        AppState, AuthConfig, DynamicAuthConfig, InstanceEnvSyncState, build_instances_sync_status,
+        deactivate_env_var, read_active_env_vars, sync_instances_to_env, test_instance_connection,
+        update_env_var,
     };
-    use crate::config_manager::ConfigManager;
+    use crate::{
+        TEST_ENV_MUTEX,
+        config_manager::{ConfigManager, ConfigWatcher},
+    };
+    use axum::{
+        body::to_bytes,
+        extract::{Path, State},
+        http::StatusCode,
+        response::IntoResponse,
+    };
     use serde_json::json;
-    use std::path::Path;
+    use std::{collections::HashMap, path::Path as StdPath, sync::Arc};
     use tempfile::TempDir;
+    use tokio::sync::RwLock;
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
 
     struct EnvGuard {
         key: &'static str,
@@ -1301,12 +1468,29 @@ mod tests {
         }
     }
 
-    fn write_json(path: &Path, value: &serde_json::Value) {
+    fn write_json(path: &StdPath, value: &serde_json::Value) {
         std::fs::write(path, serde_json::to_string_pretty(value).unwrap()).unwrap();
+    }
+
+    fn make_test_state(config_dir: &StdPath, env_file: &StdPath) -> AppState {
+        AppState {
+            config_manager: ConfigManager::new(config_dir.to_path_buf()),
+            config_watcher: Arc::new(ConfigWatcher::new(config_dir.to_path_buf()).unwrap()),
+            sessions: Arc::new(RwLock::new(HashMap::new())),
+            auth_config: DynamicAuthConfig::new(AuthConfig {
+                username: String::new(),
+                password: String::new(),
+                enabled: false,
+            }),
+            env_file_path: env_file.to_path_buf(),
+            http_auth_config: None,
+            pool: None,
+        }
     }
 
     #[test]
     fn update_and_deactivate_env_vars_round_trip() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
         let temp_dir = TempDir::new().unwrap();
         let env_file = temp_dir.path().join("env");
 
@@ -1341,11 +1525,15 @@ mod tests {
 
     #[tokio::test]
     async fn build_instances_sync_status_reports_exact_match_and_extra_entries() {
-        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
         let temp_dir = TempDir::new().unwrap();
         let config_manager = ConfigManager::new(temp_dir.path().to_path_buf());
         let env_file = temp_dir.path().join("env");
         let instances_file = temp_dir.path().join("instances.json");
+        let _instances_json = EnvGuard::set(
+            "ODOO_INSTANCES_JSON",
+            Some(instances_file.to_string_lossy().as_ref()),
+        );
 
         write_json(
             &instances_file,
@@ -1402,15 +1590,25 @@ mod tests {
             Some(&InstanceEnvSyncState::OutOfSync)
         );
         assert_eq!(status.extra_env_instances, vec!["extra".to_string()]);
+        assert_eq!(status.runtime_source_kind, "instances_json");
+        assert_eq!(
+            status.instances_source_path.as_deref(),
+            Some(instances_file.to_string_lossy().as_ref())
+        );
+        assert_eq!(status.env_file_path, env_file.to_string_lossy());
     }
 
     #[tokio::test]
     async fn build_instances_sync_status_marks_missing_entries_as_not_synced() {
-        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
         let temp_dir = TempDir::new().unwrap();
         let config_manager = ConfigManager::new(temp_dir.path().to_path_buf());
         let env_file = temp_dir.path().join("env");
         let instances_file = temp_dir.path().join("instances.json");
+        let _instances_json = EnvGuard::set(
+            "ODOO_INSTANCES_JSON",
+            Some(instances_file.to_string_lossy().as_ref()),
+        );
 
         write_json(
             &instances_file,
@@ -1436,5 +1634,147 @@ mod tests {
             Some(&InstanceEnvSyncState::NotSynced)
         );
         assert!(status.extra_env_instances.is_empty());
+        assert_eq!(status.runtime_source_kind, "instances_json");
+        assert_eq!(
+            status.instances_source_path.as_deref(),
+            Some(instances_file.to_string_lossy().as_ref())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_instance_connection_returns_error_details_for_failed_probe() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let env_file = temp_dir.path().join("env");
+        let instances_file = temp_dir.path().join("instances.json");
+        let _instances_json = EnvGuard::set(
+            "ODOO_INSTANCES_JSON",
+            Some(instances_file.to_string_lossy().as_ref()),
+        );
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/json/2/ir.model/search_count"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&mock_server)
+            .await;
+
+        write_json(
+            &instances_file,
+            &json!({
+                "broken": {
+                    "url": mock_server.uri(),
+                    "db": "wrong-db",
+                    "apiKey": "secret",
+                    "version": "19"
+                }
+            }),
+        );
+
+        let response = test_instance_connection(
+            State(make_test_state(temp_dir.path(), &env_file)),
+            Path("broken".to_string()),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body: serde_json::Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
+                .unwrap();
+        assert_eq!(body["ok"], json!(false));
+        assert!(body["latency_ms"].as_u64().is_some());
+        let error = body["error"].as_str().unwrap();
+        assert!(error.contains("wrong-db"));
+        assert!(error.contains("HTTP 404"));
+        assert!(error.contains("does not exactly match the database name"));
+    }
+
+    #[tokio::test]
+    async fn test_instance_connection_returns_latency_for_successful_probe() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let env_file = temp_dir.path().join("env");
+        let instances_file = temp_dir.path().join("instances.json");
+        let _instances_json = EnvGuard::set(
+            "ODOO_INSTANCES_JSON",
+            Some(instances_file.to_string_lossy().as_ref()),
+        );
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/json/2/ir.model/search_count"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw("662", "application/json"))
+            .mount(&mock_server)
+            .await;
+
+        write_json(
+            &instances_file,
+            &json!({
+                "healthy": {
+                    "url": mock_server.uri(),
+                    "db": "agrinas_live",
+                    "apiKey": "secret",
+                    "version": "19"
+                }
+            }),
+        );
+
+        let response = test_instance_connection(
+            State(make_test_state(temp_dir.path(), &env_file)),
+            Path("healthy".to_string()),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body: serde_json::Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
+                .unwrap();
+        assert_eq!(body["ok"], json!(true));
+        assert!(body["latency_ms"].as_u64().is_some());
+        assert!(body.get("error").is_none() || body["error"].is_null());
+    }
+
+    #[tokio::test]
+    async fn sync_instances_to_env_strips_legacy_aliases_from_file_and_env_snapshot() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let env_file = temp_dir.path().join("env");
+        let instances_file = temp_dir.path().join("instances.json");
+        let _instances_json = EnvGuard::set(
+            "ODOO_INSTANCES_JSON",
+            Some(instances_file.to_string_lossy().as_ref()),
+        );
+
+        write_json(
+            &instances_file,
+            &json!({
+                "legacy": {
+                    "url": "http://localhost:8069",
+                    "apiKey": "secret",
+                    "tags": ["legacy", " prod ", "LEGACY", ""],
+                    "aliases": ["old-name"]
+                }
+            }),
+        );
+
+        let response = sync_instances_to_env(State(make_test_state(temp_dir.path(), &env_file)))
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let normalized_instances: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&instances_file).unwrap()).unwrap();
+        assert!(normalized_instances["legacy"].get("aliases").is_none());
+        assert_eq!(
+            normalized_instances["legacy"]["tags"],
+            json!(["legacy", "prod"])
+        );
+
+        let env_text = std::fs::read_to_string(&env_file).unwrap();
+        assert!(env_text.contains("ODOO_INSTANCES="));
+        assert!(!env_text.contains("\"aliases\""));
+        assert!(env_text.contains("\"tags\""));
     }
 }

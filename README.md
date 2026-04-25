@@ -64,7 +64,7 @@ Rust implementation of an **Odoo MCP server** (Model Context Protocol), supporti
 - MCP over **SSE** (legacy HTTP+SSE transport)
 - MCP over **WebSocket** (standalone server; not used by Cursor)
 - **Web UI for configuration** on port 3008 (tools, prompts, server, instances JSON) - Inspired by Peugeot 3008's elegant design
-- **Multi-instance** support via `ODOO_INSTANCES`
+- **Multi-instance** support via file-backed `instances.json` or `ODOO_INSTANCES` env snapshots
 - **Metadata caching** with configurable TTL to reduce Odoo API calls
 - **Health check endpoint** for monitoring and configuration validation
 - **MCP Resources** with `odoo://` URI scheme for resource discovery
@@ -90,7 +90,7 @@ Notes: For Odoo 19+, access to JSON-2 external API is only available on **Custom
 
 **Option A: JSON file (recommended for readability)**
 
-See `instances.example.json` in the repository root for a complete example configuration.
+See `instances.example.json` in the repository root for a complete example configuration. The repository copy is an example/dev fixture only. For local day-to-day runtime, the default source of truth is `~/.config/odoo-rust-mcp/instances.json`.
 
 Create `~/.config/odoo-rust-mcp/instances.json`:
 
@@ -99,7 +99,8 @@ Create `~/.config/odoo-rust-mcp/instances.json`:
   "production": {
     "url": "https://mycompany.example.com",
     "db": "mycompany",
-    "apiKey": "YOUR_API_KEY"
+    "apiKey": "YOUR_API_KEY",
+    "tags": ["prod", "finance"]
   },
   "staging": {
     "url": "https://staging.mycompany.example.com",
@@ -115,7 +116,13 @@ Create `~/.config/odoo-rust-mcp/instances.json`:
 }
 ```
 
-Then in `~/.config/odoo-rust-mcp/env`:
+Runtime precedence is:
+1. `ODOO_INSTANCES_JSON` when explicitly set
+2. `~/.config/odoo-rust-mcp/instances.json` when the file exists
+3. `ODOO_INSTANCES` inline JSON from the env file
+4. Single-instance env vars such as `ODOO_URL`
+
+In the common local setup, you can simply create `~/.config/odoo-rust-mcp/instances.json` and let the server discover it automatically. If you want to pin a different path, set `ODOO_INSTANCES_JSON` in `~/.config/odoo-rust-mcp/env`:
 
 ```bash
 ODOO_INSTANCES_JSON=/path/to/instances.json
@@ -139,11 +146,13 @@ ODOO_INSTANCES={"production":{"url":"https://mycompany.example.com","apiKey":"xx
 | `version` | No | Odoo version (e.g., "17", "18"). If < 19, uses username/password |
 | `username` | Odoo < 19 | Username for JSON-RPC authentication |
 | `password` | Odoo < 19 | Password for JSON-RPC authentication |
+| `tags` | No | Manual labels for Config UI search/filtering, e.g. `["prod", "finance"]` |
 
 Notes:
 - `db` is optional for Odoo 19+ (only needed when Host header isn't enough to select DB).
 - `db` is **required** for Odoo < 19 (legacy mode).
 - `version` determines authentication mode: `< 19` uses username/password, `>= 19` uses API key.
+- Instance resolution accepts the canonical instance name, with case-insensitive matching for convenience.
 - Extra fields in the JSON are ignored.
 - If an instance omits `apiKey`, the server will fall back to the global `ODOO_API_KEY` (if set).
 - If an instance omits `username`/`password`, the server will fall back to `ODOO_USERNAME`/`ODOO_PASSWORD`.
@@ -431,12 +440,16 @@ A web-based configuration interface is available on port **3008** for managing `
 - **Config UI Credentials Management**: Change login username and password from the UI
 - **Group-based tool management**: Enable/disable tools by group — **Read Operations**, **Write Operations**, **Cleanup Operations** — with per-group and per-tool toggles
 - **Instance connection test**: Test Odoo connectivity per instance directly from the UI with live latency display
+- **Server Configuration runtime card**: See whether runtime is using `instances.json`, an inline env snapshot, or single-instance env vars
+- **Alternate source warnings**: Detect nearby stale `instances.json` files from the Server Configuration page so repo-root fixtures do not silently look active
 - **Automatic file watching and hot reload** (no server restart needed)
 - **User notifications**: Success, error, and warning messages displayed in the UI
 - **REST API endpoints** for programmatic access:
   - `GET /api/config/{instances|tools|prompts|server}` - Retrieve config
   - `POST /api/config/{instances|tools|prompts|server}` - Update config
   - `POST /api/config/instances/{name}/test` - Test Odoo connection for a named instance
+  - `GET /api/config/instances/sync-status` - Retrieve env snapshot status plus runtime source metadata
+  - `POST /api/config/instances/sync-env` - Save the current Config UI instances into `ODOO_INSTANCES`
   - `GET /api/auth/status` - Get auth status
   - `GET /api/auth/mcp-auth-status` - Get MCP HTTP auth status
   - `POST /api/auth/mcp-auth-enabled` - Enable/disable MCP HTTP auth
@@ -464,8 +477,9 @@ export MCP_AUTH_TOKEN=               # Bearer token (generate: openssl rand -hex
 1. Open `http://localhost:3008`
 2. Login with default credentials (`admin` / `changeme`)
 3. **IMPORTANT**: Go to **Security** tab and change the default password immediately
-4. Configure your Odoo instances in the **Instances** tab
+4. Configure and tag your Odoo instances in the **Instances** tab
 5. Optionally enable MCP HTTP authentication from the **Security** tab
+6. Review **Server Configuration → Runtime & Env Snapshot** to confirm which config file or env mode the running server is actually using
 
 **Example: Enable/disable cleanup tools via UI**
 
@@ -501,6 +515,7 @@ export MCP_AUTH_TOKEN=               # Bearer token (generate: openssl rand -hex
 
 - Config UI credentials are stored in `.env` file (not in JSON configs)
 - MCP auth settings are also stored in `.env` and can be hot-reloaded
+- `Sync to Env` writes an `ODOO_INSTANCES` snapshot for env-based launch modes; it does not replace a file-backed runtime source such as `~/.config/odoo-rust-mcp/instances.json`
 - All configuration changes are validated before saving
 - Automatic backup and rollback prevent configuration corruption
 - For production, use strong passwords and secure tokens
@@ -576,6 +591,7 @@ The binary automatically loads config from `~/.config/odoo-rust-mcp/env`, so you
 - Creates `~/.config/odoo-rust-mcp/` directory if it doesn't exist
 - Creates a default `env` template file with multi-instance configuration
 - Loads environment variables from `~/.config/odoo-rust-mcp/env`
+- Uses `~/.config/odoo-rust-mcp/instances.json` as the default local file-backed multi-instance source when present
 - Sets default MCP config paths (`MCP_TOOLS_JSON`, `MCP_PROMPTS_JSON`, `MCP_SERVER_JSON`) pointing to user config directory
 - Copies default config files from Homebrew share directory if they don't exist
 - Migrates existing single-instance configurations to `instances.json` format
@@ -1192,9 +1208,22 @@ Supported `op.type` values (used in `tools.json`):
 
 ### Prompts
 
-Prompts are defined by `prompts.json` (authoritative). The default seed includes:
+Prompts are defined by `prompts.json` (authoritative). The default seed includes 11 built-in prompts:
+
+Data and ORM guidance:
 - `odoo_common_models`
 - `odoo_domain_filters`
+- `odoo_field_types`
+- `odoo_workflow_states`
+- `odoo_read_group`
+- `odoo_context`
+- `odoo_api_tips`
+
+Frontend and addon-development guidance:
+- `odoo_owl_components`
+- `odoo_assets_and_bundles`
+- `odoo_frontend_contexts`
+- `odoo_qweb_and_templates`
 
 ### Example tool calls
 
@@ -1716,7 +1745,7 @@ args = ['--transport', 'stdio']
 disabled = false
 
 [mcp_servers.odoo-mcp.env]
-ODOO_INSTANCES_JSON = '/absolute/path/to/instances.json'
+ODOO_INSTANCES_JSON = '/home/your-user/.config/odoo-rust-mcp/instances.json'
 MCP_TOOLS_JSON = '/absolute/path/to/config/tools.json'
 MCP_PROMPTS_JSON = '/absolute/path/to/config/prompts.json'
 MCP_SERVER_JSON = '/absolute/path/to/config/server.json'
@@ -1730,7 +1759,7 @@ args = ['--transport', 'stdio']
 disabled = false
 
 [mcp_servers.odoo-mcp.env]
-ODOO_INSTANCES_JSON = 'C:\path\to\instances.json'
+ODOO_INSTANCES_JSON = 'C:\Users\your-user\.config\odoo-rust-mcp\instances.json'
 MCP_TOOLS_JSON = 'C:\path\to\config\tools.json'
 MCP_PROMPTS_JSON = 'C:\path\to\config\prompts.json'
 MCP_SERVER_JSON = 'C:\path\to\config\server.json'
@@ -1744,7 +1773,7 @@ args = ['--transport', 'stdio']
 disabled = false
 
 [mcp_servers.odoo-mcp.env]
-ODOO_INSTANCES_JSON = 'C:\ProgramData\odoo-rust-mcp\instances.json'
+ODOO_INSTANCES_JSON = 'C:\Users\your-user\.config\odoo-rust-mcp\instances.json'
 MCP_TOOLS_JSON = 'C:\ProgramData\odoo-rust-mcp\tools.json'
 MCP_PROMPTS_JSON = 'C:\ProgramData\odoo-rust-mcp\prompts.json'
 MCP_SERVER_JSON = 'C:\ProgramData\odoo-rust-mcp\server.json'
@@ -1789,7 +1818,7 @@ tools/list: 11 tools
 odoo_count result: {"count":18}
 odoo_search_read count: 2
 odoo_search_read sample records: [{"id":46,"name":"Kasir C"},{"id":45,"name":"Kasir B"}]
-prompts/list: odoo_common_models, odoo_domain_filters
+prompts/list: odoo_common_models, odoo_domain_filters, odoo_field_types, odoo_workflow_states, odoo_read_group, odoo_context, odoo_api_tips, odoo_owl_components, odoo_assets_and_bundles, odoo_frontend_contexts, odoo_qweb_and_templates
 ```
 
 ### Security

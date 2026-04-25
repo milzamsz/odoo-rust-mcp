@@ -3,14 +3,20 @@ import JSONEditor, { JSONEditorOptions } from 'jsoneditor';
 import 'jsoneditor/dist/jsoneditor.css';
 
 interface JsonEditorProps {
-  value: any;
-  onChange: (value: any) => void;
+  value: unknown;
+  onChange: (value: unknown) => void;
   mode?: 'tree' | 'code' | 'form' | 'text' | 'view';
 }
 
 export function JsonEditor({ value, onChange, mode = 'code' }: JsonEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<JSONEditor | null>(null);
+  const latestValueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -22,7 +28,7 @@ export function JsonEditor({ value, onChange, mode = 'code' }: JsonEditorProps) 
         try {
           if (editorRef.current) {
             const updatedJson = editorRef.current.get();
-            onChange(updatedJson);
+            onChangeRef.current(updatedJson);
           }
         } catch (error) {
           console.error('Invalid JSON:', error);
@@ -34,7 +40,7 @@ export function JsonEditor({ value, onChange, mode = 'code' }: JsonEditorProps) 
     };
 
     editorRef.current = new JSONEditor(containerRef.current, options);
-    editorRef.current.set(value);
+    editorRef.current.set(latestValueRef.current);
 
     return () => {
       if (editorRef.current) {
@@ -42,16 +48,18 @@ export function JsonEditor({ value, onChange, mode = 'code' }: JsonEditorProps) 
         editorRef.current = null;
       }
     };
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
+    latestValueRef.current = value;
+
     if (editorRef.current) {
       try {
         const currentJson = editorRef.current.get();
         if (JSON.stringify(currentJson) !== JSON.stringify(value)) {
           editorRef.current.update(value);
         }
-      } catch (error) {
+      } catch {
         editorRef.current.set(value);
       }
     }

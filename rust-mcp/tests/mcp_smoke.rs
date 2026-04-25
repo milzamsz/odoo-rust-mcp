@@ -174,7 +174,65 @@ async fn mcp_initialize_and_list_tools_prompts() {
         Message::Response(resp) => {
             assert!(resp.error.is_none());
             let v = resp.result.unwrap();
-            assert!(v.get("prompts").is_some());
+            let prompts = v
+                .get("prompts")
+                .and_then(|value| value.as_array())
+                .expect("prompts/list should return an array");
+            let prompt_names: Vec<&str> = prompts
+                .iter()
+                .filter_map(|prompt| prompt.get("name").and_then(|name| name.as_str()))
+                .collect();
+
+            for expected in [
+                "odoo_common_models",
+                "odoo_domain_filters",
+                "odoo_owl_components",
+                "odoo_assets_and_bundles",
+                "odoo_frontend_contexts",
+                "odoo_qweb_and_templates",
+            ] {
+                assert!(
+                    prompt_names.contains(&expected),
+                    "Expected prompts/list to include {expected}"
+                );
+            }
+        }
+        _ => panic!("expected response"),
+    }
+
+    // prompts/get
+    let get_prompt = Request::new(
+        "prompts/get",
+        Some(serde_json::json!({
+            "name": "odoo_owl_components"
+        })),
+        RequestId::Number(4),
+    );
+    client_tx.send(Ok(Message::Request(get_prompt))).unwrap();
+    let resp = tokio::time::timeout(Duration::from_secs(2), client_rx.recv())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    match resp {
+        Message::Response(resp) => {
+            assert!(resp.error.is_none());
+            let v = resp.result.unwrap();
+            assert_eq!(
+                v["description"],
+                "Owl component structure and debugging patterns for Odoo addons"
+            );
+            let prompt_text = v["messages"][0]["content"]["text"]
+                .as_str()
+                .expect("prompts/get should return prompt text");
+            assert!(
+                prompt_text.contains("/** @odoo-module **/"),
+                "Expected Owl prompt to mention @odoo-module"
+            );
+            assert!(
+                prompt_text.contains("setup()"),
+                "Expected Owl prompt to mention setup()"
+            );
         }
         _ => panic!("expected response"),
     }

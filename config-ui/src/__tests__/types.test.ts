@@ -94,8 +94,8 @@ describe('Type Definitions', () => {
       };
 
       expect(tool.name).toBe('create_order');
-      expect((tool as any).category).toBe('sales');
-      expect((tool as any).customField).toBe('custom_value');
+      expect(tool.category).toBe('sales');
+      expect(tool.customField).toBe('custom_value');
     });
 
     it('should handle tools without description', () => {
@@ -144,8 +144,8 @@ describe('Type Definitions', () => {
         version: 2,
       };
 
-      expect((prompt as any).tags).toEqual(['sales', 'crm']);
-      expect((prompt as any).version).toBe(2);
+      expect(prompt.tags).toEqual(['sales', 'crm']);
+      expect(prompt.version).toBe(2);
     });
   });
 
@@ -170,9 +170,9 @@ describe('Type Definitions', () => {
         maxConnections: 100,
       };
 
-      expect((config as any).logLevel).toBe('debug');
-      expect((config as any).enableCache).toBe(true);
-      expect((config as any).maxConnections).toBe(100);
+      expect(config.logLevel).toBe('debug');
+      expect(config.enableCache).toBe(true);
+      expect(config.maxConnections).toBe(100);
     });
 
     it('should handle minimal server config', () => {

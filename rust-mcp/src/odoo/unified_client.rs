@@ -125,6 +125,9 @@ pub trait OdooClientTrait: Send + Sync {
         context: Option<Value>,
     ) -> OdooResult<Value>;
 
+    /// Perform a health probe and surface the underlying error on failure.
+    async fn health_probe(&self) -> OdooResult<()>;
+
     /// Check if the Odoo instance is reachable with a minimal health check.
     /// Returns true if the instance is healthy, false otherwise.
     async fn health_check(&self) -> bool;
@@ -397,11 +400,15 @@ impl OdooClient {
         }
     }
 
-    pub async fn health_check(&self) -> bool {
+    pub async fn health_probe(&self) -> OdooResult<()> {
         match self {
-            OdooClient::Modern(c) => c.health_check().await,
-            OdooClient::Legacy(c) => c.health_check().await,
+            OdooClient::Modern(c) => c.health_probe().await,
+            OdooClient::Legacy(c) => c.health_probe().await,
         }
+    }
+
+    pub async fn health_check(&self) -> bool {
+        self.health_probe().await.is_ok()
     }
 }
 
@@ -562,11 +569,15 @@ impl OdooClientTrait for OdooClient {
             .await
     }
 
-    async fn health_check(&self) -> bool {
+    async fn health_probe(&self) -> OdooResult<()> {
         match self {
-            OdooClient::Modern(c) => c.health_check().await,
-            OdooClient::Legacy(c) => c.health_check().await,
+            OdooClient::Modern(c) => c.health_probe().await,
+            OdooClient::Legacy(c) => c.health_probe().await,
         }
+    }
+
+    async fn health_check(&self) -> bool {
+        self.health_probe().await.is_ok()
     }
 
     fn is_legacy(&self) -> bool {
@@ -601,6 +612,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         assert_eq!(modern_cfg.auth_mode(), OdooAuthMode::ApiKey);
@@ -617,6 +630,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         assert_eq!(legacy_cfg.auth_mode(), OdooAuthMode::Password);
@@ -631,13 +646,15 @@ mod tests {
             url: "http://localhost:8069".to_string(),
             db: Some("test".to_string()),
             api_key: Some("key".to_string()), // key present
-            username: None,
-            password: None,
+            username: Some("user".to_string()),
+            password: Some("pass".to_string()),
             version: Some("19".to_string()), // version 19
             protocol: OdooProtocol::JsonRpc, // BUT forced to JsonRpc
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         // auth_mode should be Password -> Legacy Client
@@ -649,7 +666,7 @@ mod tests {
         let config_modern = OdooInstanceConfig {
             url: "http://localhost:8069".to_string(),
             db: Some("test".to_string()),
-            api_key: None,
+            api_key: Some("key".to_string()),
             username: Some("user".to_string()),
             password: Some("pass".to_string()),
             version: Some("18".to_string()), // version 18
@@ -657,6 +674,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         // auth_mode should be ApiKey -> Modern Client

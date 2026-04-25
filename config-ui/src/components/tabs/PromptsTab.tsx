@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, RefreshCw, FileText } from 'lucide-react';
 import { useConfig } from '../../hooks/useConfig';
 import { Card } from '../Card';
@@ -14,18 +14,18 @@ export function PromptsTab() {
   const [editingPrompt, setEditingPrompt] = useState<PromptConfig | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadPrompts();
-  }, []);
-
-  const loadPrompts = async () => {
+  const loadPrompts = useCallback(async () => {
     try {
       const data = await load() as PromptConfig[];
       setPrompts(data);
     } catch (error) {
       console.error('Failed to load prompts:', error);
     }
-  };
+  }, [load]);
+
+  useEffect(() => {
+    loadPrompts();
+  }, [loadPrompts]);
 
   const handleAdd = () => {
     setEditingPrompt(null);

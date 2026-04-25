@@ -2,159 +2,177 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { InstanceForm } from '../components/InstanceForm';
-import type { InstanceDetails, ToolConfig } from '../types';
+import type { InstanceDetails } from '../types';
 
-const availableTools: ToolConfig[] = [
-  { name: 'odoo_search_read', description: 'Search and read records' },
-  { name: 'odoo_read', description: 'Read a record' },
-  { name: 'odoo_create', description: 'Create a record' },
-  { name: 'odoo_database_cleanup', description: 'Cleanup a database' },
-  { name: 'custom_tool', description: 'Custom operation' },
-];
-
-async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByPlaceholderText(/production, local, staging/i), 'school-prod');
-  await user.type(
-    screen.getByPlaceholderText(/https:\/\/odoo\.example\.com/i),
-    'https://odoo.example.com'
-  );
-  await user.type(screen.getByPlaceholderText(/production_db/i), 'school');
-  await user.type(screen.getByPlaceholderText(/admin@example\.com/i), 'admin');
-  await user.type(screen.getByPlaceholderText(/enter password/i), 'secret');
-}
-
-describe('InstanceForm tool access', () => {
-  it('loads existing disabled tools and shows enabled count summary', () => {
-    const instanceData: InstanceDetails = {
-      url: 'https://odoo.example.com',
-      db: 'school',
-      apiKey: 'secret',
-      version: '19',
-      toolConfig: {
-        disabledTools: ['odoo_create'],
-        defaults: {
-          odoo_search_read: {
-            limit: 10,
-          },
-        },
-      },
-    };
-
+describe('InstanceForm', () => {
+  it('does not render an aliases field anymore', () => {
     render(
       <InstanceForm
-        instanceName="school-prod"
-        instanceData={instanceData}
-        existingNames={['school-prod']}
-        availableTools={availableTools}
-        onSave={() => {}}
-        onCancel={() => {}}
+        instanceName={null}
+        instanceData={null}
+        existingNames={[]}
+        availableTools={[]}
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
       />
     );
 
-    expect(screen.getByText('4/5 enabled')).not.toBeNull();
-    expect(
-      (screen.getByRole('checkbox', { name: /enable odoo_create/i }) as HTMLInputElement).checked
-    ).toBe(false);
-    expect(screen.queryByRole('button', { name: /add default/i })).toBeNull();
+    expect(screen.queryByLabelText('Aliases')).toBeNull();
+    expect(screen.queryByText('Aliases')).toBeNull();
   });
 
-  it('disables every tool in a group when using the group action', async () => {
-    const user = userEvent.setup();
+  it('allows API key instances to omit the database name', async () => {
     const onSave = vi.fn();
+    const user = userEvent.setup();
 
     render(
       <InstanceForm
         instanceName={null}
         instanceData={null}
         existingNames={[]}
-        availableTools={availableTools}
+        availableTools={[]}
         onSave={onSave}
-        onCancel={() => {}}
+        onCancel={vi.fn()}
       />
     );
 
-    await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /disable read operations/i }));
-    await user.click(screen.getByRole('button', { name: /add instance/i }));
+    await user.type(
+      screen.getByPlaceholderText('e.g., production, local, staging'),
+      'erp-kdkmp'
+    );
+    await user.type(
+      screen.getByPlaceholderText('e.g., https://odoo.example.com'),
+      'https://erp.kdkmpindonesia.co.id'
+    );
+    await user.click(screen.getByRole('radio', { name: /API Key/i }));
+    await user.type(screen.getByPlaceholderText('Enter API key'), 'secret-api-key');
+    await user.click(screen.getByRole('button', { name: 'Add Instance' }));
 
-    const [, data] = onSave.mock.calls[0] as [string, InstanceDetails];
-    expect(data.toolConfig).toEqual({
-      disabledTools: ['odoo_read', 'odoo_search_read'],
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const [, savedConfig] = onSave.mock.calls[0];
+    expect(savedConfig).toMatchObject({
+      url: 'https://erp.kdkmpindonesia.co.id',
+      apiKey: 'secret-api-key',
     });
+    expect(savedConfig.db).toBeUndefined();
   });
 
-  it('re-enables every tool in a group when using the group action', async () => {
-    const user = userEvent.setup();
+  it('keeps the database name required for username/password instances', async () => {
     const onSave = vi.fn();
-    const instanceData: InstanceDetails = {
-      url: 'https://odoo.example.com',
-      db: 'school',
-      username: 'admin',
-      password: 'secret',
-      toolConfig: {
-        disabledTools: ['odoo_read', 'odoo_search_read'],
-        defaults: {
-          odoo_search_read: {
-            limit: 10,
-          },
-        },
-      },
-    };
+    const user = userEvent.setup();
 
     render(
       <InstanceForm
-        instanceName="school-prod"
-        instanceData={instanceData}
-        existingNames={['school-prod']}
-        availableTools={availableTools}
+        instanceName={null}
+        instanceData={null}
+        existingNames={[]}
+        availableTools={[]}
         onSave={onSave}
-        onCancel={() => {}}
+        onCancel={vi.fn()}
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /enable read operations/i }));
-    await user.click(screen.getByRole('button', { name: /update instance/i }));
+    await user.type(
+      screen.getByPlaceholderText('e.g., production, local, staging'),
+      'legacy-instance'
+    );
+    await user.type(
+      screen.getByPlaceholderText('e.g., https://odoo.example.com'),
+      'https://legacy.example.com'
+    );
+    await user.type(screen.getByPlaceholderText('e.g., admin@example.com'), 'admin');
+    await user.type(screen.getByPlaceholderText('Enter password'), 'secret');
+    await user.click(screen.getByRole('button', { name: 'Add Instance' }));
 
-    const [, data] = onSave.mock.calls[0] as [string, InstanceDetails];
-    expect(data.toolConfig).toBeUndefined();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('Database name is required when using username/password authentication')
+    ).toBeTruthy();
   });
 
-  it('saves individual tool toggles and clears legacy defaults from the payload', async () => {
-    const user = userEvent.setup();
+  it('drops legacy alias data when editing an existing instance', async () => {
     const onSave = vi.fn();
-    const instanceData: InstanceDetails = {
-      url: 'https://odoo.example.com',
-      db: 'school',
-      username: 'admin',
-      password: 'secret',
-      toolConfig: {
-        defaults: {
-          odoo_search_read: {
-            limit: 20,
-          },
-        },
-      },
-    };
+    const user = userEvent.setup();
 
     render(
       <InstanceForm
-        instanceName="school-prod"
-        instanceData={instanceData}
-        existingNames={['school-prod']}
-        availableTools={availableTools}
+        instanceName="erp-kdkmp"
+        instanceData={
+          {
+            url: 'https://erp.kdkmpindonesia.co.id',
+            apiKey: 'secret-api-key',
+            aliases: ['legacy-name'],
+          } as InstanceDetails & { aliases: string[] }
+        }
+        existingNames={['erp-kdkmp']}
+        availableTools={[]}
         onSave={onSave}
-        onCancel={() => {}}
+        onCancel={vi.fn()}
       />
     );
 
-    await user.click(screen.getByRole('checkbox', { name: /enable odoo_create/i }));
-    expect(screen.getByText('4/5 enabled')).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Update Instance' }));
 
-    await user.click(screen.getByRole('button', { name: /update instance/i }));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const [, savedConfig] = onSave.mock.calls[0];
+    expect(savedConfig.aliases).toBeUndefined();
+  });
 
-    const [, data] = onSave.mock.calls[0] as [string, InstanceDetails];
-    expect(data.toolConfig).toEqual({
-      disabledTools: ['odoo_create'],
-    });
+  it('loads and saves normalized manual tags', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <InstanceForm
+        instanceName="erp-kdkmp"
+        instanceData={{
+          url: 'https://erp.kdkmpindonesia.co.id',
+          apiKey: 'secret-api-key',
+          tags: ['prod', 'KDKMP'],
+        }}
+        existingNames={['erp-kdkmp']}
+        availableTools={[]}
+        onSave={onSave}
+        onCancel={vi.fn()}
+      />
+    );
+
+    const tagsInput = screen.getByLabelText('Tags') as HTMLTextAreaElement;
+    expect(tagsInput.value).toBe('prod, KDKMP');
+
+    await user.clear(tagsInput);
+    await user.type(tagsInput, 'prod, finance\nPROD, kdkmp, Finance');
+    await user.click(screen.getByRole('button', { name: 'Update Instance' }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const [, savedConfig] = onSave.mock.calls[0];
+    expect(savedConfig.tags).toEqual(['prod', 'finance', 'kdkmp']);
+  });
+
+  it('omits manual tags when the tag field is blank', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <InstanceForm
+        instanceName="erp-kdkmp"
+        instanceData={{
+          url: 'https://erp.kdkmpindonesia.co.id',
+          apiKey: 'secret-api-key',
+          tags: ['prod'],
+        }}
+        existingNames={['erp-kdkmp']}
+        availableTools={[]}
+        onSave={onSave}
+        onCancel={vi.fn()}
+      />
+    );
+
+    await user.clear(screen.getByLabelText('Tags'));
+    await user.click(screen.getByRole('button', { name: 'Update Instance' }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const [, savedConfig] = onSave.mock.calls[0];
+    expect(savedConfig.tags).toBeUndefined();
   });
 });

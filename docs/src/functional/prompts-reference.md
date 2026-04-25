@@ -1,6 +1,6 @@
 # Prompts Reference
 
-Built-in prompts provide context and guidance to AI assistants when working with Odoo.
+Built-in prompts provide context and guidance to AI assistants when working with Odoo data, workflows, and addon development.
 
 Prompts are defined in `prompts.json` and support hot-reload -- changes take effect immediately without restarting the server.
 
@@ -113,6 +113,61 @@ Prompts are defined in `prompts.json` and support hot-reload -- changes take eff
 - Field selection tips
 - Common patterns
 - Error handling
+
+---
+
+### odoo_owl_components
+
+**Description:** Owl component structure and debugging patterns for Odoo addons.
+
+**Covers:**
+- Standard `static/src` JS/XML/SCSS component layout
+- `/** @odoo-module **/` usage
+- `setup()` over constructors
+- Template naming with `addon_name.ComponentName`
+- When to use `useService()`
+- First-pass debugging checks for assets, template names, imports, and mounting
+
+---
+
+### odoo_assets_and_bundles
+
+**Description:** Asset bundle choices and module wiring for Odoo frontend code.
+
+**Covers:**
+- `web.assets_backend`
+- `web.assets_frontend`
+- `web.assets_unit_tests`
+- Manifest `assets` wiring for JS/XML/SCSS files
+- `@web/...` imports vs addon-local relative imports
+- Bundle-loading and module-header debugging checks
+
+---
+
+### odoo_frontend_contexts
+
+**Description:** How to choose between backend, client action, standalone Owl, and website contexts.
+
+**Covers:**
+- Existing backend screen extensions
+- Client actions for navigable backend features
+- Standalone Owl apps with their own mount target
+- Portal and website runtime separation
+- Practical rules for staying close to the addon's existing structure
+
+---
+
+### odoo_qweb_and_templates
+
+**Description:** QWeb and Owl template rules, directives, and version-sensitive notes.
+
+**Covers:**
+- XML templates for production components
+- `xml:space="preserve"` and template naming alignment
+- `t-if`, `t-elif`, `t-foreach`, `t-key`, and event bindings
+- Dynamic attributes with `t-att-*` and `t-attf-*`
+- Odoo 18 `t-esc` vs Odoo 19 `t-out` guidance
+- Common template mismatches and naming mistakes
 
 ---
 

@@ -96,7 +96,7 @@ tools/list: 24 tools
 - ...
 odoo_count result: {"count":18}
 odoo_search_read count: 2
-prompts/list: odoo_common_models, odoo_domain_filters
+prompts/list: odoo_common_models, odoo_domain_filters, odoo_field_types, odoo_workflow_states, odoo_read_group, odoo_context, odoo_api_tips, odoo_owl_components, odoo_assets_and_bundles, odoo_frontend_contexts, odoo_qweb_and_templates
 ```
 
 ### HTTP Health Check

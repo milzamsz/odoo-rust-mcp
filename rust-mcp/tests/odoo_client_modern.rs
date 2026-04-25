@@ -22,6 +22,8 @@ fn create_config(url: &str) -> OdooInstanceConfig {
         timeout_ms: Some(5000),
         max_retries: Some(3),
         tool_config: None,
+        tags: Vec::new(),
+        aliases: Vec::new(),
         extra: HashMap::new(),
     }
 }

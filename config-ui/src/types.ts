@@ -1,17 +1,18 @@
 export interface InstanceToolConfig {
   disabledTools?: string[];
-  defaults?: Record<string, Record<string, any>>;
+  defaults?: Record<string, Record<string, unknown>>;
 }
 
 export interface InstanceDetails {
   url: string;
-  db: string;
+  db?: string;
   apiKey?: string;
   username?: string;
   password?: string;
   version?: number | string;
+  tags?: string[];
   toolConfig?: InstanceToolConfig;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface InstanceConfig {
@@ -19,6 +20,13 @@ export interface InstanceConfig {
 }
 
 export type InstanceEnvSyncState = 'synced' | 'out_of_sync' | 'not_synced';
+export type RuntimeSourceKind = 'instances_json' | 'inline_env' | 'single_instance';
+export type AlternateSourceState = 'matches_runtime' | 'stale' | 'unreadable';
+
+export interface AlternateInstancesSource {
+  path: string;
+  status: AlternateSourceState;
+}
 
 export interface InstancesSyncStatusResponse {
   configured: boolean;
@@ -26,6 +34,10 @@ export interface InstancesSyncStatusResponse {
   total_count: number;
   instances: Record<string, InstanceEnvSyncState>;
   extra_env_instances: string[];
+  runtime_source_kind: RuntimeSourceKind;
+  instances_source_path: string | null;
+  env_file_path: string;
+  alternate_sources: AlternateInstancesSource[];
 }
 
 export interface SyncInstancesEnvResponse extends InstancesSyncStatusResponse {
@@ -40,22 +52,45 @@ export interface ToolConfig {
   description?: string;
   guards?: {
     requiresEnvTrue?: string;
+    [key: string]: string | undefined;
   };
-  [key: string]: any;
+  inputSchema?: {
+    properties?: Record<string, ToolSchemaProperty>;
+    required?: string[];
+    [key: string]: unknown;
+  };
+  op?: {
+    type?: string;
+    map?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export interface ToolSchemaProperty {
+  type?: string;
+  items?: {
+    type?: string;
+    [key: string]: unknown;
+  };
+  description?: string;
+  enum?: string[];
+  default?: unknown;
+  [key: string]: unknown;
 }
 
 export interface PromptConfig {
   name: string;
   description?: string;
   content: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface ServerConfig {
   serverName?: string;
   instructions?: string;
   protocolVersionDefault?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export type ConfigType = 'instances' | 'server' | 'tools' | 'prompts';

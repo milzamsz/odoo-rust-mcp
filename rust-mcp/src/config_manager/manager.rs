@@ -47,6 +47,22 @@ impl ConfigResult {
     }
 }
 
+fn normalize_instance_tags(tags: &[String]) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut normalized = Vec::new();
+
+    for tag in tags {
+        let trimmed = tag.trim();
+        let key = trimmed.to_lowercase();
+        if trimmed.is_empty() || !seen.insert(key) {
+            continue;
+        }
+        normalized.push(trimmed.to_string());
+    }
+
+    normalized
+}
+
 #[derive(Clone)]
 pub struct ConfigManager {
     config_dir: PathBuf,
@@ -98,7 +114,7 @@ impl ConfigManager {
     /// Resolve the authoritative instances.json path.
     /// Prefers ODOO_INSTANCES_JSON env var so the Config UI and the MCP pool
     /// always read/write the same file regardless of config_dir.
-    fn instances_path(&self) -> PathBuf {
+    pub fn instances_path(&self) -> PathBuf {
         if let Ok(p) = std::env::var("ODOO_INSTANCES_JSON") {
             let p = p.trim().to_string();
             if !p.is_empty() {
@@ -138,31 +154,39 @@ impl ConfigManager {
         self.instances_cache.read().await.clone()
     }
 
+    /// Normalize instances config through the Rust config model so deprecated
+    /// fields are accepted on input but stripped from persisted output.
+    pub async fn normalize_instances_config(&self, config: Value) -> anyhow::Result<Value> {
+        let config_object = config.as_object().cloned().ok_or_else(|| {
+            anyhow::anyhow!("Config must be a JSON object with instance names as keys")
+        })?;
+
+        let parsed_instances: HashMap<String, OdooInstanceConfig> = serde_json::from_value(config)
+            .map_err(|e| anyhow::anyhow!("Invalid instances configuration: {e}"))?;
+
+        if let Err(message) = self.validate_instance_tool_config(&parsed_instances).await {
+            anyhow::bail!(message);
+        }
+
+        let mut normalized = serde_json::Map::with_capacity(config_object.len());
+        for name in config_object.keys() {
+            let mut instance = parsed_instances.get(name).cloned().ok_or_else(|| {
+                anyhow::anyhow!("Normalized instances config is missing '{name}'")
+            })?;
+            instance.tags = normalize_instance_tags(&instance.tags);
+            normalized.insert(name.clone(), serde_json::to_value(instance)?);
+        }
+
+        Ok(Value::Object(normalized))
+    }
+
     /// Save instances config to file with backup and rollback support
     pub async fn save_instances(&self, config: Value) -> anyhow::Result<ConfigResult> {
         let path = self.instances_path();
-
-        // Validate JSON structure
-        if !config.is_object() {
-            return Ok(ConfigResult::error(
-                "Config must be a JSON object with instance names as keys",
-            ));
-        }
-
-        let parsed_instances: HashMap<String, OdooInstanceConfig> =
-            match serde_json::from_value(config.clone()) {
-                Ok(instances) => instances,
-                Err(e) => {
-                    return Ok(ConfigResult::error(format!(
-                        "Invalid instances configuration: {}",
-                        e
-                    )));
-                }
-            };
-
-        if let Err(message) = self.validate_instance_tool_config(&parsed_instances).await {
-            return Ok(ConfigResult::error(message));
-        }
+        let normalized_config = match self.normalize_instances_config(config).await {
+            Ok(config) => config,
+            Err(e) => return Ok(ConfigResult::error(e.to_string())),
+        };
 
         // Create backup before modifying
         let backup = self.backup_file(&path);
@@ -177,7 +201,7 @@ impl ConfigManager {
             )));
         }
 
-        let json_str = match serde_json::to_string_pretty(&config) {
+        let json_str = match serde_json::to_string_pretty(&normalized_config) {
             Ok(s) => s,
             Err(e) => {
                 return Ok(ConfigResult::error(format!(
@@ -238,7 +262,7 @@ impl ConfigManager {
         // Update cache only after successful save
         {
             let mut cache = self.instances_cache.write().await;
-            *cache = config;
+            *cache = normalized_config;
         }
 
         info!("Saved instances config to {:?}", path);
@@ -592,7 +616,33 @@ fn extract_tool_names(tools: &Value) -> Result<HashSet<String>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::TEST_ENV_MUTEX;
     use tempfile::TempDir;
+
+    struct EnvGuard {
+        key: &'static str,
+        original: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: Option<&str>) -> Self {
+            let original = std::env::var(key).ok();
+            match value {
+                Some(value) => unsafe { std::env::set_var(key, value) },
+                None => unsafe { std::env::remove_var(key) },
+            }
+            Self { key, original }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            match &self.original {
+                Some(value) => unsafe { std::env::set_var(self.key, value) },
+                None => unsafe { std::env::remove_var(self.key) },
+            }
+        }
+    }
 
     fn write_tools_fixture(temp_dir: &TempDir, tool_names: &[&str]) {
         let tools = json!({
@@ -611,6 +661,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_save_and_load_instances() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
         let temp_dir = TempDir::new().unwrap();
         let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
@@ -618,7 +670,8 @@ mod tests {
             "default": {
                 "url": "http://localhost:8069",
                 "db": "mydb",
-                "apiKey": "test_key"
+                "apiKey": "test_key",
+                "tags": ["prod", "kdkmp"]
             }
         });
 
@@ -631,6 +684,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_save_invalid_instances_returns_error() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
         let temp_dir = TempDir::new().unwrap();
         let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
@@ -658,6 +713,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_save_instances_round_trips_tool_config() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
         let temp_dir = TempDir::new().unwrap();
         write_tools_fixture(&temp_dir, &["odoo_create", "odoo_search_read"]);
         let manager = ConfigManager::new(temp_dir.path().to_path_buf());
@@ -690,6 +747,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_save_instances_rejects_unknown_disabled_tool() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
         let temp_dir = TempDir::new().unwrap();
         write_tools_fixture(&temp_dir, &["odoo_search_read"]);
         let manager = ConfigManager::new(temp_dir.path().to_path_buf());
@@ -716,6 +775,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_save_instances_rejects_unknown_defaults_tool() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
         let temp_dir = TempDir::new().unwrap();
         write_tools_fixture(&temp_dir, &["odoo_search_read"]);
         let manager = ConfigManager::new(temp_dir.path().to_path_buf());
@@ -742,6 +803,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_save_instances_rejects_non_object_defaults() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
         let temp_dir = TempDir::new().unwrap();
         write_tools_fixture(&temp_dir, &["odoo_search_read"]);
         let manager = ConfigManager::new(temp_dir.path().to_path_buf());
@@ -762,5 +825,30 @@ mod tests {
         let result = manager.save_instances(config).await.unwrap();
         assert!(!result.success);
         assert!(result.message.contains("must be a JSON object"));
+    }
+
+    #[tokio::test]
+    async fn test_save_instances_strips_legacy_aliases() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
+        let temp_dir = TempDir::new().unwrap();
+        let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+
+        let config = json!({
+            "erp-kdkmp": {
+                "url": "https://erp.example.com",
+                "apiKey": "secret",
+                "tags": ["prod", " KDKMP ", "PROD", ""],
+                "aliases": ["legacy-name", "ERP"]
+            }
+        });
+
+        let result = manager.save_instances(config).await.unwrap();
+        assert!(result.success, "Save should succeed: {}", result.message);
+
+        let loaded = manager.load_instances().await.unwrap();
+        assert!(loaded["erp-kdkmp"].get("aliases").is_none());
+        assert_eq!(loaded["erp-kdkmp"]["tags"], json!(["prod", "KDKMP"]));
+        assert_eq!(loaded["erp-kdkmp"]["url"], json!("https://erp.example.com"));
     }
 }

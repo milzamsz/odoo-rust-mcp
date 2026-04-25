@@ -13,7 +13,8 @@ Create `instances.json`:
   "production": {
     "url": "https://prod.example.com",
     "db": "production",
-    "apiKey": "prod_api_key_here"
+    "apiKey": "prod_api_key_here",
+    "tags": ["prod", "finance"]
   },
   "staging": {
     "url": "https://staging.example.com",
@@ -41,6 +42,7 @@ Create `instances.json`:
 | `username` | v<19 | - | Username for JSON-RPC auth |
 | `password` | v<19 | - | Password for JSON-RPC auth |
 | `protocol` | No | `auto` | Protocol override: `auto`, `jsonrpc`, or `json2` |
+| `tags` | No | `[]` | Manual labels used by Config UI search and filtering |
 | `timeout_ms` | No | `30000` | Request timeout in milliseconds |
 | `max_retries` | No | `2` | Maximum retry attempts for failed requests |
 

@@ -83,10 +83,15 @@ describe('Source Code Imports', () => {
         beta: state,
       },
       extra_env_instances: ['legacy'],
+      runtime_source_kind: 'instances_json',
+      instances_source_path: 'C:\\Users\\MILZAM\\.config\\odoo-rust-mcp\\instances.json',
+      env_file_path: 'C:\\Users\\MILZAM\\.config\\odoo-rust-mcp\\env',
+      alternate_sources: [],
     };
     const syncResponse: Types.SyncInstancesEnvResponse = {
       status: 'synced',
-      message: 'Synced 2 instance(s) to env',
+      message:
+        'Synced 2 instance(s) to ODOO_INSTANCES in the env file. Env-based launches may require a restart to pick up the snapshot.',
       restart_required: true,
       instances_synced: 2,
       ...status,

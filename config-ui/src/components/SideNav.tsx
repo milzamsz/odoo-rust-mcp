@@ -1,6 +1,6 @@
 import { Database, Server, Wrench, FileText, Circle, Shield, LogOut, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import type { TabType } from '../types';
-import { useAuth } from './AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import packageJson from '../../package.json';
 
 interface SideNavProps {

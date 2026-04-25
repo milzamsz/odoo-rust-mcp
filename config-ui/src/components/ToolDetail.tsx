@@ -150,7 +150,7 @@ export function ToolDetail({ tool, enabled, onToggle, onToggleGuard, availableGu
               <div>
                 <h4 className="text-xs font-semibold text-gray-900 mb-2">Parameters</h4>
                 <div className="space-y-2">
-                  {Object.entries(properties).map(([paramName, paramSchema]: [string, any]) => {
+                  {Object.entries(properties).map(([paramName, paramSchema]) => {
                     const isRequired = required.includes(paramName);
                     return (
                       <div

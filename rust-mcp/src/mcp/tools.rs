@@ -34,9 +34,11 @@ impl OdooClientPool {
     }
 
     pub async fn get(&self, instance: &str) -> anyhow::Result<OdooClient> {
+        let canonical_name = self.resolve_instance_name(instance)?;
+
         {
             let guard = self.clients.lock().await;
-            if let Some(c) = guard.get(instance) {
+            if let Some(c) = guard.get(&canonical_name) {
                 return Ok(c.clone());
             }
         }
@@ -47,15 +49,15 @@ impl OdooClientPool {
                 .env
                 .read()
                 .map_err(|e| anyhow::anyhow!("Instance config lock poisoned: {e}"))?;
-            let cfg = env.instances.get(instance).ok_or_else(|| {
-                let available = env.instances.keys().cloned().collect::<Vec<_>>().join(", ");
-                anyhow::anyhow!("Unknown Odoo instance '{instance}'. Available: {available}")
-            })?;
+            let cfg = env
+                .instances
+                .get(&canonical_name)
+                .ok_or_else(|| anyhow::anyhow!("Unknown Odoo instance '{canonical_name}'"))?;
             OdooClient::new(cfg)?
         };
 
         let mut guard = self.clients.lock().await;
-        guard.insert(instance.to_string(), client.clone());
+        guard.insert(canonical_name, client.clone());
         Ok(client)
     }
 
@@ -64,6 +66,14 @@ impl OdooClientPool {
             .read()
             .map(|env| env.instances.keys().cloned().collect())
             .unwrap_or_default()
+    }
+
+    pub fn resolve_instance_name(&self, requested: &str) -> anyhow::Result<String> {
+        let env = self
+            .env
+            .read()
+            .map_err(|e| anyhow::anyhow!("Instance config lock poisoned: {e}"))?;
+        resolve_instance_name_from_env(&env, requested)
     }
 
     fn apply_instance_tool_config(
@@ -141,7 +151,10 @@ pub async fn call_tool(
     args: Value,
 ) -> Result<Value, OdooError> {
     let args = if let Some(instance) = instance_from_args(&args, &tool.op) {
-        pool.apply_instance_tool_config(&instance, &tool.name, args)?
+        let canonical_instance = pool
+            .resolve_instance_name(&instance)
+            .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+        pool.apply_instance_tool_config(&canonical_instance, &tool.name, args)?
     } else {
         args
     };
@@ -191,6 +204,60 @@ fn instance_from_args(args: &Value, op: &OpSpec) -> Option<String> {
     ptr(args, op, "instance")
         .and_then(|value| value.as_str())
         .map(|value| value.to_string())
+}
+
+fn resolve_instance_name_from_env(env: &OdooEnvConfig, requested: &str) -> anyhow::Result<String> {
+    if env.instances.contains_key(requested) {
+        return Ok(requested.to_string());
+    }
+
+    let requested_folded = requested.trim().to_ascii_lowercase();
+    if let Some((canonical_name, _)) = env
+        .instances
+        .iter()
+        .find(|(name, _)| name.to_ascii_lowercase() == requested_folded)
+    {
+        return Ok(canonical_name.clone());
+    }
+
+    let available = env.instances.keys().cloned().collect::<Vec<_>>().join(", ");
+    if let Some(suggestion) = suggest_instance_name(env, requested) {
+        anyhow::bail!(
+            "Unknown Odoo instance '{requested}'. Did you mean '{suggestion}'? Available: {available}"
+        );
+    }
+
+    anyhow::bail!("Unknown Odoo instance '{requested}'. Available: {available}");
+}
+
+fn suggest_instance_name(env: &OdooEnvConfig, requested: &str) -> Option<String> {
+    let requested_folded = fold_instance_lookup_key(requested);
+    if requested_folded.is_empty() {
+        return None;
+    }
+
+    let mut matches = env
+        .instances
+        .iter()
+        .filter(|(canonical_name, _)| fold_instance_lookup_key(canonical_name) == requested_folded)
+        .map(|(canonical_name, _)| canonical_name.clone())
+        .collect::<Vec<_>>();
+
+    matches.sort();
+    matches.dedup();
+    if matches.len() == 1 {
+        return matches.into_iter().next();
+    }
+
+    None
+}
+
+fn fold_instance_lookup_key(value: &str) -> String {
+    value
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .map(|ch| ch.to_ascii_lowercase())
+        .collect()
 }
 
 fn deep_merge_values(base: Value, overlay: Value) -> Value {
@@ -953,6 +1020,8 @@ mod tests {
                 timeout_ms: None,
                 max_retries: None,
                 tool_config,
+                tags: Vec::new(),
+                aliases: Vec::new(),
                 extra: HashMap::new(),
             },
         );
@@ -969,6 +1038,42 @@ mod tests {
             op_type: "test".to_string(),
             map,
         }
+    }
+
+    #[test]
+    fn test_resolve_instance_name_by_exact_canonical_name() {
+        let pool = make_pool(None);
+
+        let resolved = pool.resolve_instance_name("school-prod").unwrap();
+
+        assert_eq!(resolved, "school-prod");
+    }
+
+    #[test]
+    fn test_resolve_instance_name_by_case_insensitive_canonical_name() {
+        let pool = make_pool(None);
+
+        let resolved = pool.resolve_instance_name("SCHOOL-PROD").unwrap();
+
+        assert_eq!(resolved, "school-prod");
+    }
+
+    #[test]
+    fn test_resolve_instance_name_suggests_matching_canonical_name() {
+        let pool = make_pool(None);
+
+        let error = pool.resolve_instance_name("school prod").unwrap_err();
+
+        assert!(error.to_string().contains("Did you mean 'school-prod'?"));
+    }
+
+    #[test]
+    fn test_resolve_instance_name_rejects_legacy_alias_values() {
+        let pool = make_pool(None);
+
+        let error = pool.resolve_instance_name("school").unwrap_err();
+
+        assert!(error.to_string().contains("Unknown Odoo instance 'school'"));
     }
 
     #[test]

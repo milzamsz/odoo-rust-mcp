@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,9 +16,13 @@ pub enum OdooAuthMode {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct InstanceToolConfig {
-    #[serde(default, rename = "disabledTools")]
+    #[serde(
+        default,
+        rename = "disabledTools",
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub disabled_tools: Vec<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub defaults: HashMap<String, Value>,
 }
 
@@ -28,6 +33,10 @@ impl InstanceToolConfig {
 
     pub fn tool_defaults(&self, tool_name: &str) -> Option<&Value> {
         self.defaults.get(tool_name)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.disabled_tools.is_empty() && self.defaults.is_empty()
     }
 }
 
@@ -44,34 +53,51 @@ pub enum OdooProtocol {
     Json2,
 }
 
+impl OdooProtocol {
+    fn is_auto(&self) -> bool {
+        matches!(self, Self::Auto)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OdooInstanceConfig {
     pub url: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub db: Option<String>,
-    #[serde(default, rename = "apiKey")]
+    #[serde(default, rename = "apiKey", skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
     /// Username for Odoo < 19 (JSON-RPC authentication)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
     /// Password for Odoo < 19 (JSON-RPC authentication)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
     /// Odoo version (e.g., "18", "17", "19"). If < 19, uses JSON-RPC with username/password.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
     /// Explicitly select protocol: "auto", "jsonrpc", or "json2"
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "OdooProtocol::is_auto")]
     pub protocol: OdooProtocol,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout_ms: Option<u64>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_retries: Option<usize>,
-    #[serde(default, rename = "toolConfig")]
+    #[serde(
+        default,
+        rename = "toolConfig",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub tool_config: Option<InstanceToolConfig>,
+    /// Manual labels used by Config UI search and grouping.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    /// Deprecated legacy input field. Still accepted so older configs remain readable,
+    /// but it is ignored at runtime and omitted from any normalized output.
+    #[serde(default, skip_serializing)]
+    pub aliases: Vec<String>,
 
     // Allow extra fields in ODOO_INSTANCES JSON.
-    #[serde(flatten, default)]
+    #[serde(flatten, default, skip_serializing_if = "HashMap::is_empty")]
     pub extra: HashMap<String, Value>,
 }
 
@@ -112,63 +138,138 @@ pub struct OdooEnvConfig {
     pub instances: HashMap<String, OdooInstanceConfig>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimeInstancesSourceKind {
+    InstancesJson,
+    InlineEnv,
+    SingleInstance,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeInstancesSource {
+    pub kind: RuntimeInstancesSourceKind,
+    pub path: Option<PathBuf>,
+}
+
+impl RuntimeInstancesSourceKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RuntimeInstancesSourceKind::InstancesJson => "instances_json",
+            RuntimeInstancesSourceKind::InlineEnv => "inline_env",
+            RuntimeInstancesSourceKind::SingleInstance => "single_instance",
+        }
+    }
+}
+
+pub fn default_instances_json_path() -> Option<PathBuf> {
+    #[cfg(unix)]
+    {
+        // Match the startup behavior for system-wide installs running as root.
+        if unsafe { libc::geteuid() } == 0 {
+            return Some(PathBuf::from("/etc/rust-mcp/instances.json"));
+        }
+    }
+
+    dirs::home_dir().map(|p| {
+        p.join(".config")
+            .join("odoo-rust-mcp")
+            .join("instances.json")
+    })
+}
+
+pub fn detect_runtime_instances_source() -> RuntimeInstancesSource {
+    if let Ok(path) = std::env::var("ODOO_INSTANCES_JSON") {
+        let path = path.trim();
+        if !path.is_empty() {
+            return RuntimeInstancesSource {
+                kind: RuntimeInstancesSourceKind::InstancesJson,
+                path: Some(PathBuf::from(path)),
+            };
+        }
+    }
+
+    if let Some(default_path) = default_instances_json_path()
+        && default_path.exists()
+    {
+        return RuntimeInstancesSource {
+            kind: RuntimeInstancesSourceKind::InstancesJson,
+            path: Some(default_path),
+        };
+    }
+
+    if let Ok(raw) = std::env::var("ODOO_INSTANCES")
+        && !raw.trim().is_empty()
+    {
+        return RuntimeInstancesSource {
+            kind: RuntimeInstancesSourceKind::InlineEnv,
+            path: None,
+        };
+    }
+
+    RuntimeInstancesSource {
+        kind: RuntimeInstancesSourceKind::SingleInstance,
+        path: None,
+    }
+}
+
 pub fn load_odoo_env() -> anyhow::Result<OdooEnvConfig> {
     let mut instances = HashMap::new();
     let mut instances_json_path: Option<String> = None;
 
-    // Priority 1: ODOO_INSTANCES_JSON file path (for readable multi-line JSON)
-    if let Ok(path) = std::env::var("ODOO_INSTANCES_JSON") {
-        let path = path.trim();
-        if !path.is_empty() {
-            instances_json_path = Some(path.to_string());
-            match std::fs::read_to_string(path) {
+    let runtime_source = detect_runtime_instances_source();
+    if let Some(path) = runtime_source.path.as_ref() {
+        instances_json_path = Some(path.display().to_string());
+    }
+
+    match runtime_source.kind {
+        RuntimeInstancesSourceKind::InstancesJson => {
+            let path = runtime_source
+                .path
+                .expect("instances_json source must have a path");
+            let path_str = path.display().to_string();
+            match std::fs::read_to_string(&path) {
                 Ok(content) => {
                     let parsed: HashMap<String, OdooInstanceConfig> =
                         serde_json::from_str(&content).map_err(|e| {
                             anyhow::anyhow!(
-                                "Failed to parse ODOO_INSTANCES_JSON file '{path}': {e}"
+                                "Failed to parse ODOO_INSTANCES_JSON file '{path_str}': {e}"
                             )
                         })?;
                     instances.extend(parsed);
                 }
                 Err(e) => {
-                    // File not found - log warning but continue to fallback
                     tracing::warn!(
-                        "ODOO_INSTANCES_JSON file '{}' not found or not readable: {}. \
+                        "ODOO instances file '{}' not found or not readable: {}. \
                         Falling back to ODOO_INSTANCES or single-instance env vars.",
-                        path,
+                        path_str,
                         e
                     );
                 }
             }
         }
-    }
-    // Priority 2: ODOO_INSTANCES inline JSON (only if ODOO_INSTANCES_JSON was not set or empty)
-    if instances.is_empty()
-        && let Ok(raw) = std::env::var("ODOO_INSTANCES")
-        && !raw.trim().is_empty()
-    {
-        let raw = raw.trim();
-        // Validate that it looks like JSON (starts with { or [)
-        if raw.starts_with('{') || raw.starts_with('[') {
-            let parsed: HashMap<String, OdooInstanceConfig> = serde_json::from_str(raw)
-                .map_err(|e| anyhow::anyhow!("Failed to parse ODOO_INSTANCES JSON: {e}"))?;
-            instances.extend(parsed);
-        } else {
-            // If ODOO_INSTANCES doesn't look like JSON, it might be a file path
-            // Try to read it as a file path
-            if let Ok(content) = std::fs::read_to_string(raw) {
-                let parsed: HashMap<String, OdooInstanceConfig> = serde_json::from_str(&content)
-                    .map_err(|e| {
-                        anyhow::anyhow!("Failed to parse ODOO_INSTANCES file '{raw}': {e}")
-                    })?;
-                instances.extend(parsed);
-            } else {
-                anyhow::bail!(
-                    "ODOO_INSTANCES value '{raw}' is not valid JSON and is not a readable file path"
-                );
+        RuntimeInstancesSourceKind::InlineEnv => {
+            if let Ok(raw) = std::env::var("ODOO_INSTANCES")
+                && !raw.trim().is_empty()
+            {
+                let raw = raw.trim();
+                if raw.starts_with('{') || raw.starts_with('[') {
+                    let parsed: HashMap<String, OdooInstanceConfig> = serde_json::from_str(raw)
+                        .map_err(|e| anyhow::anyhow!("Failed to parse ODOO_INSTANCES JSON: {e}"))?;
+                    instances.extend(parsed);
+                } else if let Ok(content) = std::fs::read_to_string(raw) {
+                    let parsed: HashMap<String, OdooInstanceConfig> =
+                        serde_json::from_str(&content).map_err(|e| {
+                            anyhow::anyhow!("Failed to parse ODOO_INSTANCES file '{raw}': {e}")
+                        })?;
+                    instances.extend(parsed);
+                } else {
+                    anyhow::bail!(
+                        "ODOO_INSTANCES value '{raw}' is not valid JSON and is not a readable file path"
+                    );
+                }
             }
         }
+        RuntimeInstancesSourceKind::SingleInstance => {}
     }
 
     // Fallback to single-instance env vars.
@@ -215,6 +316,8 @@ pub fn load_odoo_env() -> anyhow::Result<OdooEnvConfig> {
                         .ok()
                         .and_then(|v| v.parse().ok()),
                     tool_config: None,
+                    tags: Vec::new(),
+                    aliases: Vec::new(),
                     extra: HashMap::new(),
                 },
             );
@@ -326,6 +429,34 @@ fn normalize_url(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::TEST_ENV_MUTEX;
+    use tempfile::TempDir;
+
+    struct EnvGuard {
+        key: &'static str,
+        original: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: Option<&str>) -> Self {
+            let original = std::env::var(key).ok();
+            match value {
+                Some(value) => unsafe { std::env::set_var(key, value) },
+                None => unsafe { std::env::remove_var(key) },
+            }
+
+            Self { key, original }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            match &self.original {
+                Some(value) => unsafe { std::env::set_var(self.key, value) },
+                None => unsafe { std::env::remove_var(self.key) },
+            }
+        }
+    }
 
     #[test]
     fn test_normalize_url_with_scheme() {
@@ -360,6 +491,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::ApiKey);
@@ -378,6 +511,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::Password);
@@ -396,6 +531,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::Password);
@@ -414,6 +551,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::ApiKey);
@@ -425,6 +564,7 @@ mod tests {
             "url": "http://localhost:8069",
             "db": "mydb",
             "apiKey": "test-key",
+            "tags": ["prod", "KDKMP"],
             "timeout_ms": 30000,
             "extraField": "ignored"
         }"#;
@@ -432,8 +572,10 @@ mod tests {
         assert_eq!(config.url, "http://localhost:8069");
         assert_eq!(config.db, Some("mydb".to_string()));
         assert_eq!(config.api_key, Some("test-key".to_string()));
+        assert_eq!(config.tags, vec!["prod".to_string(), "KDKMP".to_string()]);
         assert_eq!(config.timeout_ms, Some(30000));
         assert!(config.tool_config.is_none());
+        assert!(config.aliases.is_empty());
         assert!(config.extra.contains_key("extraField"));
     }
 
@@ -451,6 +593,7 @@ mod tests {
         assert_eq!(config.version, Some("18".to_string()));
         assert_eq!(config.username, Some("admin".to_string()));
         assert_eq!(config.password, Some("admin123".to_string()));
+        assert!(config.aliases.is_empty());
         assert_eq!(config.auth_mode(), OdooAuthMode::Password);
     }
 
@@ -498,6 +641,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::Password);
@@ -516,6 +661,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::ApiKey);
@@ -536,5 +683,50 @@ mod tests {
         }"#;
         let config: OdooInstanceConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.protocol, OdooProtocol::Json2);
+    }
+
+    #[test]
+    fn test_detect_runtime_instances_source_prefers_explicit_instances_json() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("instances.json");
+        std::fs::write(&file_path, "{}").unwrap();
+
+        let _instances_json = EnvGuard::set(
+            "ODOO_INSTANCES_JSON",
+            Some(file_path.to_string_lossy().as_ref()),
+        );
+        let _instances = EnvGuard::set(
+            "ODOO_INSTANCES",
+            Some(r#"{"inline":{"url":"http://localhost"}}"#),
+        );
+
+        let source = detect_runtime_instances_source();
+
+        assert_eq!(source.kind, RuntimeInstancesSourceKind::InstancesJson);
+        assert_eq!(source.path, Some(file_path));
+    }
+
+    #[test]
+    fn test_instance_config_omits_aliases_when_serialized() {
+        let config = OdooInstanceConfig {
+            url: "http://localhost".to_string(),
+            db: Some("mydb".to_string()),
+            api_key: Some("secret".to_string()),
+            username: None,
+            password: None,
+            version: Some("19".to_string()),
+            protocol: Default::default(),
+            timeout_ms: None,
+            max_retries: None,
+            tool_config: None,
+            tags: vec!["prod".to_string()],
+            aliases: vec!["legacy-alias".to_string()],
+            extra: HashMap::new(),
+        };
+
+        let value = serde_json::to_value(config).unwrap();
+        assert_eq!(value["tags"], serde_json::json!(["prod"]));
+        assert!(value.get("aliases").is_none());
     }
 }

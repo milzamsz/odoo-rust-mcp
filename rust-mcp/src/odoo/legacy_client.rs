@@ -608,12 +608,16 @@ impl OdooLegacyClient {
         .await
     }
 
+    pub async fn health_probe(&self) -> OdooResult<()> {
+        self.search_count("ir.model", Some(json!([])), None)
+            .await
+            .map(|_| ())
+    }
+
     /// Health check: perform a minimal operation to verify Odoo is reachable.
     /// Uses search_count on ir.model with empty domain as a cheap probe.
     pub async fn health_check(&self) -> bool {
-        self.search_count("ir.model", Some(json!([])), None)
-            .await
-            .is_ok()
+        self.health_probe().await.is_ok()
     }
 }
 
@@ -639,6 +643,8 @@ mod tests {
             timeout_ms: Some(5000),
             max_retries: Some(2),
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         }
     }
@@ -724,6 +730,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         let client = OdooLegacyClient::new(&cfg).unwrap();

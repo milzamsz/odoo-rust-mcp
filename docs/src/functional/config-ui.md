@@ -65,7 +65,7 @@ Edit the MCP server identity and system prompt that AI clients receive.
 | Field | Description |
 |-------|-------------|
 | **Server Name** | Name advertised to MCP clients (e.g., `odoo-rust-mcp`) |
-| **Instructions** | System instructions sent to AI clients — describes available Odoo models, workflows, and best practices |
+| **Instructions** | Agent-oriented system instructions sent to AI clients — covers how to work safely and when to fetch deeper prompt references |
 | **Protocol Version** | MCP protocol version string |
 
 Changes are saved and hot-reloaded immediately — no server restart required.
@@ -78,7 +78,7 @@ Manage Odoo server connections. This is the most commonly used tab.
 
 #### Instance list
 
-Each configured instance shows:
+Each configured instance is displayed as a searchable card. Use the search field to filter by name, URL, database, auth mode, version, or manual tags.
 
 | Column | Description |
 |--------|-------------|
@@ -87,6 +87,7 @@ Each configured instance shows:
 | **Database** | Database name |
 | **Auth Type** | `API Key` (Odoo 19+) or `Username/Password` (Odoo <19) |
 | **Version** | Odoo version badge if specified |
+| **Tags** | Optional manual labels such as `prod`, `staging`, or `finance` |
 | **Status** | Connection test result (idle / checking / ✓ Xms / ✗ error) |
 | **Actions** | Test, Edit, Delete |
 
@@ -107,6 +108,7 @@ Click **Add Instance** or the ✏ (edit) icon to open the instance form. Fields:
 | `username` | v<19 | Odoo login username |
 | `password` | v<19 | Odoo login password |
 | `protocol` | No | `auto` (default), `jsonrpc`, or `json2` |
+| `tags` | No | Manual labels used to search and filter Odoo Instances |
 | `timeout_ms` | No | Request timeout; default `30000` ms |
 | `max_retries` | No | Retry attempts; default `2` |
 
@@ -193,6 +195,10 @@ The built-in prompts cover:
 | `odoo_read_group` | Aggregation and reporting with `read_group` |
 | `odoo_context` | Odoo context parameters |
 | `odoo_api_tips` | Best practices for Odoo API usage |
+| `odoo_owl_components` | Owl component structure and first-pass debugging checks |
+| `odoo_assets_and_bundles` | Asset bundle selection and module wiring |
+| `odoo_frontend_contexts` | Choosing backend, client action, standalone Owl, or website runtime |
+| `odoo_qweb_and_templates` | QWeb/Owl template rules and version-sensitive XML guidance |
 
 You can add custom prompts or edit existing ones directly in the JSON editor.
 

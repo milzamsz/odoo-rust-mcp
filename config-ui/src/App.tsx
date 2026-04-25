@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { AuthProvider, useAuth } from './components/AuthProvider';
+import { AuthProvider } from './components/AuthProvider';
+import { useAuth } from './hooks/useAuth';
 import { LoginForm } from './components/LoginForm';
 import { SideNav } from './components/SideNav';
 import { InstancesTab } from './components/tabs/InstancesTab';

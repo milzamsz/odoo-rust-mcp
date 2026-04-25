@@ -68,12 +68,11 @@ fn visit_dir(dir: &Path, newest: &mut Option<SystemTime>) {
         let path = entry.path();
         if path.is_dir() {
             visit_dir(&path, newest);
-        } else if let Ok(meta) = std::fs::metadata(&path) {
-            if let Ok(mtime) = meta.modified() {
-                if newest.map(|n| mtime > n).unwrap_or(true) {
-                    *newest = Some(mtime);
-                }
-            }
+        } else if let Ok(meta) = std::fs::metadata(&path)
+            && let Ok(mtime) = meta.modified()
+            && newest.map(|n| mtime > n).unwrap_or(true)
+        {
+            *newest = Some(mtime);
         }
     }
 }

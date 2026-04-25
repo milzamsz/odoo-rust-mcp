@@ -19,6 +19,14 @@ A modern web-based configuration management system for Odoo Rust MCP Server with
 
 ## 📋 Quick Start
 
+### Runtime Visibility
+
+The Config UI also exposes:
+
+- a **Runtime & Env Snapshot** card on Server Configuration so operators can see whether runtime is file-backed or env-backed
+- **alternate source warnings** when nearby `instances.json` files are stale or unreadable
+- env snapshot status for `Sync to Env`
+
 ### Option 1: Standalone Rust Server
 
 ```bash
@@ -65,10 +73,14 @@ Configure Odoo instance connections:
   "production": {
     "url": "https://erp.company.com",
     "db": "production",
-    "apiKey": "prod-key"
+    "apiKey": "prod-key",
+    "tags": ["prod", "finance"]
   }
 }
 ```
+
+Canonical instance names are what the UI, MCP resources, and tool calls use. Matching is
+case-insensitive for convenience, but aliases are no longer supported.
 
 #### 2. **Server** ⚙️
 Server metadata and settings:
@@ -121,6 +133,9 @@ GET /health
 # Get Odoo instances
 GET /api/config/instances
 
+# Get env snapshot status and runtime source metadata
+GET /api/config/instances/sync-status
+
 # Get server settings
 GET /api/config/server
 
@@ -151,6 +166,9 @@ Authorization: Bearer <session-token>
 #   "warning": null,
 #   "rollback_performed": false
 # }
+
+# Save the current Config UI instances into ODOO_INSTANCES in the env file
+POST /api/config/instances/sync-env
 ```
 
 ### MCP HTTP Authentication Management
@@ -237,7 +255,21 @@ curl -X POST http://localhost:3008/api/config/instances \
 
 **Note:** MCP HTTP authentication settings can be changed from the Config UI and take effect immediately without restarting the service.
 
-## 📁 Configuration Files
+## Active Source and Env Snapshot
+
+The **Server Configuration** tab shows a **Runtime & Env Snapshot** card so you can confirm what the running server is actually using:
+
+- `Instances JSON`: runtime is reading from an `instances.json` file
+- `Inline Env Snapshot`: runtime is reading `ODOO_INSTANCES` from the env file
+- `Single-Instance Env`: runtime is using `ODOO_URL` plus credentials directly
+
+For local installs, the default source of truth is `~/.config/odoo-rust-mcp/instances.json` when that file exists. `ODOO_INSTANCES_JSON` still takes precedence if you explicitly point at another file.
+
+The **Sync to Env** action writes the current Config UI instances into `ODOO_INSTANCES` as an env snapshot for launch modes that read env vars. It does not disable a file-backed runtime source. Env-based launches may require a restart before they pick up the updated snapshot.
+
+If the server detects alternate `instances.json` files near the active one, the Server Configuration card marks them as `matches_runtime`, `stale`, or `unreadable` so a repo-root fixture does not silently look like the active config.
+
+## Configuration Files
 
 All files are stored in: **`~/.config/odoo-rust-mcp/`**
 
@@ -248,6 +280,8 @@ All files are stored in: **`~/.config/odoo-rust-mcp/`**
 ├── tools.json          # Available tools
 └── prompts.json        # System prompts
 ```
+
+The repository may also include `instances.example.json` or other fixture files for development. Those are examples only and are not the default local runtime source.
 
 ### File Permissions (Security)
 ```bash
@@ -335,8 +369,11 @@ export ODOO_CONFIG_SERVER_PORT=3008
 # Or set config directory
 export ODOO_CONFIG_DIR=~/.config/odoo-rust-mcp
 
-# Set instances from file
+# Optional explicit override for the instances file
 export ODOO_INSTANCES_JSON=/path/to/instances.json
+
+# Or keep ODOO_INSTANCES in env as a snapshot/bridge for env-based launches
+export ODOO_INSTANCES='{"production":{"url":"https://odoo.example.com","apiKey":"xxx"}}'
 
 # Logging
 export RUST_LOG=info,odoo_rust_mcp::config_manager=debug

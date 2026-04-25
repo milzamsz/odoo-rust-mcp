@@ -6,3 +6,6 @@ pub mod cleanup;
 pub mod config_manager;
 pub mod mcp;
 pub mod odoo;
+
+#[cfg(test)]
+pub static TEST_ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());

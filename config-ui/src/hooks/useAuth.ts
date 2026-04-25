@@ -1,13 +1,17 @@
-import { useState, useCallback } from 'react';
-import { useAuth as useAuthContext } from '../components/AuthProvider';
+import { useState, useCallback, useContext } from 'react';
+import { AuthContext } from '../components/AuthContext';
 import type { McpAuthStatus } from '../types';
 
 export function useAuth() {
-  return useAuthContext();
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }
 
 export function useSecurityActions() {
-  const { token } = useAuthContext();
+  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

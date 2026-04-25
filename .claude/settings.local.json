@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('mcpServers', {}\\), indent=2\\)\\)\")",
+      "mcp__mcp-registry__search_mcp_registry",
+      "Bash(python -c \"import json; d=json.load\\(open\\('C:/Users/MILZAM/.claude/settings.json'\\)\\); print\\(json.dumps\\(d['mcpServers']['odoo'], indent=2\\)\\)\")",
+      "Bash(python -c \"import json; d=json.load\\(open\\('C:/Users/MILZAM/AppData/Roaming/Claude/claude_desktop_config.json'\\)\\); print\\(json.dumps\\(d['mcpServers']['odoo'], indent=2\\)\\)\")",
+      "Bash(timeout 5 \"C:/Projects/MCP/odoo-rust-mcp/rust-mcp/target/release/rust-mcp.exe\" --transport stdio)",
+      "mcp__odoo__odoo_count",
+      "mcp__odoo__odoo_search_read",
+      "mcp__odoo__odoo_read",
+      "mcp__odoo__odoo_get_model_metadata",
+      "Bash(python3 -c ':*)",
+      "Bash(python -c ':*)"
+    ]
+  }
+}

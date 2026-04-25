@@ -100,7 +100,7 @@ describe('Integration Tests', () => {
         return { ok: true, json: async () => ({}) };
       });
 
-      const retry = async (fn: () => Promise<any>, maxAttempts = 3) => {
+      const retry = async <T,>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> => {
         for (let i = 0; i < maxAttempts; i++) {
           try {
             return await fn();
@@ -108,6 +108,7 @@ describe('Integration Tests', () => {
             if (i === maxAttempts - 1) throw err;
           }
         }
+        throw new Error('Retry attempts exhausted');
       };
 
       const result = await retry(() => mockFetch());
@@ -230,7 +231,7 @@ describe('Integration Tests', () => {
     });
 
     it('should validate required fields', () => {
-      const validateInstance = (instance: any) => {
+      const validateInstance = (instance: Record<string, unknown>) => {
         return 'url' in instance && 'db' in instance;
       };
 
@@ -289,7 +290,7 @@ describe('Integration Tests', () => {
 
   describe('Performance', () => {
     it('should memoize expensive computations', () => {
-      const computeHash = (data: any) => JSON.stringify(data);
+      const computeHash = (data: unknown) => JSON.stringify(data);
 
       const data = { url: 'http://localhost', db: 'testdb' };
       const hash1 = computeHash(data);

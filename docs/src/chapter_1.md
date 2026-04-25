@@ -11,7 +11,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standa
 ### Key Capabilities
 
 - **22 tools** covering CRUD operations, workflow actions, reports, model discovery, and database cleanup
-- **7 built-in prompts** providing Odoo domain knowledge (models, filters, field types, workflows)
+- **11 built-in prompts** covering Odoo data operations plus Owl/frontend addon guidance
 - **Multi-instance support** — connect to multiple Odoo servers (production, staging, development) simultaneously
 - **Dual authentication** — API keys (Odoo 19+ JSON-2 API) and username/password (Odoo <19 JSON-RPC)
 - **Multiple transports** — stdio (for AI clients), HTTP (for remote access), WebSocket, and SSE

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Key, Lock, Copy, Check, AlertTriangle, Loader2, Eye, EyeOff, ToggleLeft, ToggleRight, RefreshCw } from 'lucide-react';
-import { useAuth } from '../AuthProvider';
-import { useSecurityActions } from '../../hooks/useAuth';
+import { useAuth, useSecurityActions } from '../../hooks/useAuth';
 
 export function SecurityTab() {
   const { username, authEnabled } = useAuth();

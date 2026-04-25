@@ -77,6 +77,45 @@ impl OdooHttpClient {
         Ok(url)
     }
 
+    fn build_api_error(&self, status: reqwest::StatusCode, url: &Url, text: &str) -> OdooError {
+        let parsed_err: Option<OdooErrorBody> = serde_json::from_str(text).ok();
+        let message = if text.trim().is_empty() {
+            self.empty_json2_error_message(status, url)
+        } else {
+            parsed_err
+                .as_ref()
+                .and_then(|body| body.message.clone())
+                .unwrap_or_else(|| text.to_string())
+        };
+
+        OdooError::Api {
+            status: status.as_u16(),
+            message,
+            body: parsed_err,
+        }
+    }
+
+    fn empty_json2_error_message(&self, status: reqwest::StatusCode, url: &Url) -> String {
+        let mut message = format!(
+            "JSON-2 request to {} returned HTTP {} with an empty response body",
+            url,
+            status.as_u16()
+        );
+
+        if let Some(db) = self.db.as_deref().filter(|db| !db.trim().is_empty()) {
+            message.push_str(&format!(" while using database '{db}'"));
+            if status == reqwest::StatusCode::NOT_FOUND {
+                message.push_str(
+                    ". Odoo 19 custom-domain instances may respond with HTTP 404 when the X-Odoo-Database header does not exactly match the database name. Verify the database name or leave it blank for single-tenant/custom-domain setups.",
+                );
+                return message;
+            }
+        }
+
+        message.push('.');
+        message
+    }
+
     async fn post_json2_raw(&self, model: &str, method: &str, body: Value) -> OdooResult<Value> {
         let url = self
             .endpoint(model, method)
@@ -109,16 +148,7 @@ impl OdooHttpClient {
                         return Ok(v);
                     }
 
-                    let parsed_err: Option<OdooErrorBody> = serde_json::from_str(&text).ok();
-                    let message = parsed_err
-                        .as_ref()
-                        .and_then(|b| b.message.clone())
-                        .unwrap_or_else(|| text.clone());
-                    let err = OdooError::Api {
-                        status: status.as_u16(),
-                        message,
-                        body: parsed_err,
-                    };
+                    let err = self.build_api_error(status, &url, &text);
 
                     // Retry on 5xx and 429; do not retry auth/4xx.
                     if status.is_server_error() || status.as_u16() == 429 {
@@ -565,13 +595,16 @@ impl OdooHttpClient {
         self.post_json2_raw(model, "onchange", body).await
     }
 
+    pub async fn health_probe(&self) -> OdooResult<()> {
+        self.search_count("ir.model", Some(json!([])), None)
+            .await
+            .map(|_| ())
+    }
+
     /// Health check: perform a minimal operation to verify Odoo is reachable.
     /// Uses search_count on ir.model with empty domain as a cheap probe.
     pub async fn health_check(&self) -> bool {
-        // Use search_count on ir.model as a cheap health check operation
-        self.search_count("ir.model", Some(json!([])), None)
-            .await
-            .is_ok()
+        self.health_probe().await.is_ok()
     }
 }
 
@@ -592,6 +625,8 @@ mod tests {
             timeout_ms: Some(5000),
             max_retries: Some(2),
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         }
     }
@@ -647,6 +682,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         let client = OdooHttpClient::new(&cfg).unwrap();
@@ -673,6 +710,8 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
             extra: HashMap::new(),
         };
         let client = OdooHttpClient::new(&cfg).unwrap();
@@ -684,5 +723,93 @@ mod tests {
         let cfg = make_config("http://localhost:8069", Some("key"));
         let client = OdooHttpClient::new(&cfg).unwrap();
         assert_eq!(client.max_retries, 2); // from config
+    }
+
+    #[test]
+    fn test_build_api_error_preserves_detailed_server_message() {
+        let cfg = make_config("http://localhost:8069", Some("key"));
+        let client = OdooHttpClient::new(&cfg).unwrap();
+        let url = client.endpoint("res.partner", "search").unwrap();
+        let error = client.build_api_error(
+            reqwest::StatusCode::UNAUTHORIZED,
+            &url,
+            r#"{"message":"Access denied","name":"odoo.exceptions.AccessDenied"}"#,
+        );
+
+        match error {
+            OdooError::Api {
+                status,
+                message,
+                body,
+            } => {
+                assert_eq!(status, 401);
+                assert_eq!(message, "Access denied");
+                assert_eq!(
+                    body.and_then(|value| value.name),
+                    Some("odoo.exceptions.AccessDenied".to_string())
+                );
+            }
+            other => panic!("expected API error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_empty_json2_error_mentions_db_mismatch_hint_for_404() {
+        let cfg = make_config("http://localhost:8069", Some("key"));
+        let client = OdooHttpClient::new(&cfg).unwrap();
+        let url = client.endpoint("ir.model", "search_count").unwrap();
+        let error = client.build_api_error(reqwest::StatusCode::NOT_FOUND, &url, "");
+
+        match error {
+            OdooError::Api {
+                status,
+                message,
+                body,
+            } => {
+                assert_eq!(status, 404);
+                assert!(body.is_none());
+                assert!(message.contains("/json/2/ir.model/search_count"));
+                assert!(message.contains("database 'test_db'"));
+                assert!(message.contains("does not exactly match the database name"));
+            }
+            other => panic!("expected API error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_empty_json2_error_without_db_still_mentions_endpoint() {
+        let cfg = OdooInstanceConfig {
+            url: "http://localhost:8069".to_string(),
+            db: None,
+            api_key: Some("key".to_string()),
+            username: None,
+            password: None,
+            version: Some("19".to_string()),
+            protocol: Default::default(),
+            timeout_ms: Some(5000),
+            max_retries: Some(2),
+            tool_config: None,
+            tags: Vec::new(),
+            aliases: Vec::new(),
+            extra: HashMap::new(),
+        };
+        let client = OdooHttpClient::new(&cfg).unwrap();
+        let url = client.endpoint("ir.model", "search_count").unwrap();
+        let error = client.build_api_error(reqwest::StatusCode::BAD_GATEWAY, &url, "");
+
+        match error {
+            OdooError::Api {
+                status,
+                message,
+                body,
+            } => {
+                assert_eq!(status, 502);
+                assert!(body.is_none());
+                assert!(message.contains("HTTP 502"));
+                assert!(message.contains("/json/2/ir.model/search_count"));
+                assert!(!message.contains("database '"));
+            }
+            other => panic!("expected API error, got {other:?}"),
+        }
     }
 }

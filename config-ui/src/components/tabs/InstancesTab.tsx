@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
-  ArrowLeftRight,
   CheckCircle2,
   Database,
   Download,
@@ -10,6 +9,8 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  Search,
+  Tag,
   Trash2,
   Upload,
   User,
@@ -18,18 +19,12 @@ import {
 } from 'lucide-react';
 import { useConfig } from '../../hooks/useConfig';
 import { countEnabledToolsForInstance } from '../../toolGroups';
-import type {
-  InstanceConfig,
-  InstanceEnvSyncState,
-  InstancesSyncStatusResponse,
-  StatusMessage as StatusMessageType,
-  SyncInstancesEnvResponse,
-  ToolConfig,
-} from '../../types';
+import type { InstanceConfig, ToolConfig } from '../../types';
 import { Button } from '../Button';
 import { Card } from '../Card';
 import { InstanceForm } from '../InstanceForm';
 import { StatusMessage } from '../StatusMessage';
+import { getInstanceTags } from '../../instanceTags';
 
 const TOKEN_STORAGE_KEY = 'mcp_config_token';
 
@@ -148,86 +143,6 @@ interface ImportPreview {
   mode: ImportMode;
 }
 
-function getSyncFailureMessage(error: unknown): string {
-  if (error instanceof HttpResponseError) {
-    if (
-      error.status === 404 ||
-      error.status === 405 ||
-      (error.message === 'Invalid JSON response' && looksLikeHtml(error.bodyText))
-    ) {
-      return 'Sync to Env is not available in the running server build. Restart using the updated MCP server.';
-    }
-
-    if (
-      error.status === 500 &&
-      (!error.message.trim() ||
-        error.message === 'Request failed' ||
-        error.message === 'HTTP 500')
-    ) {
-      return 'Sync to Env failed on the server (HTTP 500). Check the server logs and try again.';
-    }
-
-    if (
-      !error.message.trim() ||
-      error.message === 'Request failed' ||
-      /^HTTP \d+$/.test(error.message)
-    ) {
-      return `Sync to Env failed on the server (HTTP ${error.status}). Check the server logs and try again.`;
-    }
-
-    if (error.message === 'Invalid JSON response') {
-      return 'Sync to Env failed. The running server returned an unexpected response. Restart using the updated MCP server.';
-    }
-
-    return `Sync to Env failed: ${error.message}`;
-  }
-
-  if (error instanceof TypeError) {
-    return 'Sync to Env failed. Could not reach the Config UI API.';
-  }
-
-  if (!(error instanceof Error)) {
-    return 'Sync to Env failed. The server did not return details. Check the server logs and try again.';
-  }
-
-  const message = error.message.trim();
-  if (!message || message === 'Request failed') {
-    return 'Sync to Env failed. The server did not return details. Check the server logs and try again.';
-  }
-
-  if (
-    message === 'Failed to fetch' ||
-    message.includes('NetworkError') ||
-    message.includes('network') ||
-    message.includes('fetch')
-  ) {
-    return 'Sync to Env failed. Could not reach the Config UI API.';
-  }
-
-  return `Sync to Env failed: ${message}`;
-}
-
-function countSyncStates(instances: InstancesSyncStatusResponse['instances']) {
-  return Object.values(instances).reduce(
-    (counts, state) => {
-      if (state === 'synced') {
-        counts.synced += 1;
-      } else if (state === 'out_of_sync') {
-        counts.outOfSync += 1;
-      } else if (state === 'not_synced') {
-        counts.notSynced += 1;
-      }
-
-      return counts;
-    },
-    {
-      synced: 0,
-      outOfSync: 0,
-      notSynced: 0,
-    }
-  );
-}
-
 export function InstancesTab() {
   const { load, save, status, loading } = useConfig('instances');
   const { load: loadTools, loading: toolsLoading } = useConfig('tools');
@@ -238,40 +153,9 @@ export function InstancesTab() {
   const [connStatuses, setConnStatuses] = useState<Record<string, ConnStatus>>({});
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const [syncStatus, setSyncStatus] = useState<InstancesSyncStatusResponse | null>(null);
-  const [syncStatusError, setSyncStatusError] = useState<string | null>(null);
-  const [showSyncConfirm, setShowSyncConfirm] = useState(false);
-  const [syncingEnv, setSyncingEnv] = useState(false);
-  const [actionStatus, setActionStatus] = useState<StatusMessageType | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const actionStatusTimerRef = useRef<number | null>(null);
-
-  const setTimedActionStatus = useCallback(
-    (nextStatus: StatusMessageType, timeoutMs?: number) => {
-      if (actionStatusTimerRef.current !== null) {
-        window.clearTimeout(actionStatusTimerRef.current);
-        actionStatusTimerRef.current = null;
-      }
-
-      setActionStatus(nextStatus);
-
-      if (timeoutMs) {
-        actionStatusTimerRef.current = window.setTimeout(() => {
-          setActionStatus(null);
-          actionStatusTimerRef.current = null;
-        }, timeoutMs);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    return () => {
-      if (actionStatusTimerRef.current !== null) {
-        window.clearTimeout(actionStatusTimerRef.current);
-      }
-    };
-  }, []);
 
   const loadInstances = useCallback(async () => {
     try {
@@ -293,28 +177,9 @@ export function InstancesTab() {
     }
   }, [loadTools]);
 
-  const loadSyncStatus = useCallback(async () => {
-    try {
-      const data = await fetchJson<InstancesSyncStatusResponse>(
-        '/api/config/instances/sync-status',
-        {
-          headers: getAuthHeaders(),
-        }
-      );
-      setSyncStatus(data);
-      setSyncStatusError(null);
-    } catch (error) {
-      console.error('Failed to load env sync status:', error);
-      setSyncStatus(null);
-      setSyncStatusError(
-        error instanceof Error ? error.message : 'Failed to load env sync status'
-      );
-    }
-  }, []);
-
   const refreshData = useCallback(async () => {
-    await Promise.all([loadInstances(), loadAvailableTools(), loadSyncStatus()]);
-  }, [loadAvailableTools, loadInstances, loadSyncStatus]);
+    await Promise.all([loadInstances(), loadAvailableTools()]);
+  }, [loadAvailableTools, loadInstances]);
 
   useEffect(() => {
     void refreshData();
@@ -467,61 +332,59 @@ export function InstancesTab() {
     }
   };
 
-  const handleSyncToEnv = async () => {
-    setTimedActionStatus(
-      {
-        message: 'Syncing instances to the env file...',
-        type: 'loading',
-      },
-      undefined
-    );
-    setSyncingEnv(true);
+  const instances = useMemo(() => Object.entries(config), [config]);
+  const existingNames = useMemo(() => Object.keys(config), [config]);
+  const isBusy = loading || toolsLoading;
+  const activeStatus = status;
+  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
+  const allTags = useMemo(() => {
+    const tagsByKey = new Map<string, string>();
 
-    try {
-      const response = await fetchJson<SyncInstancesEnvResponse>(
-        '/api/config/instances/sync-env',
-        {
-          method: 'POST',
-          headers: getAuthHeaders(),
+    for (const [, instance] of instances) {
+      for (const tag of getInstanceTags(instance)) {
+        const key = tag.toLocaleLowerCase();
+        if (!tagsByKey.has(key)) {
+          tagsByKey.set(key, tag);
         }
-      );
-
-      setSyncStatus({
-        configured: response.configured,
-        synced_count: response.synced_count,
-        total_count: response.total_count,
-        instances: response.instances,
-        extra_env_instances: response.extra_env_instances,
-      });
-      setSyncStatusError(null);
-      await loadInstances();
-      setShowSyncConfirm(false);
-      setTimedActionStatus(
-        {
-          message: response.message,
-          type: 'success',
-        },
-        6000
-      );
-    } catch (error) {
-      console.error('Failed to sync instances to env:', error);
-      setTimedActionStatus(
-        {
-          message: getSyncFailureMessage(error),
-          type: 'error',
-        },
-        6000
-      );
-    } finally {
-      setSyncingEnv(false);
+      }
     }
-  };
 
-  const instances = Object.entries(config);
-  const existingNames = Object.keys(config);
-  const isBusy = loading || toolsLoading || syncingEnv;
-  const activeStatus = actionStatus ?? status;
-  const syncCounts = syncStatus ? countSyncStates(syncStatus.instances) : null;
+    return [...tagsByKey.values()].sort((left, right) =>
+      left.localeCompare(right, undefined, { sensitivity: 'base' })
+    );
+  }, [instances]);
+  const filteredInstances = useMemo(
+    () =>
+      instances.filter(([name, instance]) => {
+        const tags = getInstanceTags(instance);
+        if (
+          selectedTag &&
+          !tags.some((tag) => tag.toLocaleLowerCase() === selectedTag.toLocaleLowerCase())
+        ) {
+          return false;
+        }
+
+        if (!normalizedSearchQuery) {
+          return true;
+        }
+
+        const authMode = instance.apiKey ? 'api key json2 token' : 'username password user pass jsonrpc';
+        const searchableText = [
+          name,
+          instance.url,
+          instance.db ?? '',
+          authMode,
+          instance.version ? `v${instance.version} ${instance.version}` : 'auto version',
+          ...tags,
+        ]
+          .join(' ')
+          .toLocaleLowerCase();
+
+        return searchableText.includes(normalizedSearchQuery);
+      }),
+    [instances, normalizedSearchQuery, selectedTag]
+  );
+  const filtersActive = Boolean(normalizedSearchQuery || selectedTag);
 
   return (
     <div className="space-y-6">
@@ -569,17 +432,7 @@ export function InstancesTab() {
         onChange={handleFileChange}
       />
 
-      {activeStatus && (
-        <StatusMessage
-          status={activeStatus}
-          iconOverride={actionStatus?.type === 'error' ? AlertTriangle : undefined}
-          onDismiss={
-            activeStatus.type === 'error' || activeStatus.type === 'warning'
-              ? () => setActionStatus(null)
-              : undefined
-          }
-        />
-      )}
+      {activeStatus && <StatusMessage status={activeStatus} />}
 
       {importError && (
         <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -606,41 +459,22 @@ export function InstancesTab() {
         />
       )}
 
-      {showSyncConfirm && (
-        <SyncToEnvDialog
-          instanceCount={instances.length}
-          onConfirm={handleSyncToEnv}
-          onCancel={() => setShowSyncConfirm(false)}
-          loading={syncingEnv}
-        />
-      )}
-
       <Card>
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <div className="mb-5 flex items-center justify-between gap-3 flex-wrap">
           <div className="min-w-[280px] flex-1">
             <h3 className="text-lg font-semibold text-gray-900">
               Configured Instances ({instances.length})
             </h3>
-            <SyncSummaryPanel
-              syncStatus={syncStatus}
-              syncStatusError={syncStatusError}
-              syncCounts={syncCounts}
-            />
+            <p className="mt-1 text-sm text-slate-600">
+              Search, tag, test, and edit Odoo connections without the env snapshot details in
+              the way.
+            </p>
           </div>
           <div
             className="flex gap-2 flex-wrap"
             role="group"
             aria-label="Instance table actions"
           >
-            <Button
-              onClick={() => setShowSyncConfirm(true)}
-              icon={<ArrowLeftRight size={16} />}
-              variant="secondary"
-              size="sm"
-              disabled={instances.length === 0 || isBusy}
-            >
-              Sync to Env
-            </Button>
             {instances.length > 0 && (
               <Button onClick={testAll} icon={<Wifi size={16} />} variant="ghost" size="sm">
                 Test All
@@ -660,11 +494,77 @@ export function InstancesTab() {
           </div>
         </div>
 
+        {instances.length > 0 && (
+          <div className="mb-5 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-emerald-50 p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <label className="relative min-w-[240px] flex-1">
+                <span className="sr-only">Search Odoo instances</span>
+                <Search
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search name, URL, DB, auth, version, or tags..."
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                />
+              </label>
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <Tag size={15} className="text-emerald-600" />
+                <span>
+                  Showing {filteredInstances.length} of {instances.length}
+                </span>
+              </div>
+            </div>
+
+            {allTags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2" aria-label="Instance tag filters">
+                {allTags.map((tag) => {
+                  const active = selectedTag?.toLocaleLowerCase() === tag.toLocaleLowerCase();
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setSelectedTag(active ? null : tag)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                        active
+                          ? 'border-emerald-500 bg-emerald-600 text-white shadow-sm'
+                          : 'border-emerald-200 bg-white text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+                {filtersActive && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedTag(null);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    <XCircle size={12} />
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {instances.length === 0 ? (
-          <div className="text-center py-16">
-            <Database className="mx-auto text-gray-400 mb-3" size={48} />
-            <p className="text-gray-500 mb-4">No instances configured</p>
-            <div className="flex justify-center gap-3">
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center">
+            <Database className="mx-auto mb-4 text-slate-400" size={48} />
+            <h4 className="text-lg font-semibold text-slate-900">No instances configured</h4>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+              Add your first Odoo instance to start testing connections, adding tags, and managing
+              tool access.
+            </p>
+            <div className="mt-5 flex justify-center gap-3">
               <Button onClick={handleAdd} icon={<Plus size={16} />} variant="primary">
                 Add Your First Instance
               </Button>
@@ -673,129 +573,153 @@ export function InstancesTab() {
               </Button>
             </div>
           </div>
+        ) : filteredInstances.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-emerald-200 bg-emerald-50/60 py-14 text-center">
+            <Search className="mx-auto mb-4 text-emerald-500" size={44} />
+            <h4 className="text-lg font-semibold text-slate-900">No instances match your filters</h4>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+              Try a different search term or clear the selected tag filter.
+            </p>
+            <Button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedTag(null);
+              }}
+              icon={<XCircle size={16} />}
+              variant="ghost"
+              className="mt-5"
+            >
+              Clear filters
+            </Button>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">URL</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Database
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Auth Type
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Version
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {instances.map(([name, instance]) => {
-                  const authType = instance.apiKey ? 'API Key' : 'Username/Password';
-                  const AuthIcon = instance.apiKey ? Key : User;
-                  const connectionStatus = connStatuses[name] ?? { status: 'idle' };
-                  const totalToolCount = availableTools.length;
-                  const enabledToolCount = countEnabledToolsForInstance(
-                    availableTools,
-                    instance.toolConfig?.disabledTools ?? []
-                  );
-                  const toolSummary =
-                    totalToolCount > 0
-                      ? `${enabledToolCount}/${totalToolCount} tools enabled for this instance`
-                      : 'Tool catalog unavailable';
-                  const envSyncState = syncStatus?.instances[name];
+          <div className="space-y-4">
+            {filteredInstances.map(([name, instance]) => {
+              const authType = instance.apiKey ? 'API Key' : 'Username/Password';
+              const AuthIcon = instance.apiKey ? Key : User;
+              const connectionStatus = connStatuses[name] ?? { status: 'idle' };
+              const instanceTags = getInstanceTags(instance);
+              const totalToolCount = availableTools.length;
+              const enabledToolCount = countEnabledToolsForInstance(
+                availableTools,
+                instance.toolConfig?.disabledTools ?? []
+              );
 
-                  return (
-                    <tr key={name} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-4">
-                        <div className="flex items-start gap-2">
-                          <Database size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <code className="font-mono text-sm font-medium text-gray-900">
+              return (
+                <div
+                  key={name}
+                  data-testid={`instance-card-${name}`}
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                >
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-2xl bg-blue-50 p-3 text-blue-600">
+                          <Database size={18} />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <code className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-sm font-semibold text-slate-900">
                               {name}
                             </code>
-                            <div className="mt-1 text-xs text-gray-500">{toolSummary}</div>
-                            <div className="mt-2">
-                              <InstanceSyncBadge state={envSyncState} />
-                            </div>
+                            <ConnectionStatusBadge cs={connectionStatus} />
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <a
-                          href={instance.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:text-blue-800 hover:underline max-w-xs truncate block"
-                          title={instance.url}
-                        >
-                          {instance.url}
-                        </a>
-                      </td>
-                      <td className="px-4 py-4">
-                        <code className="text-sm text-gray-700 font-mono">{instance.db || '-'}</code>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-1.5">
-                          <AuthIcon size={14} className="text-gray-500" />
-                          <span className="text-xs text-gray-600">{authType}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        {instance.version ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-700 text-xs font-medium">
-                            v{instance.version}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        <ConnectionStatusBadge cs={connectionStatus} />
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => testConnection(name)}
-                            className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Test connection"
-                            disabled={connectionStatus.status === 'checking'}
+
+                          <a
+                            href={instance.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 block truncate text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                            title={instance.url}
                           >
-                            {connectionStatus.status === 'checking' ? (
-                              <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                              <Wifi size={16} />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleEdit(name)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(name)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                            {instance.url}
+                          </a>
+
+                          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                            <InstanceMetaPill
+                              label="Database"
+                              value={instance.db || 'Optional / unset'}
+                              monospace={Boolean(instance.db)}
+                            />
+                            <InstanceMetaPill
+                              label="Authentication"
+                              value={authType}
+                              icon={<AuthIcon size={14} />}
+                            />
+                            <InstanceMetaPill
+                              label="Version"
+                              value={instance.version ? `v${instance.version}` : 'Auto'}
+                            />
+                            <InstanceMetaPill
+                              label="Tools"
+                              value={
+                                totalToolCount > 0
+                                  ? `${enabledToolCount}/${totalToolCount} enabled`
+                                  : 'Catalog unavailable'
+                              }
+                            />
+                          </div>
+
+                          {instanceTags.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              {instanceTags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
+                                >
+                                  <Tag size={11} />
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+
+                    <div
+                      className="flex flex-wrap items-center gap-2 xl:justify-end"
+                      role="group"
+                      aria-label={`Actions for ${name}`}
+                    >
+                      <Button
+                        onClick={() => testConnection(name)}
+                        icon={
+                          connectionStatus.status === 'checking' ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Wifi size={14} />
+                          )
+                        }
+                        variant="ghost"
+                        size="sm"
+                        disabled={connectionStatus.status === 'checking'}
+                      >
+                        Test
+                      </Button>
+                      <Button
+                        onClick={() => handleEdit(name)}
+                        icon={<Edit2 size={14} />}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        onClick={() => handleDelete(name)}
+                        icon={<Trash2 size={14} />}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>
@@ -813,118 +737,6 @@ export function InstancesTab() {
           }}
         />
       )}
-    </div>
-  );
-}
-
-function SyncSummaryPanel({
-  syncStatus,
-  syncStatusError,
-  syncCounts,
-}: {
-  syncStatus: InstancesSyncStatusResponse | null;
-  syncStatusError: string | null;
-  syncCounts: ReturnType<typeof countSyncStates> | null;
-}) {
-  if (!syncStatus || !syncCounts) {
-    return (
-      <div className="mt-4 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-orange-50 p-4 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="rounded-full bg-amber-100 p-2 text-amber-700">
-            <AlertTriangle size={16} />
-          </div>
-          <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
-              Env Snapshot Unavailable
-            </div>
-            <p className="mt-2 text-sm font-medium text-slate-800">
-              Sync status could not be loaded right now.
-            </p>
-            <p className="mt-1 text-sm text-slate-600">
-              {syncStatusError ?? 'Unable to read env sync status from the running server.'}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const progressPercent =
-    syncStatus.total_count > 0 ? Math.round((syncStatus.synced_count / syncStatus.total_count) * 100) : 0;
-  const summaryCopy = syncStatus.configured
-    ? 'The env file already contains an ODOO_INSTANCES snapshot. Sync after changes, then restart the MCP server to apply it.'
-    : 'No ODOO_INSTANCES snapshot is saved yet. Use Sync to Env to capture the current UI configuration.';
-
-  return (
-    <div
-      className="mt-4 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-blue-50 p-4 shadow-sm"
-      role="group"
-      aria-label="Env sync summary"
-    >
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            <span className="rounded-full bg-blue-100 p-1.5 text-blue-600">
-              <ArrowLeftRight size={12} />
-            </span>
-            Env Snapshot
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-semibold text-slate-900">
-              {syncStatus.synced_count}/{syncStatus.total_count}
-            </span>
-            <span className="text-sm font-medium text-slate-600">synced</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <SyncStatPill label="Synced" count={syncCounts.synced} tone="green" />
-          <SyncStatPill label="Out of sync" count={syncCounts.outOfSync} tone="amber" />
-          <SyncStatPill label="Not synced" count={syncCounts.notSynced} tone="slate" />
-        </div>
-      </div>
-
-      <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-500 transition-all duration-500"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
-
-      <p className="mt-3 text-sm text-slate-600">{summaryCopy}</p>
-
-      {syncStatus.extra_env_instances.length > 0 && (
-        <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
-          <AlertTriangle size={12} />
-          Env-only instances: {syncStatus.extra_env_instances.join(', ')}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SyncStatPill({
-  label,
-  count,
-  tone,
-}: {
-  label: string;
-  count: number;
-  tone: 'green' | 'amber' | 'slate';
-}) {
-  const toneClasses = {
-    green: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    amber: 'border-amber-200 bg-amber-50 text-amber-700',
-    slate: 'border-slate-200 bg-slate-100 text-slate-700',
-  };
-
-  return (
-    <div
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${toneClasses[tone]}`}
-      aria-label={`${label}: ${count}`}
-    >
-      <span>
-        {count} {label}
-      </span>
     </div>
   );
 }
@@ -1077,70 +889,29 @@ function ImportConfirmDialog({
   );
 }
 
-interface SyncToEnvDialogProps {
-  instanceCount: number;
-  onConfirm: () => void;
-  onCancel: () => void;
-  loading: boolean;
-}
-
-function SyncToEnvDialog({
-  instanceCount,
-  onConfirm,
-  onCancel,
-  loading,
-}: SyncToEnvDialogProps) {
+function InstanceMetaPill({
+  label,
+  value,
+  icon,
+  monospace = false,
+}: {
+  label: string;
+  value: string;
+  icon?: ReactNode;
+  monospace?: boolean;
+}) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </div>
       <div
-        className="w-full max-w-lg rounded-xl bg-white shadow-2xl"
-        role="dialog"
-        aria-modal="true"
+        className={`mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-900 ${
+          monospace ? 'font-mono text-[13px]' : ''
+        }`}
       >
-        <div className="border-b border-gray-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-amber-100 p-2">
-              <AlertTriangle size={20} className="text-amber-700" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Sync Instances to Env</h3>
-              <p className="text-sm text-gray-500">
-                Write {instanceCount} instance{instanceCount !== 1 ? 's' : ''} into
-                ODOO_INSTANCES.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4 p-6">
-          <p className="text-sm text-gray-700">
-            This saves the current Config UI instances into the <code>env</code> file as inline{' '}
-            <code>ODOO_INSTANCES</code> JSON.
-          </p>
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            <p className="font-medium">Before you continue:</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Instance credentials will be written into the env file.</li>
-              <li>This is a bulk action for all configured instances.</li>
-              <li>The new env snapshot applies on the next restart, not immediately.</li>
-              <li>Any active <code>ODOO_INSTANCES_JSON</code> entry will be deactivated.</li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 border-t border-gray-200 p-6">
-          <Button variant="ghost" onClick={onCancel} disabled={loading}>
-            Cancel
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={onConfirm}
-            loading={loading}
-            icon={<ArrowLeftRight size={16} />}
-          >
-            Sync to Env
-          </Button>
-        </div>
+        {icon}
+        <span className="truncate">{value}</span>
       </div>
     </div>
   );
@@ -1148,12 +919,16 @@ function SyncToEnvDialog({
 
 function ConnectionStatusBadge({ cs }: { cs: ConnStatus }) {
   if (cs.status === 'idle') {
-    return <span className="text-xs text-gray-400">-</span>;
+    return (
+      <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+        Not checked
+      </span>
+    );
   }
 
   if (cs.status === 'checking') {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-500">
         <Loader2 size={13} className="animate-spin" />
         <span>Checking...</span>
       </div>
@@ -1162,52 +937,20 @@ function ConnectionStatusBadge({ cs }: { cs: ConnStatus }) {
 
   if (cs.status === 'ok') {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-green-700">
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
         <CheckCircle2 size={13} />
-        <span>{cs.latency}ms</span>
+        <span>Healthy {cs.latency}ms</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-1.5 text-xs text-red-600" title={cs.error}>
+    <div
+      className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600"
+      title={cs.error}
+    >
       <XCircle size={13} />
-      <span className="max-w-[120px] truncate">{cs.error}</span>
+      <span className="max-w-[140px] truncate">Error</span>
     </div>
-  );
-}
-
-function InstanceSyncBadge({ state }: { state?: InstanceEnvSyncState }) {
-  if (!state) {
-    return (
-      <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
-        Sync status unavailable
-      </span>
-    );
-  }
-
-  if (state === 'synced') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-        <CheckCircle2 size={12} />
-        Synced
-      </span>
-    );
-  }
-
-  if (state === 'out_of_sync') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-        <AlertTriangle size={12} />
-        Out of sync
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-      <XCircle size={12} />
-      Not synced
-    </span>
   );
 }
