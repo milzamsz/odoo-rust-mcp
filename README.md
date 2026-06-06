@@ -709,6 +709,9 @@ After installation:
 - Config directory: `C:\ProgramData\odoo-rust-mcp\`
 - Default MCP HTTP endpoint: `http://127.0.0.1:8787/mcp`
 - Default config UI: `http://127.0.0.1:3008`
+- Desktop Shortcuts:
+  - `Odoo MCP Server` (Starts the native Windows server in the background)
+  - `Odoo WSL MCP Server` (Starts the server inside WSL in the background)
 
 Create `C:\ProgramData\odoo-rust-mcp\instances.json` with your Odoo instances, for example:
 
@@ -762,6 +765,18 @@ When you use `-Service`, also review:
 - `C:\ProgramData\odoo-rust-mcp\env.ps1`
 
 `env.ps1` controls config UI auth, optional MCP bearer auth, and the config file paths used by the background service.
+
+##### Managing Desktop Shortcuts
+
+The installation script automatically sets up both Windows native and WSL desktop shortcuts on your desktop. If you ever need to recreate them (e.g. if the repository directory moves), open **PowerShell as Administrator** in the repository folder and run:
+
+```powershell
+.\install.ps1 -Shortcut
+```
+
+Alternatively, you can run the individual creation scripts (as a regular user) from the repository root:
+* `.\Create-Shortcut.ps1` - Creates the Windows native desktop shortcut.
+* `.\Create-WSL-Shortcut.ps1` - Creates the WSL desktop shortcut (runs the server in WSL via a background CIM process).
 
 **Manual (without installer):**
 ```bash

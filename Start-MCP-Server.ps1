@@ -5,6 +5,17 @@ Add-Type -AssemblyName System.Windows.Forms
 
 $RepoRoot = $PSScriptRoot
 $ServerExe = Join-Path $RepoRoot "rust-mcp\target\release\rust-mcp.exe"
+
+# If release binary exists in root but not in target/release, copy it
+if (-not (Test-Path $ServerExe)) {
+    $RootExe = Join-Path $RepoRoot "rust-mcp.exe"
+    if (Test-Path $RootExe) {
+        $TargetDir = Split-Path -Parent $ServerExe
+        New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+        Copy-Item $RootExe -Destination $ServerExe -Force
+    }
+}
+
 $WorkingDir = Join-Path $RepoRoot "rust-mcp"
 $CargoManifest = Join-Path $RepoRoot "rust-mcp\Cargo.toml"
 $Transport = "http"
@@ -131,21 +142,29 @@ function Ensure-ReleaseBinaryCurrent {
         [string[]]$InputPaths
     )
 
-    $cargoCommand = Get-Command cargo -ErrorAction SilentlyContinue
-    if (-not $cargoCommand) {
-        Show-Dialog `
-            -Title "MCP Server Build Error" `
-            -Icon ([System.Windows.Forms.MessageBoxIcon]::Error) `
-            -Message "Cargo was not found on PATH.`n`nInstall Rust/Cargo or build the release binary manually before launching the MCP server."
-        return $false
-    }
-
     $needsBuild = -not (Test-Path $ExecutablePath)
 
     if (-not $needsBuild) {
         $exeTime = (Get-Item $ExecutablePath).LastWriteTimeUtc
         $latestInputTime = Get-LatestWriteTimeUtc -Paths $InputPaths
         $needsBuild = $latestInputTime -gt $exeTime
+    }
+
+    if (-not $needsBuild) {
+        return $true
+    }
+
+    $cargoCommand = Get-Command cargo -ErrorAction SilentlyContinue
+    if (-not $cargoCommand) {
+        if (Test-Path $ExecutablePath) {
+            Write-Host "Cargo not found on PATH, using existing compiled binary." -ForegroundColor Yellow
+            return $true
+        }
+        Show-Dialog `
+            -Title "MCP Server Build Error" `
+            -Icon ([System.Windows.Forms.MessageBoxIcon]::Error) `
+            -Message "Cargo was not found on PATH and no pre-compiled binary exists.`n`nInstall Rust/Cargo or build the release binary manually before launching the MCP server."
+        return $false
     }
 
     if (-not $needsBuild) {

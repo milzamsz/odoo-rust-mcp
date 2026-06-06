@@ -31,6 +31,16 @@ cd C:\odoo-mcp
 .\install.ps1
 ```
 
+> [!NOTE]
+> The Windows installer automatically sets up two shortcuts on your desktop:
+> - **Odoo MCP Server**: Starts the server natively on Windows.
+> - **Odoo WSL MCP Server**: Starts the server inside WSL (Ubuntu) in the background.
+>
+> If you ever need to recreate or refresh these desktop shortcuts, run:
+> ```powershell
+> .\install.ps1 -Shortcut
+> ```
+
 **Linux/macOS Installation:**
 ```bash
 tar -xzf rust-mcp-<platform>.tar.gz

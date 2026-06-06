@@ -8,6 +8,7 @@ param(
     [switch]$Uninstall,
     [switch]$Service,
     [switch]$ServiceUninstall,
+    [switch]$Shortcut,
     [switch]$Help
 )
 
@@ -15,7 +16,7 @@ $ErrorActionPreference = "Stop"
 
 $BinaryName = "rust-mcp"
 $ServiceName = "OdooRustMcp"
-$ServiceDisplayName = "Odoo Rust MCP Server (Milzam)"
+$ServiceDisplayName = "Odoo Rust MCP Server"
 $InstallDir = "$env:ProgramFiles\odoo-rust-mcp"
 $ConfigDir = "$env:ProgramData\odoo-rust-mcp"
 $EnvFile = "$ConfigDir\env.ps1"
@@ -53,6 +54,9 @@ function Install-OdooMcp {
         [Environment]::SetEnvironmentVariable("Path", "$currentPath;$InstallDir", "Machine")
     }
 
+    # Create Desktop Shortcuts (both Windows and WSL options)
+    Create-Shortcuts
+
     Write-Info "Installation complete!"
     Write-Host ""
     Write-Host "Binary installed to: $InstallDir\$BinaryName.exe"
@@ -62,6 +66,7 @@ function Install-OdooMcp {
     Write-Host "  Run directly (stdio):  $BinaryName --transport stdio"
     Write-Host "  Run as HTTP server:    $BinaryName --transport http --listen 127.0.0.1:8787"
     Write-Host "  Install as service:    .\install.ps1 -Service"
+    Write-Host "  Create shortcuts:      .\install.ps1 -Shortcut"
     Write-Host ""
     Write-Host "For Cursor/Claude Desktop, see README for configuration examples."
 }
@@ -239,6 +244,28 @@ function Install-Service {
     Write-Warn "Don't forget to edit $EnvFile with your Odoo credentials!"
 }
 
+function Create-Shortcuts {
+    Write-Info "Creating Desktop Shortcuts..."
+    $WindowsShortcutScript = Join-Path $ScriptDir "Create-Shortcut.ps1"
+    $WslShortcutScript = Join-Path $ScriptDir "Create-WSL-Shortcut.ps1"
+
+    $created = $false
+    if (Test-Path $WindowsShortcutScript) {
+        Write-Info "Setting up Windows Shortcut..."
+        & $WindowsShortcutScript
+        $created = $true
+    }
+    if (Test-Path $WslShortcutScript) {
+        Write-Info "Setting up WSL Shortcut..."
+        & $WslShortcutScript
+        $created = $true
+    }
+
+    if (-not $created) {
+        Write-Warn "Shortcut scripts not found in $ScriptDir"
+    }
+}
+
 function Uninstall-Service {
     param([switch]$Silent)
     
@@ -269,11 +296,13 @@ function Show-Help {
     Write-Host "  -Uninstall        Uninstall binary, config, and service"
     Write-Host "  -Service          Install and start as background service"
     Write-Host "  -ServiceUninstall Remove background service only"
+    Write-Host "  -Shortcut         Create/recreate Windows & WSL desktop shortcuts"
     Write-Host "  -Help             Show this help message"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  .\install.ps1              # Install binary only"
     Write-Host "  .\install.ps1 -Service     # Install and run as service"
+    Write-Host "  .\install.ps1 -Shortcut    # Recreate desktop shortcuts"
     Write-Host "  .\install.ps1 -Uninstall   # Remove everything"
 }
 
@@ -292,6 +321,8 @@ if ($Help) {
     Install-Service
 } elseif ($ServiceUninstall) {
     Uninstall-Service
+} elseif ($Shortcut) {
+    Create-Shortcuts
 } else {
     Install-OdooMcp
 }
