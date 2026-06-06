@@ -12,7 +12,7 @@ $Shortcut  = $WshShell.CreateShortcut("$desktop\Odoo MCP Server.lnk")
 # or directly to Start-MCP-Server.bat if on a local drive.
 if ($RepoRoot.StartsWith("\\")) {
     $Shortcut.TargetPath       = "powershell.exe"
-    $Shortcut.Arguments        = "-ExecutionPolicy Bypass -WindowStyle Hidden -Command `"`$RepoRoot = '$RepoRoot'; Get-Content '`$RepoRoot\Start-MCP-Server.ps1' -Raw | Invoke-Expression`""
+    $Shortcut.Arguments        = "-ExecutionPolicy Bypass -WindowStyle Hidden -Command `"`$RepoRoot = '$RepoRoot'; Get-Content `"`$RepoRoot\Start-MCP-Server.ps1`" -Raw | Invoke-Expression`""
 } else {
     $Shortcut.TargetPath       = Join-Path $RepoRoot "Start-MCP-Server.bat"
 }

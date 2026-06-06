@@ -11,7 +11,7 @@ $Shortcut  = $WshShell.CreateShortcut("$desktop\Odoo WSL MCP Server.lnk")
 # Point TargetPath to local powershell.exe to bypass UNC security warning prompts.
 # We pass the pre-defined $RepoRoot variable so the script knows its location when invoked via Invoke-Expression.
 $Shortcut.TargetPath       = "powershell.exe"
-$Shortcut.Arguments        = "-ExecutionPolicy Bypass -WindowStyle Hidden -Command `"`$RepoRoot = '$RepoRoot'; Get-Content '`$RepoRoot\Start-WSL-MCP-Server.ps1' -Raw | Invoke-Expression`""
+$Shortcut.Arguments        = "-ExecutionPolicy Bypass -WindowStyle Hidden -Command `"`$RepoRoot = '$RepoRoot'; Get-Content `"`$RepoRoot\Start-WSL-MCP-Server.ps1`" -Raw | Invoke-Expression`""
 $Shortcut.WorkingDirectory = $RepoRoot
 $Shortcut.Description      = "Start Odoo Rust MCP Server in WSL"
 $Shortcut.IconLocation     = "shell32.dll,14"
