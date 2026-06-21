@@ -1,8 +1,8 @@
 ---
 title: Refine Config UI to Minimalist Light-First Shell
-lane: in-progress
+lane: done
 created: 2026-06-20T16:05:00+07:00
-updated: 2026-06-21T00:00:00+07:00
+updated: 2026-06-22T17:48:00+07:00
 description: Refine the Mantine Config UI into a cleaner shadcn-inspired experience with a collapsible desktop sidebar, quieter layout, and drawer-based editing flows.
 priority: high
 labels: [config-ui, mantine, minimalist, sdd]
@@ -630,5 +630,48 @@ Planning decisions captured in the new task:
 
 No Config UI source files, Rust files, tests, or release assets were changed in this pass beyond
 the planning artifacts.
+
+### user
+
+PLEASE IMPLEMENT THIS PLAN:
+# Restore Missing Agentic Kanban Planning Artifacts
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_004_refine_config_ui_minimalist.md`.
+
+Restored the missing instances follow-up planning artifacts on branch `dev` so the audit trail
+matches the files that actually exist in `.agentkanban`.
+
+What was restored:
+
+- `.agentkanban/tasks/task_013_instance_bulk_delete_and_error_cleanup.md`
+- `.agentkanban/changes/instance-bulk-delete-and-error-cleanup/proposal.md`
+- `.agentkanban/changes/instance-bulk-delete-and-error-cleanup/design.md`
+- `.agentkanban/changes/instance-bulk-delete-and-error-cleanup/tasks.md`
+
+What was reconciled:
+
+- kept `task_002_refine_instances_card_and_table_views.md` as the delivered card/table refinement
+- updated the older `refine-instances-card-and-table-views` planning notes so bulk delete and
+  `Remove error instances` are explicitly tracked as a separate follow-up task instead of sounding
+  simultaneously delivered and out of scope
+
+This restoration pass stayed inside `.agentkanban` and did not change product source files or
+runtime behavior.
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_004_refine_config_ui_minimalist.md`.
+
+Task moved to `done` after full validation gate passed:
+
+- Rust validation: format check, clippy, 354 tests passed (including config-manager, cleanup, http_transport, odoo_client_legacy, odoo_client_modern, mcp_registry, and integration tests)
+- Config UI validation: lint, typecheck, 192 tests passed (AppShell, Instances, Prompts, Servers, Auth, shortcuts, and drawer flows)
+- Smoke tests: server endpoints working (`http://127.0.0.1:3008` Config UI, `http://127.0.0.1:8787/mcp` MCP, `http://127.0.0.1:8787/health` health)
+
+All change checklist items verified complete via `.agentkanban/changes/refine-config-ui-minimalist/tasks.md` (15/15 items checked)
+
+Review note: This task involved significant cross-cutting changes across Rust, UI, config-manager behavior, and embedded UI delivery as expected for a major Config UI rewrite. The embedded runtime smoke tests confirmed the Config UI is serving correctly from the Rust binary.
 
 ### user

@@ -70,7 +70,9 @@ in sync with the board profile. The core files are:
 - `production-readiness-audit.md`
 
 They use the real build and validation commands from this repository and intentionally avoid policy
-text copied from unrelated projects.
+text copied from unrelated projects. Keep the pack lean: if a prompt assumes `planning` or `review`
+lanes, or describes sweep-style multi-task processing that this repo does not use, remove it rather
+than letting it rot.
 
 ## Validation gate
 

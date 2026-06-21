@@ -35,7 +35,7 @@ data through conversational tooling.
 
 - **Language**: Rust
 - **License**: AGPL-3.0
-- **Version**: 0.4.2
+- **Version**: 0.5.0
 - **Repository**: [github.com/milzamsz/odoo-rust-mcp](https://github.com/milzamsz/odoo-rust-mcp)
 
 ---

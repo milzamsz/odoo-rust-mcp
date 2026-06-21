@@ -35,6 +35,7 @@ Mark each line `PASS`, `FAIL`, or `NOT RUN`, with evidence.
 - [ ] `rust-mcp/config/*` and `rust-mcp/config-defaults/*` were updated together only when bootstrap defaults truly changed
 - [ ] Guard names use real repo values only: `ODOO_ENABLE_WRITE_TOOLS` and `ODOO_ENABLE_CLEANUP_TOOLS`
 - [ ] `rust-mcp/Cargo.toml` and `config-ui/package.json` stayed in sync if a version bump was part of the task
+- [ ] Release/install docs still match the actual Windows shortcut, packaged docs, and distribution flow when those areas changed
 
 ### Documentation
 - [ ] `AGENTS.md`, `TECHNICAL.md`, and mdBook docs reflect the shipped workflow or behavior where relevant

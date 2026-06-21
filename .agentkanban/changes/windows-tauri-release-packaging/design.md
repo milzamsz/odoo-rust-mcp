@@ -6,7 +6,6 @@
 - build docs
 - build Rust release binary
 - build Windows Tauri bundle
-- publish desktop artifact alongside current ZIP artifact
 
 ## Packaging contract
 
@@ -14,6 +13,8 @@
 - include `docs/book`
 - include Rust Hexagon icon assets
 - keep current PowerShell launcher and install scripts in the ZIP path
+- hand off GitHub publication, updater metadata, and release signatures to the dedicated deployment
+  slice
 
 ## Validation
 

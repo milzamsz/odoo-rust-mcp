@@ -5,6 +5,17 @@ All notable changes to the **Odoo Rust MCP Server** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.5.0] - 2026-06-21
+
+### Added
+- Native Windows Tauri desktop application packaging
+- System tray integration with window toggle, docs, config folder, and server restart
+- MCP client connectivity panel in Config UI Overview tab
+- Clipboard-copy shortcut for MCP HTTP/SSE endpoints from system tray
+
+### Fixed
+- Fixed sidecar process restart bug where multiple instances could bind to the same port
+
 ## [v0.4.2] - 2026-06-21
 
 ### Added

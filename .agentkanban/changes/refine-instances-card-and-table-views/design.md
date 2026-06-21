@@ -79,3 +79,10 @@ Update `config-ui/src/__tests__/instances-tab.test.tsx` to cover:
   Mitigation: use compact typed controls, visible labels, and the repo's existing responsive layout patterns.
 - Risk: local storage or viewport logic causes hydration-like state glitches in tests.
   Mitigation: isolate preference and media-query behavior behind simple helpers that are easy to test.
+
+## Follow-up boundary
+
+Bulk delete, row-selection cleanup, and `Remove error instances` were intentionally split out after
+this delivered slice. They belong to the dedicated follow-up planning task
+`.agentkanban/tasks/task_013_instance_bulk_delete_and_error_cleanup.md` so the card/table
+refinement record stays aligned with what actually shipped in this task.

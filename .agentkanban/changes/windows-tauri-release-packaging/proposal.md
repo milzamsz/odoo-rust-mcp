@@ -14,5 +14,5 @@ not break the existing Windows ZIP + shortcut install path that users already re
 ## Non-goals
 
 - removing the ZIP distribution path in the first release
-- adding auto-update infrastructure
+- publishing updater metadata and GitHub Release assets from the CI release channel
 - cross-platform desktop packaging beyond Windows in this slice

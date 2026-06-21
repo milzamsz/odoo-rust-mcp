@@ -132,4 +132,5 @@ export interface AuthContextType {
 export interface McpAuthStatus {
   enabled: boolean;
   token_configured: boolean;
+  exe_path?: string | null;
 }

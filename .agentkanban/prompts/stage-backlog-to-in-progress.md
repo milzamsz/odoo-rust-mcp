@@ -1,7 +1,7 @@
 # Prompt - backlog -> in-progress
 
-Clarify one ready backlog task, scaffold spec-driven artifacts when useful, and begin implementation
-under the Lite profile.
+Clarify one ready backlog task, set up the right delivery artifacts, and begin implementation under
+the Lite profile.
 
 ---
 
@@ -24,6 +24,7 @@ the selected task file.
    - Config UI in `config-ui/`
    - config JSON in `rust-mcp/config/` or `rust-mcp/config-defaults/`
    - docs in `README.md`, `TECHNICAL.md`, or `docs/src/`
+   - release / installer / shortcut flow in `.github/workflows/`, `scripts/`, and root PowerShell files
 3. Decide whether the task should be spec-driven.
    - Use SDD for cross-cutting, risky, or likely-to-be-resumed work.
    - If yes, ensure the task has:
@@ -34,6 +35,13 @@ the selected task file.
 5. Move the task to `in-progress` explicitly once the implementation path is clear.
 6. Start from the checklist in `changes/<task-slug>/tasks.md` when spec-driven, otherwise create or
    update the task-local TODO artifact.
+
+## Best practice for this repo
+
+- prefer the existing Mantine patterns in `config-ui/` instead of inventing a second UI system
+- keep Rust and UI version bumps synchronized when a release version changes
+- only touch `rust-mcp/config-defaults/` when you are intentionally changing first-run bootstrap defaults
+- if Windows shortcuts, installer behavior, or packaged docs change, plan validation for the real release path
 
 ## Verify path to plan up front
 

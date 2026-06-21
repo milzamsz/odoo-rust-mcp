@@ -228,7 +228,7 @@ export function ToolsTab() {
         </Group>
       </Card>
 
-      <Accordion variant="separated" radius="xl" defaultValue={TOOL_GROUPS[0]?.id}>
+      <Accordion variant="separated" radius="lg" defaultValue={TOOL_GROUPS[0]?.id}>
         {groupSections.map(({ group, groupTools, totalTools }) => {
           if (groupTools.length === 0) {
             return null;

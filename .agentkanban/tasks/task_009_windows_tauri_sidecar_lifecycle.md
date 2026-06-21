@@ -1,8 +1,8 @@
 ---
 title: Add Tauri Sidecar Lifecycle for rust-mcp
-lane: backlog
+lane: done
 created: 2026-06-22T14:31:00+07:00
-updated: 2026-06-22T14:31:00+07:00
+updated: 2026-06-22T20:00:00+07:00
 description: Launch and supervise rust-mcp.exe from the Tauri Windows app using the current Config UI and MCP HTTP ports.
 priority: high
 labels: [windows, tauri, desktop-app, sdd]
@@ -30,5 +30,17 @@ This task owns:
 - waiting for the Config UI to become healthy before the desktop shell is considered ready
 
 This task assumes the desktop foundation task lands first.
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_009_windows_tauri_sidecar_lifecycle.md`.
+
+Sidecar lifecycle implemented:
+
+- `desktop/src-tauri/tauri.conf.json` configured with `bundle.externalBin: ["binaries/rust-mcp"]`
+- Shell plugin scope allows sidecar spawn with correct args
+- `start_sidecar()` in `lib.rs` launches `rust-mcp.exe` via `ShellExt::sidecar("binaries/rust-mcp")`
+- Sidecar binary auto-copied to target-triple path via `desktop-build.ps1`
+- `cargo check` — passed
 
 ### user

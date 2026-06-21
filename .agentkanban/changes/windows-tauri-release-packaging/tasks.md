@@ -5,3 +5,4 @@
 - [ ] Preserve the current ZIP + shortcut release path during rollout
 - [ ] Add release assertions for the desktop artifact contents
 - [ ] Validate artifact naming and versioning stay aligned with `0.4.x`
+- [ ] Keep GitHub Release publication and updater delivery explicitly out of scope for this slice

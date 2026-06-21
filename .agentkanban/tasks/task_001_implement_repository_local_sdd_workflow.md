@@ -87,3 +87,30 @@ Verification for this README-only pass:
 - no code paths or runtime behavior changed
 
 ### user
+
+adjust&refine C:\Workspace\tools\mcp\odoo-rust-mcp\.agentkanban\prompts to LITE profile, best practice for develop this app,
+
+remove prompt we dont need again
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_001_implement_repository_local_sdd_workflow.md`.
+
+Refined the prompt pack again so it stays deliberately Lite-only and closer to how this app is
+actually developed.
+
+What changed:
+
+- tightened `.agentkanban/prompts/README.md` around the current `backlog -> in-progress -> done` flow
+- added more repo-local best-practice guidance for Rust, Mantine UI, release, installer, and docs work
+- removed references to no-longer-needed sweep and Standard-lane prompts from the prompt pack docs
+- updated `TECHNICAL.md` and `docs/src/developer/agentic-kanban.md` so the maintenance rule is explicit:
+  keep the prompt pack small and delete dormant prompts instead of keeping stale files around
+
+Validation for this workflow-only cleanup:
+
+- prompt README now lists only the Lite prompt files that should exist
+- no remaining kept prompt instructs contributors to use `planning` or `review` lanes
+- no app source files or runtime behavior changed
+
+### user

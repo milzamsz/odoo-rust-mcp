@@ -174,7 +174,7 @@ export function InstancesTab() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [preferredView, setPreferredView] = useLocalStorage<InstanceViewMode>({
     key: INSTANCE_VIEW_STORAGE_KEY,
-    defaultValue: 'card',
+    defaultValue: 'table',
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isCompact = useMediaQuery('(max-width: 64em)');
@@ -526,14 +526,15 @@ export function InstancesTab() {
         header: 'Name',
         filterFn: textIncludesFilter,
         sortingFn: 'alphanumeric',
+        size: 280,
         cell: ({ row }) => (
-          <Group gap="sm">
-            <ActionIcon variant="light" color="blue" radius="xl">
+          <Group gap="sm" wrap="nowrap">
+            <ActionIcon variant="light" color="blue" radius="xl" style={{ flexShrink: 0 }}>
               <Database size={16} weight="duotone" />
             </ActionIcon>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <NameChip>{row.original.name}</NameChip>
-              <Text size="sm" c="dimmed" mt={4}>
+              <Text size="sm" c="dimmed" mt={4} style={{ wordBreak: 'break-all' }}>
                 {row.original.instance.url}
               </Text>
             </div>
@@ -763,7 +764,7 @@ export function InstancesTab() {
                   <Table.Thead>
                     <Table.Tr>
                       {table.getHeaderGroups()[0].headers.map((header) => (
-                        <Table.Th key={header.id}>
+                        <Table.Th key={header.id} w={header.column.columnDef.size}>
                           {header.isPlaceholder ? null : header.column.getCanSort() ? (
                             <Group gap={6} wrap="nowrap" style={{ cursor: 'pointer' }} onClick={header.column.getToggleSortingHandler()}>
                               <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>

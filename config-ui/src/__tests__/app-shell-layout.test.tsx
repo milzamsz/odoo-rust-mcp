@@ -45,16 +45,31 @@ function renderLayout(initialPath = '/instances') {
 }
 
 describe('AppShellLayout', () => {
-  it('shows a documentation sidebar entry that opens docs in a new tab', async () => {
+  it('renders a documentation sidebar link with correct native attributes in browser', () => {
+    renderLayout();
+    const link = screen.getByRole('link', { name: 'Documentation (opens in a new tab)' });
+    expect(link).toHaveAttribute('href', 'https://milzamsz.github.io/odoo-rust-mcp/');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('intercepts click and opens via Tauri API when in Tauri environment', async () => {
     const user = userEvent.setup();
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const invokeSpy = vi.fn().mockResolvedValue(null);
+    (window as unknown as { __TAURI__?: Record<string, unknown> }).__TAURI__ = {
+      core: {
+        invoke: invokeSpy,
+      },
+    };
     renderLayout();
 
-    await user.click(screen.getByRole('button', { name: 'Documentation (opens in a new tab)' }));
+    await user.click(screen.getByRole('link', { name: 'Documentation (opens in a new tab)' }));
 
-    expect(openSpy).toHaveBeenCalledWith('/docs/', '_blank', 'noopener,noreferrer');
+    expect(invokeSpy).toHaveBeenCalledWith('plugin:opener|open_url', {
+      url: 'https://milzamsz.github.io/odoo-rust-mcp/',
+    });
 
-    openSpy.mockRestore();
+    delete (window as unknown as { __TAURI__?: Record<string, unknown> }).__TAURI__;
   });
 
   it('renders the shared Rust Hexagon application mark', () => {

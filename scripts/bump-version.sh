@@ -24,10 +24,16 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
     sed -i '' "s/^version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" rust-mcp/Cargo.toml
     sed -i '' "s/\"version\": \"$OLD_VERSION\"/\"version\": \"$NEW_VERSION\"/" config-ui/package.json
+    sed -i '' "s/\"version\": \"$OLD_VERSION\"/\"version\": \"$NEW_VERSION\"/" desktop/package.json
+    sed -i '' "s/^version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" desktop/src-tauri/Cargo.toml
+    sed -i '' "s/\"version\": \"$OLD_VERSION\"/\"version\": \"$NEW_VERSION\"/" desktop/src-tauri/tauri.conf.json
 else
     # Linux
     sed -i "s/^version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" rust-mcp/Cargo.toml
     sed -i "s/\"version\": \"$OLD_VERSION\"/\"version\": \"$NEW_VERSION\"/" config-ui/package.json
+    sed -i "s/\"version\": \"$OLD_VERSION\"/\"version\": \"$NEW_VERSION\"/" desktop/package.json
+    sed -i "s/^version = \"$OLD_VERSION\"/version = \"$NEW_VERSION\"/" desktop/src-tauri/Cargo.toml
+    sed -i "s/\"version\": \"$OLD_VERSION\"/\"version\": \"$NEW_VERSION\"/" desktop/src-tauri/tauri.conf.json
 fi
 
 if [ $? -ne 0 ]; then
@@ -37,11 +43,14 @@ fi
 
 echo "✓ Updated rust-mcp/Cargo.toml"
 echo "✓ Updated config-ui/package.json"
+echo "✓ Updated desktop/package.json"
+echo "✓ Updated desktop/src-tauri/Cargo.toml"
+echo "✓ Updated desktop/src-tauri/tauri.conf.json"
 
 # Show changes
 echo ""
 echo "Version changes:"
-git diff rust-mcp/Cargo.toml config-ui/package.json
+git diff rust-mcp/Cargo.toml config-ui/package.json desktop/package.json desktop/src-tauri/Cargo.toml desktop/src-tauri/tauri.conf.json
 
 echo ""
 echo "✓ Version bump completed successfully!"
