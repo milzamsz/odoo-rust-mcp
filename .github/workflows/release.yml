@@ -722,8 +722,12 @@ jobs:
 
       - name: Install from Homebrew tap
         run: |
-          brew untap rachmataditiya/odoo-rust-mcp 2>/dev/null || true
-          brew tap rachmataditiya/odoo-rust-mcp
+          TAP_REPO="${{ vars.HOMEBREW_TAP_REPO }}"
+          if [ -z "$TAP_REPO" ]; then
+            TAP_REPO="rachmataditiya/odoo-rust-mcp"
+          fi
+          brew untap "$TAP_REPO" 2>/dev/null || true
+          brew tap "$TAP_REPO"
           brew install rust-mcp
           chmod +x "$(brew --prefix)/bin/rust-mcp-service" 2>/dev/null || true
 
@@ -825,7 +829,11 @@ jobs:
         run: |
           brew services stop rust-mcp 2>/dev/null || true
           brew uninstall rust-mcp || true
-          brew untap rachmataditiya/odoo-rust-mcp || true
+          TAP_REPO="${{ vars.HOMEBREW_TAP_REPO }}"
+          if [ -z "$TAP_REPO" ]; then
+            TAP_REPO="rachmataditiya/odoo-rust-mcp"
+          fi
+          brew untap "$TAP_REPO" || true
           rm -rf "$HOME/.config/odoo-rust-mcp" 2>/dev/null || true
 
   test-apt:
@@ -947,11 +955,21 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Get tag name
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Test install script (Linux)
         if: runner.os == 'Linux'
         run: |
           mkdir -p test-release && cd test-release
-          curl -sL "https://github.com/rachmataditiya/odoo-rust-mcp/releases/latest/download/rust-mcp-x86_64-unknown-linux-gnu.tar.gz" | tar xz
+          curl -sL "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/rust-mcp-x86_64-unknown-linux-gnu.tar.gz" | tar xz
           
           # Verify instances.json is included in release
           [ -f "instances.json" ] && echo "PASS: instances.json included in release"
@@ -973,7 +991,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path test-release
-          $url = "https://github.com/rachmataditiya/odoo-rust-mcp/releases/latest/download/rust-mcp-x86_64-pc-windows-msvc.zip"
+          $url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/rust-mcp-x86_64-pc-windows-msvc.zip"
           Invoke-WebRequest -Uri $url -OutFile test-release/release.zip
           Expand-Archive -Path test-release/release.zip -DestinationPath test-release -Force
           
