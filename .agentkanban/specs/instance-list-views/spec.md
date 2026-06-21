@@ -28,6 +28,7 @@ connections effectively in either a compact table workflow or the existing card-
 ### Table view behavior
 
 1. Table view must present the following columns:
+   - Selection
    - Name
    - URL
    - Database
@@ -37,13 +38,24 @@ connections effectively in either a compact table workflow or the existing card-
    - Tools
    - Status
    - Actions
-2. Every data column except `Actions` must support sorting.
-3. Every data column except `Actions` must provide a column-specific filter control.
+2. Every data column except `Selection` and `Actions` must support sorting.
+3. Every data column except `Selection` and `Actions` must provide a column-specific filter control.
 4. Filter control types must match the data shape:
    - text filters for Name, URL, Database, and Tags
    - select filters for Authentication, Version, and Status
    - a compact semantic filter for Tools
-5. Pagination is out of scope for this capability.
+5. Table view must support row selection through checkboxes, including a select-all control for the
+   currently visible rows.
+6. When one or more rows are selected, the UI must expose a bulk delete action for the selected
+   instances.
+7. The UI must expose a dedicated `Remove error instances` action that targets only rows whose
+   current connection status is `Error`.
+8. `Not checked`, `Checking`, and healthy rows must never be treated as error-cleanup candidates.
+9. Both bulk delete flows must use a destructive confirmation modal that:
+   - lists the candidate instances before deletion
+   - allows users to unselect instances inside the modal
+   - requires the exact validation text `DELETE` before confirmation is enabled
+10. Pagination is out of scope for this capability.
 
 ### Card view continuity
 
@@ -77,6 +89,8 @@ connections effectively in either a compact table workflow or the existing card-
 - Reloading preserves the chosen desktop view.
 - Mobile or narrow layouts still render cards regardless of the stored desktop view.
 - Table view supports per-column filtering and sorting for every data column except Actions.
+- Table view supports checkbox selection and bulk deletion without breaking existing per-row actions.
+- The `Remove error instances` action includes only rows with current `Error` status.
 - Global search, tags, and column filters work together instead of replacing one another.
 - All existing instances actions remain available after the refinement.
 
@@ -92,4 +106,7 @@ connections effectively in either a compact table workflow or the existing card-
    - narrow-screen card fallback
    - combined global, tag, and column filtering
    - column sorting behavior
+   - visible-row row-selection behavior
+   - typed `DELETE` confirmation for destructive actions
+   - exclusion of healthy and not-checked rows from error cleanup
    - preservation of existing actions and status rendering

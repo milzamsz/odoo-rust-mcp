@@ -1,23 +1,54 @@
-# Get the absolute path to this script's directory (works whether run locally or UNC)
 $RepoRoot = $PSScriptRoot
 if (-not $RepoRoot) {
     $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 }
 
-$WshShell  = New-Object -ComObject WScript.Shell
-$desktop   = [Environment]::GetFolderPath('Desktop')
-$Shortcut  = $WshShell.CreateShortcut("$desktop\Odoo WSL MCP Server.lnk")
+function Get-LauncherExecutable {
+    $pwsh = Get-Command pwsh.exe -ErrorAction SilentlyContinue
+    if ($pwsh) {
+        return $pwsh.Source
+    }
 
-# Point TargetPath to local powershell.exe to bypass UNC security warning prompts.
-# We pass the pre-defined $RepoRoot variable so the script knows its location when invoked via Invoke-Expression.
-$Shortcut.TargetPath       = "powershell.exe"
-$Shortcut.Arguments        = "-ExecutionPolicy Bypass -WindowStyle Hidden -Command `"`$RepoRoot = '$RepoRoot'; Get-Content `"`$RepoRoot\Start-WSL-MCP-Server.ps1`" -Raw | Invoke-Expression`""
-$Shortcut.WorkingDirectory = $RepoRoot
-$Shortcut.Description      = "Start Odoo Rust MCP Server in WSL"
-$Shortcut.IconLocation     = "shell32.dll,14"
-$Shortcut.WindowStyle      = 7  # minimized / hidden
+    $powershell = Get-Command powershell.exe -ErrorAction SilentlyContinue
+    if ($powershell) {
+        return $powershell.Source
+    }
 
-$Shortcut.Save()
+    throw "Neither pwsh.exe nor powershell.exe was found on PATH."
+}
+
+function New-ShortcutArguments {
+    param(
+        [string]$ScriptPath
+    )
+
+    return "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
+}
+
+$launcherScript = Join-Path $RepoRoot "Start-WSL-MCP-Server.ps1"
+if (-not (Test-Path $launcherScript)) {
+    throw "Missing launcher script: $launcherScript"
+}
+
+$WshShell = New-Object -ComObject WScript.Shell
+$desktop = [Environment]::GetFolderPath('Desktop')
+$shortcutPath = Join-Path $desktop "Odoo WSL MCP Server.lnk"
+$shortcut = $WshShell.CreateShortcut($shortcutPath)
+
+$shortcut.TargetPath = Get-LauncherExecutable
+$shortcut.Arguments = New-ShortcutArguments -ScriptPath $launcherScript
+$shortcut.WorkingDirectory = $RepoRoot
+$shortcut.Description = "Start Odoo Rust MCP Server in WSL and open the Config UI"
+$iconPath = Join-Path $RepoRoot "assets\odoo-rust-mcp.ico"
+if (Test-Path $iconPath) {
+    $shortcut.IconLocation = "$iconPath,0"
+} else {
+    $shortcut.IconLocation = "shell32.dll,14"
+}
+$shortcut.WindowStyle = 7  # minimized / hidden
+
+$shortcut.Save()
 
 Write-Host "Shortcut created on Desktop: Odoo WSL MCP Server.lnk" -ForegroundColor Green
-Write-Host "Double-click the shortcut to start the server in WSL and open the Config Web UI." -ForegroundColor Cyan
+Write-Host "Target: $($shortcut.TargetPath)" -ForegroundColor DarkGray
+Write-Host "Double-click it to start the server in WSL and open the Config UI." -ForegroundColor Cyan

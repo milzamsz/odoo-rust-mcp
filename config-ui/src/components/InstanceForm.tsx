@@ -1,13 +1,31 @@
+import {
+  Accordion,
+  Badge,
+  Box,
+  Button,
+  Drawer,
+  Grid,
+  Group,
+  Radio,
+  Stack,
+  Switch,
+  Text,
+  TextInput,
+  Textarea,
+  Title,
+} from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
+import { modals } from '@mantine/modals';
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, X } from 'lucide-react';
-import { Button } from './Button';
+import { useRegisterDirtyState } from '../hooks/useDirtyState';
+import { SectionTitle } from './SectionTitle';
+import { NameChip } from './NameChip';
 import { getInstanceTags, parseInstanceTagsInput } from '../instanceTags';
 import type { InstanceDetails, ToolConfig } from '../types';
 import {
   ALL_GROUPED_TOOL_NAMES,
   countEnabledToolsForInstance,
   filterKnownDisabledTools,
-  OTHER_TOOL_GROUP,
   TOOL_GROUPS,
 } from '../toolGroups';
 
@@ -22,11 +40,8 @@ interface InstanceFormProps {
 
 type AuthType = 'apiKey' | 'userPass';
 
-const inputBaseClassName =
-  'w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500';
-
-function getInputClassName(hasError: boolean, extraClassName = '') {
-  return `${inputBaseClassName} ${hasError ? 'border-red-400' : 'border-slate-300'} ${extraClassName}`.trim();
+function isEdited(existingName: string | null, name: string) {
+  return Boolean(existingName && existingName === name);
 }
 
 export function InstanceForm({
@@ -37,6 +52,8 @@ export function InstanceForm({
   onSave,
   onCancel,
 }: InstanceFormProps) {
+  const isMobile = useMediaQuery('(max-width: 48em)');
+  const disableFocusTrap = import.meta.env.MODE === 'test';
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [db, setDb] = useState('');
@@ -48,9 +65,6 @@ export function InstanceForm({
   const [tagsInput, setTagsInput] = useState('');
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    () => new Set<string>([...TOOL_GROUPS.map((group) => group.id), OTHER_TOOL_GROUP.id])
-  );
 
   useEffect(() => {
     if (instanceName && instanceData) {
@@ -59,36 +73,59 @@ export function InstanceForm({
       setDb(instanceData.db || '');
       setVersion(instanceData.version ? String(instanceData.version) : '');
       setTagsInput(getInstanceTags(instanceData).join(', '));
-
-      if (instanceData.apiKey) {
-        setAuthType('apiKey');
-        setApiKey(instanceData.apiKey);
-        setUsername(instanceData.username || '');
-        setPassword(instanceData.password || '');
-      } else {
-        setAuthType('userPass');
-        setApiKey(instanceData.apiKey || '');
-        setUsername(instanceData.username || '');
-        setPassword(instanceData.password || '');
-      }
-
-      setDisabledTools(
-        filterKnownDisabledTools(availableTools, instanceData.toolConfig?.disabledTools || [])
-      );
+      setAuthType(instanceData.apiKey ? 'apiKey' : 'userPass');
+      setApiKey(instanceData.apiKey || '');
+      setUsername(instanceData.username || '');
+      setPassword(instanceData.password || '');
+      setDisabledTools(filterKnownDisabledTools(availableTools, instanceData.toolConfig?.disabledTools || []));
     } else {
       setName('');
       setUrl('');
       setDb('');
+      setVersion('');
+      setTagsInput('');
       setAuthType('userPass');
       setApiKey('');
       setUsername('');
       setPassword('');
-      setVersion('');
-      setTagsInput('');
       setDisabledTools([]);
     }
     setErrors({});
   }, [availableTools, instanceData, instanceName]);
+
+  const initialFingerprint = useMemo(
+    () =>
+      JSON.stringify({
+        name: instanceName ?? '',
+        url: instanceData?.url ?? '',
+        db: instanceData?.db ?? '',
+        authType: instanceData?.apiKey ? 'apiKey' : 'userPass',
+        apiKey: instanceData?.apiKey ?? '',
+        username: instanceData?.username ?? '',
+        password: instanceData?.password ?? '',
+        version: instanceData?.version ? String(instanceData.version) : '',
+        tagsInput: instanceData ? getInstanceTags(instanceData).join(', ') : '',
+        disabledTools: filterKnownDisabledTools(availableTools, instanceData?.toolConfig?.disabledTools || []),
+      }),
+    [availableTools, instanceData, instanceName]
+  );
+
+  const currentFingerprint = JSON.stringify({
+    name,
+    url,
+    db,
+    authType,
+    apiKey,
+    username,
+    password,
+    version,
+    tagsInput,
+    disabledTools,
+  });
+
+  const dirty = currentFingerprint !== initialFingerprint;
+
+  useRegisterDirtyState('instance-form', dirty, 'You have unsaved instance changes.');
 
   const availableToolMap = useMemo(
     () => new Map(availableTools.map((tool) => [tool.name, tool])),
@@ -107,85 +144,47 @@ export function InstanceForm({
   );
 
   const otherTools = useMemo(
-    () =>
-      [...availableTools]
-        .filter((tool) => !ALL_GROUPED_TOOL_NAMES.has(tool.name))
-        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
+    () => availableTools.filter((tool) => !ALL_GROUPED_TOOL_NAMES.has(tool.name)),
     [availableTools]
   );
 
   const disabledToolSet = useMemo(() => new Set(disabledTools), [disabledTools]);
   const enabledToolCount = countEnabledToolsForInstance(availableTools, disabledTools);
-  const dbRequired = authType === 'userPass';
-
-  const setToolEnabled = (toolName: string, enabled: boolean) => {
-    setDisabledTools((current) => {
-      const next = new Set(current);
-      if (enabled) next.delete(toolName);
-      else next.add(toolName);
-      return [...next].sort((left, right) => left.localeCompare(right));
-    });
-  };
-
-  const setGroupEnabled = (toolNames: string[], enabled: boolean) => {
-    setDisabledTools((current) => {
-      const next = new Set(current);
-      for (const toolName of toolNames) {
-        if (enabled) next.delete(toolName);
-        else next.add(toolName);
-      }
-      return [...next].sort((left, right) => left.localeCompare(right));
-    });
-  };
-
-  const toggleGroupExpanded = (groupId: string) => {
-    setExpandedGroups((current) => {
-      const next = new Set(current);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
-    });
-  };
 
   const validate = () => {
-    const newErrors: Record<string, string> = {};
+    const nextErrors: Record<string, string> = {};
 
     if (!name.trim()) {
-      newErrors.name = 'Instance name is required';
-    } else if (!instanceName && existingNames.includes(name.trim())) {
-      newErrors.name = 'Instance name already exists';
+      nextErrors.name = 'Instance name is required';
+    } else if (!isEdited(instanceName, name.trim()) && existingNames.includes(name.trim())) {
+      nextErrors.name = 'Instance name already exists';
     }
 
     if (!url.trim()) {
-      newErrors.url = 'URL is required';
+      nextErrors.url = 'URL is required';
     }
 
-    if (dbRequired && !db.trim()) {
-      newErrors.db = 'Database name is required when using username/password authentication';
+    if (authType === 'userPass' && !db.trim()) {
+      nextErrors.db = 'Database is required for username/password auth';
     }
 
     if (authType === 'apiKey' && !apiKey.trim()) {
-      newErrors.apiKey = 'API Key is required when using API Key authentication';
+      nextErrors.apiKey = 'API key is required';
     }
 
-    if (authType === 'userPass') {
-      if (!username.trim()) {
-        newErrors.username =
-          'Username is required when using username/password authentication';
-      }
-      if (!password.trim()) {
-        newErrors.password =
-          'Password is required when using username/password authentication';
-      }
+    if (authType === 'userPass' && !username.trim()) {
+      nextErrors.username = 'Username is required';
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (authType === 'userPass' && !password.trim()) {
+      nextErrors.password = 'Password is required';
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = () => {
     if (!validate()) {
       return;
     }
@@ -194,9 +193,9 @@ export function InstanceForm({
       ...(instanceData ?? {}),
       url: url.trim(),
     };
-    const trimmedDb = db.trim();
-    if (trimmedDb) {
-      data.db = trimmedDb;
+
+    if (db.trim()) {
+      data.db = db.trim();
     } else {
       delete data.db;
     }
@@ -224,16 +223,11 @@ export function InstanceForm({
       delete data.tags;
     }
 
-    // Legacy instances may still include aliases in raw API responses.
-    delete data['aliases'];
+    delete data.aliases;
 
-    const sanitizedDisabledTools = filterKnownDisabledTools(availableTools, disabledTools)
-      .sort((left, right) => left.localeCompare(right));
-
+    const sanitizedDisabledTools = filterKnownDisabledTools(availableTools, disabledTools);
     if (sanitizedDisabledTools.length > 0) {
-      data.toolConfig = {
-        disabledTools: sanitizedDisabledTools,
-      };
+      data.toolConfig = { disabledTools: sanitizedDisabledTools };
     } else {
       delete data.toolConfig;
     }
@@ -241,437 +235,293 @@ export function InstanceForm({
     onSave(name.trim(), data);
   };
 
-  const renderToolGroup = (
-    groupId: string,
-    label: string,
-    headerClass: string,
-    badgeClass: string,
-    enableBtnClass: string,
-    tools: ToolConfig[]
-  ) => {
-    if (tools.length === 0) {
-      return null;
+  const handleClose = () => {
+    if (!dirty) {
+      onCancel();
+      return;
     }
 
-    const enabledInGroup = tools.filter((tool) => !disabledToolSet.has(tool.name)).length;
-    const isExpanded = expandedGroups.has(groupId);
-
-    return (
-      <div key={groupId} className={`overflow-hidden rounded-lg border ${headerClass}`}>
-        <div className={`flex items-center justify-between px-4 py-3 ${headerClass}`}>
-          <button
-            type="button"
-            onClick={() => toggleGroupExpanded(groupId)}
-            className="flex min-w-0 flex-1 items-center gap-2 text-left"
-          >
-            {isExpanded ? (
-              <ChevronDown size={16} className="flex-shrink-0 text-gray-600" />
-            ) : (
-              <ChevronRight size={16} className="flex-shrink-0 text-gray-600" />
-            )}
-            <span className="font-semibold text-gray-900">{label}</span>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeClass}`}>
-              {enabledInGroup}/{tools.length} enabled
-            </span>
-          </button>
-
-          <div className="ml-3 flex flex-shrink-0 gap-2">
-            <button
-              type="button"
-              onClick={() => setGroupEnabled(tools.map((tool) => tool.name), true)}
-              aria-label={`Enable ${label}`}
-              className={`rounded border px-2.5 py-1 text-xs font-medium transition-colors ${enableBtnClass}`}
-            >
-              Enable
-            </button>
-            <button
-              type="button"
-              onClick={() => setGroupEnabled(tools.map((tool) => tool.name), false)}
-              aria-label={`Disable ${label}`}
-              className="rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100"
-            >
-              Disable
-            </button>
-          </div>
-        </div>
-
-        {isExpanded && (
-          <div className="divide-y divide-gray-100 bg-white">
-            {tools.map((tool) => {
-              const enabled = !disabledToolSet.has(tool.name);
-              return (
-                <div
-                  key={tool.name}
-                  className="flex items-start justify-between gap-4 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <div className="font-mono text-xs font-semibold text-gray-900">
-                      {tool.name}
-                    </div>
-                    <div className="mt-0.5 text-xs text-gray-500">
-                      {tool.description || 'No description available'}
-                    </div>
-                  </div>
-
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={(event) => setToolEnabled(tool.name, event.target.checked)}
-                      aria-label={`Enable ${tool.name}`}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    Enabled
-                  </label>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
+    modals.openConfirmModal({
+      title: 'Discard instance changes?',
+      children: (
+        <Text size="sm" c="dimmed">
+          Your unsaved edits will be lost.
+        </Text>
+      ),
+      labels: { confirm: 'Discard changes', cancel: 'Keep editing' },
+      confirmProps: { color: 'red' },
+      onConfirm: onCancel,
+    });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 shadow-2xl">
-        <div className="border-b border-slate-200 bg-white px-6 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="max-w-3xl">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-600">
-                Instance Setup
-              </div>
-              <h3 className="mt-2 text-2xl font-semibold text-slate-950">
-                {instanceName ? 'Edit Instance' : 'Add New Instance'}
-              </h3>
-              <p className="mt-2 text-sm text-slate-600">
-                Capture the connection details, choose the right authentication flow, and decide
-                which tools should stay available for this instance only.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="rounded-full border border-slate-200 bg-slate-50 p-2 text-slate-400 transition-colors hover:border-slate-300 hover:bg-white hover:text-slate-600"
-              aria-label="Close instance form"
-            >
-              <X size={20} />
-            </button>
+  const content = (
+    <Stack gap="lg">
+        <Group justify="space-between" align="flex-start">
+          <div>
+            <Title order={3}>{instanceName ? 'Edit instance connection' : 'Create a new instance connection'}</Title>
+            <Text c="dimmed" size="sm" mt={4}>
+              Set the connection identity, pick the correct auth flow, and trim the shared tool catalog for this instance.
+            </Text>
           </div>
-        </div>
+          <Badge color="blue" variant="light">
+            {enabledToolCount}/{availableTools.length} tools enabled
+          </Badge>
+        </Group>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="space-y-6 p-6">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h4 className="text-base font-semibold text-slate-950">Connection Identity</h4>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Keep the instance name short and stable. The URL, database, and version drive
-                    how the backend connects.
-                  </p>
-                </div>
-                <div className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                  Hot reload applies after save
-                </div>
-              </div>
+        <Grid>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput
+              label="Instance name"
+              placeholder="production, staging, local"
+              value={name}
+              onChange={(event) => setName(event.currentTarget.value)}
+              error={errors.name}
+              disabled={Boolean(instanceName)}
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput
+              label="URL"
+              placeholder="https://odoo.example.com"
+              value={url}
+              onChange={(event) => setUrl(event.currentTarget.value)}
+              error={errors.url}
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput
+              label="Database"
+              placeholder="Optional for single-tenant Odoo 19"
+              value={db}
+              onChange={(event) => setDb(event.currentTarget.value)}
+              error={errors.db}
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput
+              label="Version"
+              placeholder="16, 17, 18, 19"
+              value={version}
+              onChange={(event) => setVersion(event.currentTarget.value)}
+            />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <Textarea
+              label="Tags"
+              placeholder="prod, finance, kdkmp"
+              minRows={3}
+              value={tagsInput}
+              onChange={(event) => setTagsInput(event.currentTarget.value)}
+            />
+          </Grid.Col>
+        </Grid>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Instance Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={!!instanceName}
-                    className={getInputClassName(
-                      Boolean(errors.name),
-                      instanceName ? 'cursor-not-allowed bg-slate-100 text-slate-500' : ''
-                    )}
-                    placeholder="e.g., production, local, staging"
-                  />
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    This canonical name is what tools and resources now use.
-                  </p>
-                  {errors.name && <p className="mt-1.5 text-sm text-red-600">{errors.name}</p>}
-                </div>
+        <SectionTitle order={4} title="Authentication" subtitle="Choose the auth stack that matches the target Odoo instance." />
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                    URL <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    className={getInputClassName(Boolean(errors.url))}
-                    placeholder="e.g., https://odoo.example.com"
-                  />
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    Use the public Odoo base URL that the MCP server should contact.
-                  </p>
-                  {errors.url && <p className="mt-1.5 text-sm text-red-600">{errors.url}</p>}
-                </div>
+        <Radio.Group value={authType} onChange={(value) => setAuthType(value as AuthType)}>
+          <Group grow align="stretch">
+            <Radio.Card value="apiKey" radius="xl" p="md">
+              <Text>API Key</Text>
+              <Text size="sm" c="dimmed">
+                Best for Odoo 19 and JSON-2.
+              </Text>
+            </Radio.Card>
+            <Radio.Card value="userPass" radius="xl" p="md">
+              <Text>Username / Password</Text>
+              <Text size="sm" c="dimmed">
+                Use for older JSON-RPC deployments.
+              </Text>
+            </Radio.Card>
+          </Group>
+        </Radio.Group>
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Database Name {dbRequired && <span className="text-red-500">*</span>}
-                  </label>
-                  <input
-                    type="text"
-                    value={db}
-                    onChange={(e) => setDb(e.target.value)}
-                    className={getInputClassName(Boolean(errors.db), 'font-mono text-[13px]')}
-                    placeholder={
-                      dbRequired ? 'e.g., production_db' : 'Optional for single-tenant Odoo 19'
-                    }
-                  />
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    {dbRequired
-                      ? 'Required for username/password connections and JSON-RPC flows.'
-                      : 'Optional for API key connections on Odoo 19. Leave blank for simple single-tenant setups, or enter the exact database name when the server expects one.'}
-                  </p>
-                  {errors.db && <p className="mt-1.5 text-sm text-red-600">{errors.db}</p>}
-                </div>
+        <Grid>
+          {authType === 'apiKey' ? (
+            <Grid.Col span={12}>
+              <TextInput
+                label="API key"
+                placeholder="Paste API key"
+                value={apiKey}
+                onChange={(event) => setApiKey(event.currentTarget.value)}
+                error={errors.apiKey}
+              />
+            </Grid.Col>
+          ) : (
+            <>
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <TextInput
+                  label="Username"
+                  placeholder="admin@example.com"
+                  value={username}
+                  onChange={(event) => setUsername(event.currentTarget.value)}
+                  error={errors.username}
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <TextInput
+                  label="Password"
+                  type="password"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(event) => setPassword(event.currentTarget.value)}
+                  error={errors.password}
+                />
+              </Grid.Col>
+            </>
+          )}
+        </Grid>
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Odoo Version
-                  </label>
-                  <input
-                    type="text"
-                    value={version}
-                    onChange={(e) => setVersion(e.target.value)}
-                    className={getInputClassName(false)}
-                    placeholder="e.g., 16, 17, 18, 19"
-                  />
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    Version helps the backend choose the expected protocol and auth flow.
-                  </p>
-                </div>
+        <SectionTitle order={4} title="Per-instance tool access" subtitle="Trim the shared tool catalog without touching the global config." />
 
-                <div className="md:col-span-2">
-                  <label
-                    htmlFor="instance-tags"
-                    className="mb-1.5 block text-sm font-medium text-slate-700"
-                  >
-                    Tags
-                  </label>
-                  <textarea
-                    id="instance-tags"
-                    value={tagsInput}
-                    onChange={(e) => setTagsInput(e.target.value)}
-                    className={getInputClassName(false, 'min-h-[88px]')}
-                    placeholder="e.g., prod, kdkmp, finance"
-                  />
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    Separate tags with commas or new lines. Tags help search and filter the
-                    Odoo Instances list.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-5">
-                <h4 className="text-base font-semibold text-slate-950">Authentication</h4>
-                <p className="mt-1 text-sm text-slate-600">
-                  Pick the auth style that matches the target Odoo instance. The form will show
-                  only the fields needed for that flow.
-                </p>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <label
-                  className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                    authType === 'apiKey'
-                      ? 'border-blue-300 bg-blue-50 shadow-sm'
-                      : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    value="apiKey"
-                    checked={authType === 'apiKey'}
-                    onChange={(e) => setAuthType(e.target.value as AuthType)}
-                    className="sr-only"
-                  />
-                  <div className="flex items-start justify-between gap-3">
+        <Accordion variant="separated" radius="xl" multiple defaultValue={TOOL_GROUPS.slice(0, 2).map((group) => group.id)}>
+          {groupedSections.map((group) =>
+            group.tools.length > 0 ? (
+              <Accordion.Item key={group.id} value={group.id}>
+                <Accordion.Control>
+                  <Group justify="space-between">
                     <div>
-                      <div className="text-sm font-semibold text-slate-900">API Key</div>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Best for Odoo 19 and JSON-2 connections.
-                      </p>
+                      <Text>{group.label}</Text>
+                        <Text size="sm" c="dimmed">
+                          {group.label} tools for this specific instance.
+                        </Text>
                     </div>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-                        authType === 'apiKey'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-slate-200 text-slate-500'
-                      }`}
-                    >
-                      {authType === 'apiKey' ? 'Selected' : 'Available'}
-                    </span>
-                  </div>
-                </label>
+                    <Badge variant="light">
+                      {group.tools.filter((tool) => !disabledToolSet.has(tool.name)).length}/{group.tools.length} enabled
+                    </Badge>
+                  </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <Stack gap="sm">
+                    <Group justify="space-between">
+                      <Text size="sm" c="dimmed">
+                        Batch toggle this tool group.
+                      </Text>
+                      <Group gap="xs">
+                        <Button
+                          variant="light"
+                          size="xs"
+                          onClick={() =>
+                            setDisabledTools((current) => current.filter((toolName) => !group.tools.some((tool) => tool.name === toolName)))
+                          }
+                        >
+                          Enable all
+                        </Button>
+                        <Button
+                          variant="light"
+                          color="red"
+                          size="xs"
+                          onClick={() =>
+                            setDisabledTools((current) =>
+                              [...new Set([...current, ...group.tools.map((tool) => tool.name)])].sort()
+                            )
+                          }
+                        >
+                          Disable all
+                        </Button>
+                      </Group>
+                    </Group>
+                    {group.tools.map((tool) => (
+                      <Group key={tool.name} justify="space-between" align="flex-start">
+                        <div>
+                          <NameChip>{tool.name}</NameChip>
+                          <Text size="sm" c="dimmed" mt={4}>
+                            {tool.description || 'No description'}
+                          </Text>
+                        </div>
+                        <Switch
+                          checked={!disabledToolSet.has(tool.name)}
+                          onChange={(event) =>
+                            setDisabledTools((current) => {
+                              const next = new Set(current);
+                              if (event.currentTarget.checked) {
+                                next.delete(tool.name);
+                              } else {
+                                next.add(tool.name);
+                              }
+                              return [...next].sort();
+                            })
+                          }
+                        />
+                      </Group>
+                    ))}
+                  </Stack>
+                </Accordion.Panel>
+              </Accordion.Item>
+            ) : null
+          )}
 
-                <label
-                  className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                    authType === 'userPass'
-                      ? 'border-blue-300 bg-blue-50 shadow-sm'
-                      : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    value="userPass"
-                    checked={authType === 'userPass'}
-                    onChange={(e) => setAuthType(e.target.value as AuthType)}
-                    className="sr-only"
-                  />
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900">
-                        Username & Password
+          {otherTools.length > 0 ? (
+            <Accordion.Item value="other">
+              <Accordion.Control>Other tools</Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="sm">
+                  {otherTools.map((tool) => (
+                    <Group key={tool.name} justify="space-between" align="flex-start">
+                      <div>
+                        <NameChip>{tool.name}</NameChip>
+                        <Text size="sm" c="dimmed" mt={4}>
+                          {tool.description || 'No description'}
+                        </Text>
                       </div>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Use for legacy Odoo deployments and JSON-RPC.
-                      </p>
-                    </div>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-                        authType === 'userPass'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-slate-200 text-slate-500'
-                      }`}
-                    >
-                      {authType === 'userPass' ? 'Selected' : 'Available'}
-                    </span>
-                  </div>
-                </label>
-              </div>
-
-              <div className={`mt-5 grid gap-4 ${authType === 'userPass' ? 'md:grid-cols-2' : ''}`}>
-                {authType === 'userPass' ? (
-                  <>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                        Username <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        className={getInputClassName(Boolean(errors.username))}
-                        placeholder="e.g., admin@example.com"
+                      <Switch
+                        checked={!disabledToolSet.has(tool.name)}
+                        onChange={(event) =>
+                          setDisabledTools((current) => {
+                            const next = new Set(current);
+                            if (event.currentTarget.checked) {
+                              next.delete(tool.name);
+                            } else {
+                              next.add(tool.name);
+                            }
+                            return [...next].sort();
+                          })
+                        }
                       />
-                      {errors.username && (
-                        <p className="mt-1.5 text-sm text-red-600">{errors.username}</p>
-                      )}
-                    </div>
+                    </Group>
+                  ))}
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+          ) : null}
+        </Accordion>
 
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                        Password <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={getInputClassName(Boolean(errors.password))}
-                        placeholder="Enter password"
-                      />
-                      {errors.password && (
-                        <p className="mt-1.5 text-sm text-red-600">{errors.password}</p>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                      API Key <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      className={getInputClassName(Boolean(errors.apiKey), 'font-mono text-[13px]')}
-                      placeholder="Enter API key"
-                    />
-                    <p className="mt-1.5 text-xs text-slate-500">
-                      Leave the database blank only when the Odoo 19 host can resolve the tenant
-                      automatically.
-                    </p>
-                    {errors.apiKey && (
-                      <p className="mt-1.5 text-sm text-red-600">{errors.apiKey}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 bg-slate-900/[0.02] p-5">
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h4 className="text-base font-semibold text-slate-950">Per-Instance Tool Access</h4>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Start from the shared tool catalog, then trim access for this specific instance.
-                    Global guards still apply at runtime.
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right shadow-sm">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Enabled
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-slate-900">
-                    {enabledToolCount}/{availableTools.length}
-                  </div>
-                </div>
-              </div>
-
-              {availableTools.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
-                  Global tools are not available yet. Refresh the Instances page after tools load if
-                  you want to tune per-instance access.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {groupedSections.map((group) =>
-                    renderToolGroup(
-                      group.id,
-                      group.label,
-                      group.headerClass,
-                      group.badgeClass,
-                      group.enableBtnClass,
-                      group.tools
-                    )
-                  )}
-
-                  {renderToolGroup(
-                    OTHER_TOOL_GROUP.id,
-                    OTHER_TOOL_GROUP.label,
-                    OTHER_TOOL_GROUP.headerClass,
-                    OTHER_TOOL_GROUP.badgeClass,
-                    OTHER_TOOL_GROUP.enableBtnClass,
-                    otherTools
-                  )}
-                </div>
-              )}
-            </section>
-          </div>
-
-          <div className="flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
-            <Button type="button" variant="ghost" onClick={onCancel}>
+        <Box
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            background: 'var(--app-surface-panel)',
+            backdropFilter: 'blur(8px)',
+            paddingTop: 12,
+            borderTop: '1px solid var(--app-border)',
+          }}
+        >
+          <Group justify="flex-end">
+            <Button variant="default" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary">
-              {instanceName ? 'Update Instance' : 'Add Instance'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+            <Button onClick={handleSubmit}>{instanceName ? 'Update instance' : 'Add instance'}</Button>
+          </Group>
+        </Box>
+      </Stack>
+  );
+
+  if (disableFocusTrap) {
+    return <Box>{content}</Box>;
+  }
+
+  return (
+    <Drawer
+      opened
+      onClose={handleClose}
+      title={instanceName ? 'Edit instance' : 'Add instance'}
+      position="right"
+      size={isMobile ? '100%' : 880}
+      radius={0}
+      trapFocus
+      returnFocus
+      transitionProps={{ duration: 0 }}
+    >
+      {content}
+    </Drawer>
   );
 }

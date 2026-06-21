@@ -1,61 +1,145 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import '@fontsource/geist-sans/400.css';
+@import '@fontsource/geist-sans/500.css';
+@import '@fontsource/geist-sans/600.css';
+@import '@fontsource/geist-mono/400.css';
+@import '@fontsource/geist-mono/500.css';
+@import '@mantine/core/styles.css';
+@import '@mantine/notifications/styles.css';
 
-@layer base {
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+:root {
+  color-scheme: light;
+  font-family:
+    'Geist Sans',
+    'Segoe UI',
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --app-bg: #f6f4ef;
+  --app-bg-soft: #fbfbf8;
+  --app-panel: #ffffff;
+  --app-panel-muted: #f9f9f6;
+  --app-border: rgba(26, 26, 23, 0.08);
+  --app-border-strong: rgba(26, 26, 23, 0.12);
+  --app-text: #1e1e1b;
+  --app-text-muted: #6f6f68;
+  --app-blue-soft: #edf3ff;
+  --app-blue: #3d73e6;
+  --app-success-soft: #edf3ec;
+  /* Semantic shell surfaces — single source for both color schemes */
+  --app-header-bg: rgba(251, 251, 248, 0.82);
+  --app-navbar-bg: #ecedf2;
+  --app-navbar-border: rgba(26, 26, 23, 0.14);
+  --app-footer-bg: rgba(251, 251, 248, 0.84);
+  --app-surface-panel: rgba(255, 255, 255, 0.86);
+  --app-html-bg:
+    radial-gradient(circle at top left, rgba(61, 115, 230, 0.08), transparent 34%),
+    radial-gradient(circle at right top, rgba(154, 169, 131, 0.06), transparent 28%),
+    linear-gradient(180deg, #fbfbf8 0%, #f4f1ea 100%);
+  --app-main-glow:
+    radial-gradient(circle at 20% 0%, rgba(61, 115, 230, 0.05), transparent 22%),
+    radial-gradient(circle at 100% 10%, rgba(167, 167, 159, 0.08), transparent 18%);
 }
 
-.json-editor-container .jsoneditor {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+:root[data-mantine-color-scheme='dark'] {
+  color-scheme: dark;
+  --app-bg: #16161a;
+  --app-bg-soft: #1c1c21;
+  --app-panel: #1f1f25;
+  --app-panel-muted: #26262d;
+  --app-border: rgba(255, 255, 255, 0.08);
+  --app-border-strong: rgba(255, 255, 255, 0.14);
+  --app-text: #e9e9ec;
+  --app-text-muted: #9a9aa2;
+  --app-blue-soft: #1e2a44;
+  --app-blue: #6c9bff;
+  --app-success-soft: #1c2a1f;
+  --app-header-bg: rgba(22, 22, 26, 0.8);
+  --app-navbar-bg: #101014;
+  --app-navbar-border: rgba(255, 255, 255, 0.1);
+  --app-footer-bg: rgba(22, 22, 26, 0.82);
+  --app-surface-panel: rgba(31, 31, 37, 0.86);
+  --app-html-bg:
+    radial-gradient(circle at top left, rgba(61, 115, 230, 0.1), transparent 34%),
+    radial-gradient(circle at right top, rgba(120, 140, 110, 0.08), transparent 28%),
+    linear-gradient(180deg, #1a1a1f 0%, #131318 100%);
+  --app-main-glow:
+    radial-gradient(circle at 20% 0%, rgba(61, 115, 230, 0.08), transparent 22%),
+    radial-gradient(circle at 100% 10%, rgba(120, 120, 130, 0.06), transparent 18%);
 }
 
-.json-editor-container .jsoneditor-menu {
-  background-color: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-  border-radius: 0.5rem 0.5rem 0 0;
+html {
+  background: var(--app-html-bg);
+  min-height: 100%;
 }
 
-.json-editor-container .jsoneditor-menu button {
-  color: #374151;
+body,
+#root {
+  min-height: 100vh;
+  margin: 0;
 }
 
-.json-editor-container .jsoneditor-menu button:hover {
-  background-color: #e5e7eb;
+body {
+  background: transparent;
+  color: var(--app-text);
 }
 
-.json-editor-container .jsoneditor-mode-code,
-.json-editor-container .jsoneditor-mode-tree {
-  background-color: white;
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
-.json-editor-container .ace-jsoneditor {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 13px;
+code,
+pre,
+kbd,
+samp {
+  font-family: 'Geist Mono', 'Cascadia Code', monospace;
 }
 
-@keyframes slide-in-from-top-2 {
-  from {
-    transform: translateY(-0.5rem);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+::selection {
+  background: rgba(61, 115, 230, 0.2);
 }
 
-.animate-in {
-  animation-fill-mode: both;
+.app-shell-main {
+  position: relative;
 }
 
-.slide-in-from-top-2 {
-  animation-name: slide-in-from-top-2;
+.app-shell-main::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: var(--app-main-glow);
+}
+
+.page-eyebrow {
+  color: var(--app-text-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.page-lead {
+  color: var(--app-text-muted);
+  max-width: 48rem;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+.surface-panel {
+  background: var(--app-surface-panel);
+  backdrop-filter: blur(12px);
+}
+
+.app-table-status .mantine-Badge-root {
+  min-width: 7.5rem;
+  justify-content: center;
+}
+
+.table-filter-input input,
+.table-filter-input button,
+.table-filter-input [role='combobox'] {
+  background: var(--app-panel-muted);
 }

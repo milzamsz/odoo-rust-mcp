@@ -1,256 +1,238 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Save, RefreshCw, Info, Plus, Trash2 } from 'lucide-react';
-import { useConfig } from '../../hooks/useConfig';
-import { Card } from '../Card';
-import { Button } from '../Button';
-import { StatusMessage } from '../StatusMessage';
+import {
+  Accordion,
+  Button,
+  Card,
+  Grid,
+  Group,
+  Stack,
+  Text,
+  TextInput,
+  Textarea,
+  Title,
+} from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { ArrowClockwise, FloppyDisk, Plus, Trash } from '@phosphor-icons/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RuntimeEnvSnapshotCard } from '../RuntimeEnvSnapshotCard';
+import { SectionTitle } from '../SectionTitle';
+import { useConfig } from '../../hooks/useConfig';
 import type { ServerConfig } from '../../types';
 
+interface CustomField {
+  key: string;
+  value: string;
+}
+
 export function ServerTab() {
-  const { load, save, status, loading } = useConfig('server');
+  const { load, save, loading } = useConfig('server');
   const [serverName, setServerName] = useState('');
   const [instructions, setInstructions] = useState('');
   const [protocolVersionDefault, setProtocolVersionDefault] = useState('');
-  const [customFields, setCustomFields] = useState<{ key: string; value: string }[]>([]);
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
 
   const loadServer = useCallback(async () => {
     try {
-      const data = await load() as ServerConfig;
+      const data = (await load()) as ServerConfig;
       setServerName(data.serverName || '');
       setInstructions(data.instructions || '');
       setProtocolVersionDefault(data.protocolVersionDefault || '');
-
-      const customEntries = Object.entries(data)
-        .filter(([key]) => !['serverName', 'instructions', 'protocolVersionDefault'].includes(key))
-        .map(([key, value]) => ({ key, value: String(value) }));
-      setCustomFields(customEntries);
+      setCustomFields(
+        Object.entries(data)
+          .filter(([key]) => !['serverName', 'instructions', 'protocolVersionDefault'].includes(key))
+          .map(([key, value]) => ({ key, value: String(value) }))
+      );
     } catch (error) {
-      console.error('Failed to load server config:', error);
+      notifications.show({
+        color: 'red',
+        title: 'Load failed',
+        message: error instanceof Error ? error.message : 'Failed to load server config',
+      });
     }
   }, [load]);
 
   useEffect(() => {
-    loadServer();
+    void loadServer();
   }, [loadServer]);
 
+  const dirtyCount = useMemo(
+    () =>
+      [serverName, instructions, protocolVersionDefault, ...customFields.flatMap((field) => [field.key, field.value])]
+        .filter((value) => value.trim()).length,
+    [customFields, instructions, protocolVersionDefault, serverName]
+  );
+
   const handleSave = async () => {
+    const nextConfig: ServerConfig = {};
+
+    if (serverName.trim()) {
+      nextConfig.serverName = serverName.trim();
+    }
+
+    if (instructions.trim()) {
+      nextConfig.instructions = instructions.trim();
+    }
+
+    if (protocolVersionDefault.trim()) {
+      nextConfig.protocolVersionDefault = protocolVersionDefault.trim();
+    }
+
+    for (const field of customFields) {
+      if (field.key.trim()) {
+        nextConfig[field.key.trim()] = field.value;
+      }
+    }
+
     try {
-      const config: ServerConfig = {};
-
-      if (serverName.trim()) config.serverName = serverName.trim();
-      if (instructions.trim()) config.instructions = instructions.trim();
-      if (protocolVersionDefault.trim()) config.protocolVersionDefault = protocolVersionDefault.trim();
-
-      customFields.forEach(({ key, value }) => {
-        if (key.trim()) {
-          config[key.trim()] = value;
-        }
+      await save(nextConfig);
+      notifications.show({
+        color: 'green',
+        title: 'Server config saved',
+        message: 'Runtime metadata was updated and hot reloaded.',
       });
-
-      await save(config);
       await loadServer();
     } catch (error) {
-      console.error('Failed to save server config:', error);
+      notifications.show({
+        color: 'red',
+        title: 'Save failed',
+        message: error instanceof Error ? error.message : 'Failed to save server config',
+      });
     }
   };
 
-  const addCustomField = () => {
-    setCustomFields([...customFields, { key: '', value: '' }]);
-  };
-
-  const removeCustomField = (index: number) => {
-    setCustomFields(customFields.filter((_, i) => i !== index));
-  };
-
-  const updateCustomField = (index: number, field: 'key' | 'value', newValue: string) => {
-    const updated = [...customFields];
-    updated[index][field] = newValue;
-    setCustomFields(updated);
-  };
-
   return (
-    <div className="space-y-6">
+    <Stack gap="xl">
       <div>
-        <h2 className="text-3xl font-bold text-gray-900">Server Configuration</h2>
-        <p className="mt-2 text-gray-600">
-          Configure server metadata and system settings for the MCP server.
-        </p>
+        <Title order={1}>Server configuration</Title>
+        <Text className="page-lead" mt={4}>
+          Adjust the metadata that MCP clients see, alongside the runtime source signals that help
+          explain where instance data is really coming from.
+        </Text>
       </div>
-
-      {status && (
-        <StatusMessage
-          status={status}
-          onDismiss={status.type === 'error' ? () => {} : undefined}
-        />
-      )}
 
       <RuntimeEnvSnapshotCard />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card title="Server Settings">
-            <div className="space-y-6">
-              <div>
-                <label htmlFor="serverName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Server Name
-                </label>
-                <input
-                  type="text"
-                  id="serverName"
-                  value={serverName}
-                  onChange={(e) => setServerName(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  placeholder="e.g., Odoo MCP Server"
+      <Grid>
+        <Grid.Col span={{ base: 12, xl: 8 }}>
+          <Card p="lg" className="surface-panel">
+            <Stack gap="lg">
+              <Group justify="space-between">
+                <SectionTitle
+                  title="Editable fields"
+                  subtitle="Save applies immediately to the live config manager."
                 />
-                <p className="text-xs text-gray-500 mt-1">Display name shown to MCP clients</p>
-              </div>
+                <Text size="sm" c="dimmed">
+                  {dirtyCount} populated field{dirtyCount === 1 ? '' : 's'}
+                </Text>
+              </Group>
 
-              <div>
-                <label htmlFor="instructions" className="block text-sm font-medium text-gray-700 mb-2">
-                  Instructions
-                </label>
-                <textarea
-                  id="instructions"
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  rows={6}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono text-sm"
-                  placeholder="System instructions for the AI assistant..."
-                />
-                <p className="text-xs text-gray-500 mt-1">System instructions for the AI assistant</p>
-              </div>
+              <TextInput
+                label="Server name"
+                placeholder="e.g. Odoo MCP Server"
+                value={serverName}
+                onChange={(event) => setServerName(event.currentTarget.value)}
+              />
 
-              <div>
-                <label htmlFor="protocolVersion" className="block text-sm font-medium text-gray-700 mb-2">
-                  Protocol Version Default
-                </label>
-                <input
-                  type="text"
-                  id="protocolVersion"
-                  value={protocolVersionDefault}
-                  onChange={(e) => setProtocolVersionDefault(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
-                  placeholder="e.g., 2024-11-05"
-                />
-                <p className="text-xs text-gray-500 mt-1">Default MCP protocol version</p>
-              </div>
+              <Textarea
+                label="Instructions"
+                placeholder="System instructions shown to clients..."
+                value={instructions}
+                onChange={(event) => setInstructions(event.currentTarget.value)}
+                minRows={8}
+              />
 
-              {customFields.length > 0 && (
-                <div className="pt-4 border-t border-gray-200">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Custom Fields</h4>
-                  <div className="space-y-3">
-                    {customFields.map((field, index) => (
-                      <div key={index} className="flex gap-2">
-                        <input
-                          type="text"
-                          value={field.key}
-                          onChange={(e) => updateCustomField(index, 'key', e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                          placeholder="Field name"
-                        />
-                        <input
-                          type="text"
-                          value={field.value}
-                          onChange={(e) => updateCustomField(index, 'value', e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                          placeholder="Value"
-                        />
-                        <button
-                          onClick={() => removeCustomField(index)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Remove field"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <TextInput
+                label="Protocol version default"
+                placeholder="e.g. 2024-11-05"
+                value={protocolVersionDefault}
+                onChange={(event) => setProtocolVersionDefault(event.currentTarget.value)}
+              />
 
-              <Button
-                onClick={addCustomField}
-                icon={<Plus size={16} />}
-                variant="secondary"
-                className="w-full"
-              >
-                Add Custom Field
-              </Button>
+              <Stack gap="sm">
+                <Group justify="space-between">
+                  <Title order={4}>Custom fields</Title>
+                  <Button
+                    variant="default"
+                    leftSection={<Plus size={16} />}
+                    onClick={() => setCustomFields((current) => [...current, { key: '', value: '' }])}
+                  >
+                    Add field
+                  </Button>
+                </Group>
 
-              <div className="flex gap-3 pt-4 border-t border-gray-200">
-                <Button
-                  onClick={handleSave}
-                  loading={loading}
-                  icon={<Save size={16} />}
-                  variant="primary"
-                >
-                  Save Configuration
+                {customFields.map((field, index) => (
+                  <Group key={`${field.key}-${index}`} align="end">
+                    <TextInput
+                      label="Key"
+                      placeholder="fieldName"
+                      value={field.key}
+                      onChange={(event) =>
+                        setCustomFields((current) =>
+                          current.map((entry, entryIndex) =>
+                            entryIndex === index ? { ...entry, key: event.currentTarget.value } : entry
+                          )
+                        )
+                      }
+                      style={{ flex: 1 }}
+                    />
+                    <TextInput
+                      label="Value"
+                      placeholder="Value"
+                      value={field.value}
+                      onChange={(event) =>
+                        setCustomFields((current) =>
+                          current.map((entry, entryIndex) =>
+                            entryIndex === index ? { ...entry, value: event.currentTarget.value } : entry
+                          )
+                        )
+                      }
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      color="red"
+                      variant="light"
+                      onClick={() =>
+                        setCustomFields((current) => current.filter((_, entryIndex) => entryIndex !== index))
+                      }
+                    >
+                      <Trash size={16} />
+                    </Button>
+                  </Group>
+                ))}
+              </Stack>
+
+              <Group>
+                <Button leftSection={<FloppyDisk size={16} />} loading={loading} onClick={() => void handleSave()}>
+                  Save configuration
                 </Button>
-                <Button
-                  onClick={loadServer}
-                  loading={loading}
-                  icon={<RefreshCw size={16} />}
-                  variant="secondary"
-                >
+                <Button variant="default" leftSection={<ArrowClockwise size={16} />} onClick={() => void loadServer()}>
                   Refresh
                 </Button>
-              </div>
-            </div>
+              </Group>
+            </Stack>
           </Card>
-        </div>
+        </Grid.Col>
 
-        <div>
-          <Card title="Configuration Reference">
-            <div className="space-y-4">
-              <div className="flex items-start gap-2">
-                <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Standard Fields</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Common server configuration options
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3 text-sm">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <code className="text-blue-600 font-mono text-xs">serverName</code>
-                  <p className="text-gray-600 mt-1 text-xs">
-                    Display name shown to MCP clients
-                  </p>
-                </div>
-
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <code className="text-blue-600 font-mono text-xs">instructions</code>
-                  <p className="text-gray-600 mt-1 text-xs">
-                    System instructions for the AI assistant
-                  </p>
-                </div>
-
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <code className="text-blue-600 font-mono text-xs">protocolVersionDefault</code>
-                  <p className="text-gray-600 mt-1 text-xs">
-                    Default MCP protocol version (e.g., "2024-11-05")
-                  </p>
-                </div>
-              </div>
-
-              {serverName && (
-                <div className="pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-500 mb-2">Current Server</p>
-                  <p className="font-semibold text-gray-900">{serverName}</p>
-                  {protocolVersionDefault && (
-                    <p className="text-xs text-gray-600 mt-1">
-                      Protocol: {protocolVersionDefault}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-      </div>
-    </div>
+        <Grid.Col span={{ base: 12, xl: 4 }}>
+          <Accordion variant="separated">
+            <Accordion.Item value="reference">
+              <Accordion.Control>Reference</Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="sm">
+                  <Text size="sm">
+                    `serverName` is the display name exposed to MCP clients during initialize.
+                  </Text>
+                  <Text size="sm">
+                    `instructions` should stay concise and aligned with the checked-in server JSON.
+                  </Text>
+                  <Text size="sm">
+                    `protocolVersionDefault` sets the fallback protocol for clients that do not specify one.
+                  </Text>
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
+        </Grid.Col>
+      </Grid>
+    </Stack>
   );
 }

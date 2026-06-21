@@ -3,11 +3,18 @@ use std::process::Command;
 use std::time::SystemTime;
 
 fn main() {
-    let ui_src = Path::new("../config-ui/src");
+    let ui_sources = [
+        Path::new("../config-ui/src"),
+        Path::new("../config-ui/public"),
+        Path::new("../config-ui/index.html"),
+        Path::new("../config-ui/package.json"),
+        Path::new("../config-ui/vite.config.ts"),
+    ];
     let ui_dist = Path::new("static/dist");
 
     // Tell Cargo to rerun this script if any UI source file changes
     println!("cargo:rerun-if-changed=../config-ui/src");
+    println!("cargo:rerun-if-changed=../config-ui/public");
     println!("cargo:rerun-if-changed=../config-ui/index.html");
     println!("cargo:rerun-if-changed=../config-ui/package.json");
     println!("cargo:rerun-if-changed=../config-ui/vite.config.ts");
@@ -15,7 +22,7 @@ fn main() {
     println!("cargo:rerun-if-changed=../config-ui/tsconfig.json");
 
     // Only rebuild if UI source is newer than dist output
-    if ui_src_newer_than_dist(ui_src, ui_dist) {
+    if ui_sources_newer_than_dist(&ui_sources, ui_dist) {
         eprintln!("build.rs: UI source changed — running npm run build...");
 
         // Check npm is available
@@ -39,24 +46,30 @@ fn main() {
     }
 }
 
-/// Returns true if any file under `src_dir` is newer than any file under `dist_dir`,
+/// Returns true if any UI source path is newer than any file under `dist_dir`,
 /// or if `dist_dir` does not exist / is empty.
-fn ui_src_newer_than_dist(src_dir: &Path, dist_dir: &Path) -> bool {
+fn ui_sources_newer_than_dist(source_paths: &[&Path], dist_dir: &Path) -> bool {
     let dist_mtime = newest_mtime(dist_dir);
     if dist_mtime.is_none() {
         return true; // dist missing or empty — must build
     }
     let dist_mtime = dist_mtime.unwrap();
-    let src_mtime = newest_mtime(src_dir);
+    let src_mtime = source_paths
+        .iter()
+        .filter_map(|path| newest_mtime(path))
+        .max();
     src_mtime.map(|t| t > dist_mtime).unwrap_or(false)
 }
 
-fn newest_mtime(dir: &Path) -> Option<SystemTime> {
-    if !dir.exists() {
+fn newest_mtime(path: &Path) -> Option<SystemTime> {
+    if !path.exists() {
         return None;
     }
+    if path.is_file() {
+        return path.metadata().ok()?.modified().ok();
+    }
     let mut newest: Option<SystemTime> = None;
-    visit_dir(dir, &mut newest);
+    visit_dir(path, &mut newest);
     newest
 }
 

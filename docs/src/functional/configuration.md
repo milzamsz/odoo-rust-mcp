@@ -1,6 +1,6 @@
 # Configuration Guide
 
-This guide covers all configuration options for odoo-rust-mcp.
+This guide covers the runtime configuration surface for `odoo-rust-mcp`.
 
 ## Instance Configuration
 
@@ -36,15 +36,15 @@ Create `instances.json`:
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `url` | Yes | - | Odoo server URL |
-| `db` | v<19 | - | Database name |
-| `apiKey` | v19+ | - | API key for JSON-2 authentication |
-| `version` | v<19 | - | Odoo version (triggers username/password mode) |
-| `username` | v<19 | - | Username for JSON-RPC auth |
-| `password` | v<19 | - | Password for JSON-RPC auth |
-| `protocol` | No | `auto` | Protocol override: `auto`, `jsonrpc`, or `json2` |
-| `tags` | No | `[]` | Manual labels used by Config UI search and filtering |
+| `db` | Odoo 18 and earlier | - | Database name |
+| `apiKey` | Odoo 19+ | - | API key for JSON-2 authentication |
+| `version` | No | - | Odoo version |
+| `username` | Odoo 18 and earlier | - | Username for JSON-RPC auth |
+| `password` | Odoo 18 and earlier | - | Password for JSON-RPC auth |
+| `protocol` | No | `auto` | `auto`, `jsonrpc`, or `json2` |
+| `tags` | No | `[]` | Manual labels used by the Config UI |
 | `timeout_ms` | No | `30000` | Request timeout in milliseconds |
-| `max_retries` | No | `2` | Maximum retry attempts for failed requests |
+| `max_retries` | No | `2` | Maximum retry attempts |
 
 ### Protocol Selection
 
@@ -53,21 +53,9 @@ By default, the server auto-detects the protocol based on available credentials:
 | Condition | Protocol Used |
 |-----------|---------------|
 | `apiKey` present | JSON-2 API (Odoo 19+) |
-| `username` + `password` + `version` present | JSON-RPC (Odoo <19) |
+| `username` + `password` + `version` present | JSON-RPC (Odoo 18 and earlier) |
 
-You can override this with the `protocol` field:
-
-```json
-{
-  "forced-jsonrpc": {
-    "url": "https://odoo19.example.com",
-    "db": "mydb",
-    "username": "admin",
-    "password": "admin",
-    "protocol": "jsonrpc"
-  }
-}
-```
+You can override this with the `protocol` field when needed.
 
 ### Single Instance (Legacy)
 
@@ -87,23 +75,23 @@ ODOO_API_KEY=your-key
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ODOO_INSTANCES_JSON` | - | Path to `instances.json` file |
-| `ODOO_INSTANCES` | - | Inline JSON string (takes precedence over file) |
-| `ODOO_URL` | - | Single instance URL (fallback) |
+| `ODOO_INSTANCES_JSON` | - | Path to `instances.json` |
+| `ODOO_INSTANCES` | - | Inline JSON snapshot |
+| `ODOO_URL` | - | Single-instance URL fallback |
 | `ODOO_DB` | - | Database name |
-| `ODOO_API_KEY` | - | API key for v19+ |
-| `ODOO_VERSION` | - | Odoo version (triggers legacy mode) |
-| `ODOO_USERNAME` | - | Username for v<19 |
-| `ODOO_PASSWORD` | - | Password for v<19 |
+| `ODOO_API_KEY` | - | API key for Odoo 19+ |
+| `ODOO_VERSION` | - | Odoo version |
+| `ODOO_USERNAME` | - | Username for Odoo 18 and earlier |
+| `ODOO_PASSWORD` | - | Password for Odoo 18 and earlier |
 
 ### Feature Toggles
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ODOO_ENABLE_WRITE_TOOLS` | `false` | Enable create/update/delete/execute tools |
-| `ODOO_ENABLE_CLEANUP_TOOLS` | `false` | Enable database cleanup tools |
+| `ODOO_ENABLE_WRITE_TOOLS` | `false` | Enable create, update, delete, execute tools |
+| `ODOO_ENABLE_CLEANUP_TOOLS` | `false` | Enable cleanup tools |
 | `ODOO_TIMEOUT_MS` | `30000` | Request timeout in milliseconds |
-| `ODOO_MAX_RETRIES` | `2` | Retry attempts for failed requests |
+| `ODOO_MAX_RETRIES` | `2` | Retry attempts |
 
 ### MCP Configuration
 
@@ -117,9 +105,9 @@ ODOO_API_KEY=your-key
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MCP_AUTH_ENABLED` | `false` | Enable Bearer token auth for MCP HTTP |
-| `MCP_AUTH_TOKEN` | - | Auth token (generate: `openssl rand -hex 32`) |
-| `MCP_ALLOWED_ORIGINS` | - | Comma-separated allowed CORS origins |
+| `MCP_AUTH_ENABLED` | `false` | Enable bearer-token auth for MCP HTTP |
+| `MCP_AUTH_TOKEN` | - | Auth token |
+| `MCP_ALLOWED_ORIGINS` | - | Allowed CORS origins |
 
 ### Config UI
 
@@ -128,107 +116,73 @@ ODOO_API_KEY=your-key
 | `ODOO_CONFIG_SERVER_PORT` | `3008` | Config UI port |
 | `ODOO_CONFIG_DIR` | `~/.config/odoo-rust-mcp` | Config directory path |
 | `CONFIG_UI_USERNAME` | `admin` | Login username |
-| `CONFIG_UI_PASSWORD` | `changeme` | Login password (**change immediately!**) |
+| `CONFIG_UI_PASSWORD` | `changeme` | Login password |
 
 ### Logging
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `RUST_LOG` | `info` | Log level: `error`, `warn`, `info`, `debug`, `trace` |
+| `RUST_LOG` | `info` | Log level |
 
 ---
 
 ## Transport Modes
 
-### stdio (Recommended for AI Clients)
+### stdio
 
 ```bash
 rust-mcp --transport stdio
 ```
-- Used by Cursor, Claude Desktop, Claude Code, Windsurf
-- Communication via stdin/stdout
-- Config UI available on port 3008
 
-### HTTP (Remote/Multi-user)
+- used by local AI clients
+- Config UI still runs on port `3008`
+
+### HTTP
 
 ```bash
 rust-mcp --transport http --listen 127.0.0.1:8787
 ```
+
 - MCP endpoint: `POST /mcp`
-- SSE stream: `GET /mcp`
-- Session termination: `DELETE /mcp`
-- Legacy SSE: `GET /sse`
-- Legacy messages: `POST /messages`
-- Health check: `GET /health`
-- OpenAPI spec: `GET /openapi.json`
-- Supports Bearer token authentication
+- health endpoint: `GET /health`
+- optional bearer-token auth
 
 ### WebSocket
 
 ```bash
 rust-mcp --transport ws --listen 127.0.0.1:8787
 ```
-- For custom integrations and real-time bidirectional communication
 
 ---
 
-## Config UI (Web Interface)
+## Config UI
 
 Access the visual configuration interface at `http://localhost:3008`.
 
-### Tabs
+### Main Areas
 
-| Tab | Purpose |
-|-----|---------|
-| **Server** | Edit MCP server name, instructions, protocol version |
-| **Instances** | Add/edit/remove Odoo instance connections |
-| **Tools** | Enable/disable tools, edit tool definitions |
+| Area | Purpose |
+|------|---------|
+| **Overview** | Runtime summary and posture checks |
+| **Instances** | Add, edit, test, import, and export Odoo connections |
+| **Tools** | Enable or disable tool groups and individual tools |
 | **Prompts** | Edit prompt content and descriptions |
-| **Security** | Change Config UI password, manage MCP auth tokens |
+| **Server** | Edit server name, instructions, protocol version |
+| **Security** | Change Config UI password and manage MCP HTTP auth |
+| **Documentation** | Open the built-in docs in a separate tab |
 
 ### First-time Setup
 
 1. Open `http://localhost:3008`
-2. Login with `admin` / `changeme`
-3. Go to **Security** tab and change the default password
-4. Configure instances in **Instances** tab
-5. Optionally enable MCP HTTP authentication in **Security** tab
+2. Sign in with `admin` / `changeme`
+3. Go to **Security** and change the default password
+4. Configure instances in **Instances**
+5. Optionally enable MCP HTTP auth in **Security**
+6. Use the **Documentation** sidebar entry when you want the built-in docs in a new tab
 
-![Config UI login screen](../images/config-ui/login.png)
+### Hot Reload
 
-*The default sign-in screen on port 3008. Credentials are sourced from the Config UI environment variables.*
-
-### Hot-Reload
-
-Changes made through the Config UI or by directly editing JSON config files take effect immediately. The file watcher detects changes and reloads the MCP registry without restarting the server.
-
----
-
-## Customizing Tools
-
-Edit `tools.json` to customize which tools are available:
-
-### Read-only Mode
-
-Remove write tools (`odoo_create`, `odoo_update`, `odoo_delete`, `odoo_execute`, `odoo_workflow_action`, `odoo_copy`, `odoo_create_batch`) from the `tools` array.
-
-### Conditional Tools with Guards
-
-Use guards to conditionally enable tools based on environment variables:
-
-```json
-{
-  "name": "odoo_create",
-  "guards": { "requiresEnvTrue": "ODOO_ENABLE_WRITE_TOOLS" },
-  "description": "Create a new Odoo record",
-  "inputSchema": { ... },
-  "op": { ... }
-}
-```
-
-Guard types:
-- `requiresEnvTrue`: Tool only available when env var is set to `"true"`
-- `requiresEnv`: Tool only available when env var is set (any value)
+Changes made through the Config UI or by directly editing JSON config files take effect immediately.
 
 ---
 
@@ -239,7 +193,7 @@ Guard types:
 | Platform | Directory |
 |----------|-----------|
 | Linux/macOS | `~/.config/odoo-rust-mcp/` |
-| Windows | `%APPDATA%\odoo-rust-mcp\` or user-specified |
+| Windows | `%APPDATA%\\odoo-rust-mcp\\` or user-specified |
 
 Files: `instances.json`, `tools.json`, `prompts.json`, `server.json`, `env`
 
@@ -248,86 +202,26 @@ Files: `instances.json`, `tools.json`, `prompts.json`, `server.json`, `env`
 | Platform | Directory |
 |----------|-----------|
 | Linux (systemd) | `/etc/rust-mcp/` |
-| Linux (deb) | `/usr/share/rust-mcp/` (defaults) |
-| Windows | `%ProgramData%\odoo-rust-mcp\` |
+| Linux (deb) | `/usr/share/rust-mcp/` |
+| Windows | `%ProgramData%\\odoo-rust-mcp\\` |
 
 ### Config Resolution Order
 
-1. Environment variable (e.g., `MCP_TOOLS_JSON=/custom/path/tools.json`)
-2. User config directory (`~/.config/odoo-rust-mcp/tools.json`)
-3. Embedded defaults (compiled into binary from `config-defaults/`)
+1. Explicit environment variable path
+2. User config directory
+3. Embedded defaults
 
 ---
 
-## Deployment Options
+## Deployment Notes
 
 | Method | Best For |
 |--------|----------|
-| Binary + stdio | Local development, single AI client |
-| Binary + HTTP | Remote access, multiple users |
-| Docker | Quick deployment, isolation |
-| Docker Compose | Multi-service setups (n8n, Dify) |
-| Kubernetes | Production, high availability |
-| Helm | Production, customizable deployment |
-| systemd | Linux background service |
-| Windows Service | Windows background service |
+| Binary + stdio | Local development and single AI client use |
+| Binary + HTTP | Remote access and multiple users |
+| Docker | Quick isolated deployment |
+| Docker Compose | Multi-service setups |
+| Kubernetes / Helm | Production deployments |
+| systemd / Windows Service | Background service installs |
 
-See [Deployment Guide](./deployment.md) for detailed instructions.
-
----
-
-## Configuration FAQ & Best Practices
-
-### MCP Client vs Server Config
-
-There are two distinct layers of configuration in the MCP ecosystem:
-
-1.  **MCP Client Config** (`claude_desktop_config.json` or `.mcp.json`)
-    *   **Role**: Tells the AI client (Claude Desktop, Claude Code) *how to run* the MCP server binary.
-    *   **Content**: Binary path, command-line arguments (e.g., `--transport stdio`), and environment variables.
-    *   **Example**: "Run `rust-mcp.exe` and give it access to `instances.json`".
-
-2.  **MCP Server Config** (`instances.json`, `tools.json`)
-    *   **Role**: Tells the MCP server *how to connect* to Odoo and *what tools* to expose.
-    *   **Content**: Odoo URLs, databases, API keys, tool definitions.
-    *   **Example**: "Connect to `https://odoo-prod.com` using API key `xyz`".
-
-### Best Practices
-
-1.  **Use API Keys for Odoo 19+**
-    *   Always prefer API keys over username/password.
-    *   API keys are stateless, more secure, and easier to revoke.
-
-2.  **Project-Specific Config**
-    *   Use `.mcp.json` in your project root for project-specific MCP settings (supported by Claude Code).
-    *   This allows you to share MCP configurations with your team without requiring global setup.
-
-    ```json
-    // .mcp.json in project root
-    {
-      "mcpServers": {
-        "odoo": {
-          "command": "rust-mcp",
-          "args": ["--transport", "stdio"],
-          "env": {
-            "ODOO_INSTANCES_JSON": "${PWD}/instances.json"
-          }
-        }
-      }
-    }
-    ```
-
-3.  **Security**
-    *   **Never commit `instances.json`** to version control if it contains real credentials. Add it to `.gitignore`.
-    *   Use separate instances for Development (`localhost`) and Staging/Production.
-
-### Authentication Methods: API Key vs Username/Password
-
-| Feature | API Key (Recommended) | Username/Password (Legacy) |
-| :--- | :--- | :--- |
-| **Supported Versions** | Odoo 19+ (JSON-2 API) | All Versions (JSON-RPC) |
-| **Security** | High (Revocable, Scoped) | Medium (Exposes User Credentials) |
-| **Performance** | Stateless (1 Request) | Stateful (Login + Session) |
-| **Configuration** | Simple (`url`, `db`, `apiKey`) | Complex (`url`, `db`, `version`, `user`, `pass`) |
-
-**Recommendation**: Use API Keys whenever possible. Only use Username/Password for Odoo 17/18 or if you specifically need legacy JSON-RPC behavior.
+See [Deployment Guide](./deployment.md) for full setup detail.

@@ -40,6 +40,8 @@ cd C:\odoo-mcp
 > ```powershell
 > .\install.ps1 -Shortcut
 > ```
+>
+> The shortcut creators call the launcher scripts directly with PowerShell `-File`, so they behave more consistently when the repository lives on a normal Windows drive or a UNC-backed path.
 
 **Linux/macOS Installation:**
 ```bash

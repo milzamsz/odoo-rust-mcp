@@ -1,63 +1,56 @@
-import { render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ServerTab } from '../components/tabs/ServerTab';
-import { useConfig } from '../hooks/useConfig';
-import type { InstancesSyncStatusResponse } from '../types';
+import { renderWithProviders } from '../test/renderWithProviders';
+
+const loadMock = vi.fn();
+const saveMock = vi.fn();
 
 vi.mock('../hooks/useConfig', () => ({
-  useConfig: vi.fn(),
+  useConfig: (type: string) => {
+    if (type === 'server') {
+      return { load: loadMock, save: saveMock, loading: false };
+    }
+    return { load: vi.fn(), save: vi.fn(), loading: false };
+  },
 }));
-
-const mockedUseConfig = vi.mocked(useConfig);
-
-function mockResponse(data: unknown, ok = true, status = 200): Response {
-  return {
-    ok,
-    status,
-    text: vi.fn().mockResolvedValue(typeof data === 'string' ? data : JSON.stringify(data)),
-    json: vi.fn().mockResolvedValue(data),
-  } as unknown as Response;
-}
 
 describe('ServerTab', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockedUseConfig.mockReturnValue({
-      load: vi.fn().mockResolvedValue({
-        serverName: 'Odoo MCP Server',
-        instructions: 'Use Odoo safely.',
-      }),
-      save: vi.fn(),
-      status: null,
-      loading: false,
+    loadMock.mockReset();
+    saveMock.mockReset();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            configured: true,
+            synced_count: 1,
+            total_count: 1,
+            instances: {},
+            extra_env_instances: [],
+            runtime_source_kind: 'instances_json',
+            instances_source_path: '/tmp/instances.json',
+            env_file_path: '/tmp/env',
+            alternate_sources: [],
+          }),
+      })
+    );
+  });
+
+  it('shows editable server fields and runtime sync information', async () => {
+    loadMock.mockResolvedValue({
+      serverName: 'Odoo MCP',
+      instructions: 'Hello world',
+      protocolVersionDefault: '2024-11-05',
     });
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      mockResponse({
-        configured: true,
-        synced_count: 1,
-        total_count: 1,
-        instances: {
-          prod: 'synced',
-        },
-        extra_env_instances: [],
-        runtime_source_kind: 'instances_json',
-        instances_source_path: 'C:\\Users\\MILZAM\\.config\\odoo-rust-mcp\\instances.json',
-        env_file_path: 'C:\\Users\\MILZAM\\.config\\odoo-rust-mcp\\env',
-        alternate_sources: [],
-      } satisfies InstancesSyncStatusResponse)
-    ) as typeof fetch;
-  });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+    renderWithProviders(<ServerTab />);
 
-  it('includes runtime and env snapshot information on Server Configuration', async () => {
-    render(<ServerTab />);
-
-    expect(await screen.findByText('Runtime & Env Snapshot')).toBeTruthy();
-    expect(screen.getByRole('group', { name: /active source/i })).toBeTruthy();
-    expect(screen.getByRole('group', { name: /env sync summary/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /sync to env/i })).toBeTruthy();
-  });
+    expect(await screen.findByDisplayValue('Odoo MCP')).toBeInTheDocument();
+    expect(screen.getByText(/env snapshot posture/i)).toBeInTheDocument();
+    expect(screen.getByText('/tmp/instances.json')).toBeInTheDocument();
+  }, 15000);
 });

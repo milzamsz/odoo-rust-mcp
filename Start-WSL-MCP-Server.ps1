@@ -1,4 +1,5 @@
-# Start Odoo Rust MCP Server in WSL in background, and open Web UI
+# Start Odoo Rust MCP Server in WSL in background, and open Web UI.
+# If the repo is already on a normal Windows drive, prefer the native launcher.
 $ListenHost = "127.0.0.1"
 $ListenPort = 8787
 $ConfigUiPort = 3008
@@ -10,6 +11,20 @@ if (-not $RepoRoot) {
 }
 if (-not $RepoRoot) {
     $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+}
+
+$NativeLauncher = Join-Path $RepoRoot "Start-MCP-Server.ps1"
+$IsWslPath = $RepoRoot -match '^\\\\wsl(?:\.localhost)?\\'
+
+if (-not $IsWslPath) {
+    if (Test-Path $NativeLauncher) {
+        Write-Host "Repository is on a Windows drive. Switching to the native Windows launcher..." -ForegroundColor Cyan
+        & $NativeLauncher
+        exit $LASTEXITCODE
+    }
+
+    Write-Error "WSL launcher was used from a Windows path, but Start-MCP-Server.ps1 was not found."
+    exit 1
 }
 
 # Copy release binary from root to target/release if target/release is missing but root binary exists

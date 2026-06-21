@@ -50,12 +50,35 @@ jobs:
           path: rust-mcp/static/dist
           retention-days: 1
 
+  build-docs:
+    name: Build mdBook documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install mdBook
+        run: cargo install mdbook --locked
+
+      - name: Build documentation
+        run: mdbook build docs
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: mdbook-docs
+          path: docs/book
+          retention-days: 1
+
   # =============================================================================
   # Stage 2: Build binaries for all platforms (depends on build-ui)
   # =============================================================================
   build:
     name: Build ${{ matrix.target }}
-    needs: build-ui
+    needs: [build-ui, build-docs]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -83,6 +106,12 @@ jobs:
           name: config-ui-dist
           path: rust-mcp/static/dist
 
+      - name: Download documentation artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: mdbook-docs
+          path: docs/book
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -105,6 +134,10 @@ jobs:
           else
             echo "⚠ No static/dist folder found"
           fi
+          mkdir -p release/docs
+          cp -r docs/book release/docs/
+          mkdir -p release/assets
+          cp assets/odoo-rust-mcp.ico release/assets/
           cp README.md release/
           cp LICENSE release/ 2>/dev/null || echo "No LICENSE file"
           cp dotenv.example release/.env.example
@@ -129,11 +162,22 @@ jobs:
           } else {
             Write-Host "No static/dist folder found"
           }
+          New-Item -ItemType Directory -Force -Path release/docs | Out-Null
+          Copy-Item -Recurse docs/book -Destination release/docs/
+          New-Item -ItemType Directory -Force -Path release/assets | Out-Null
+          Copy-Item assets/odoo-rust-mcp.ico -Destination release/assets/
           Copy-Item README.md -Destination release/
           Copy-Item LICENSE -Destination release/ -ErrorAction SilentlyContinue
           Copy-Item dotenv.example -Destination release/.env.example
           Copy-Item instances.example.json -Destination release/instances.json
-          Copy-Item scripts/install.ps1 -Destination release/
+          Copy-Item install.ps1 -Destination release/
+          Copy-Item Start-MCP-Server.ps1 -Destination release/
+          Copy-Item Start-MCP-Server.bat -Destination release/
+          Copy-Item Create-Shortcut.ps1 -Destination release/
+          Copy-Item Start-WSL-MCP-Server.ps1 -Destination release/
+          Copy-Item Start-WSL-MCP-Server.bat -Destination release/
+          Copy-Item Create-WSL-Shortcut.ps1 -Destination release/
+          Copy-Item start.sh -Destination release/
           Compress-Archive -Path release/* -DestinationPath "${{ env.BINARY_NAME }}-${{ matrix.target }}.${{ matrix.archive }}"
 
       - name: Upload artifact
@@ -221,7 +265,7 @@ jobs:
   # =============================================================================
   build-deb:
     name: Build Debian Package
-    needs: [build-ui, build]
+    needs: [build-ui, build-docs, build]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -238,6 +282,12 @@ jobs:
         with:
           name: config-ui-dist
           path: rust-mcp/static/dist
+
+      - name: Download documentation artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: mdbook-docs
+          path: docs/book
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -804,10 +854,14 @@ jobs:
           
           # Verify instances.json is included in release
           [ -f "instances.json" ] && echo "PASS: instances.json included in release"
+          [ -f "docs/book/index.html" ] || { echo "FAIL: mdBook documentation missing"; exit 1; }
+          [ -f "assets/odoo-rust-mcp.ico" ] || { echo "FAIL: application icon missing"; exit 1; }
+          echo "PASS: mdBook documentation and application icon included in release"
           
           cp ../scripts/install.sh . && chmod +x install.sh
           PREFIX="$HOME/.local" ./install.sh
           [ -f "$HOME/.local/bin/rust-mcp" ] && echo "PASS: Binary installed"
+          [ -f "$HOME/.local/share/odoo-rust-mcp/docs/book/index.html" ] || { echo "FAIL: Documentation not installed"; exit 1; }
           [ -f "$HOME/.local/share/odoo-rust-mcp/instances.json" ] || echo "Note: instances.json will be created on first run"
           $HOME/.local/bin/rust-mcp --help
           PREFIX="$HOME/.local" ./install.sh uninstall
@@ -831,4 +885,10 @@ jobs:
           # Verify instances.json is included in release
           if (Test-Path test-release/instances.json) {
             Write-Host "PASS: instances.json included in release"
+          }
+          if (-not (Test-Path test-release/docs/book/index.html)) {
+            throw "Built mdBook documentation is missing from the Windows release"
+          }
+          if (-not (Test-Path test-release/assets/odoo-rust-mcp.ico)) {
+            throw "Application icon is missing from the Windows release"
           }

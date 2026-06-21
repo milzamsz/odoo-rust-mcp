@@ -34,6 +34,9 @@ class RustMcp < Formula
     if Dir.exist?("static/dist")
       (share/"odoo-rust-mcp/static/dist").install Dir["static/dist/*"]
     end
+    if Dir.exist?("docs/book")
+      (share/"odoo-rust-mcp/docs/book").install Dir["docs/book/*"]
+    end
 
     # Create wrapper script that loads env file before running
     # Also creates config dir if it doesn't exist (fallback for post_install)
