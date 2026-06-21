@@ -119,6 +119,7 @@ These prompts must:
 - use the real validation commands from this repository
 - avoid unrelated OCloud or multi-tenant policy text
 - match the current board profile
+- stay intentionally small; remove Standard-only stage prompts instead of keeping dormant files around
 
 If the board later moves to the Standard profile, the prompt pack should be revised in the same change.
 
@@ -201,6 +202,15 @@ Windows release packaging notes:
   the sidebar route remains available after installation
 - the short README is intentionally Windows-first and should prioritize install, shortcut creation,
   and Config UI first use over deep transport or deployment detail
+
+Windows Tauri rollout notes:
+
+- keep planning separated between artifact production and GitHub distribution
+- `.agentkanban/tasks/task_011_windows_tauri_release_packaging.md` owns build-output packaging
+- `.agentkanban/tasks/task_015_deploy_windows_tauri_app_to_github.md` owns GitHub Releases,
+  updater metadata, signatures, checksums, and rollout validation
+- the first desktop GitHub rollout is intentionally Authenticode-unsigned; document SmartScreen
+  expectations, but still require Tauri updater signing for update integrity
 
 If a user reports that `http://localhost:3008` cannot be reached from the shortcut, validate the launcher with:
 

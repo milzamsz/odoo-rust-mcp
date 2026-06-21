@@ -50,6 +50,13 @@ jobs:
     needs: build-ui
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download UI build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: config-ui-dist
+          path: rust-mcp/static/dist
+      
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -97,6 +104,13 @@ jobs:
     needs: build-ui
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download UI build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: config-ui-dist
+          path: rust-mcp/static/dist
+      
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -116,6 +130,13 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download UI build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: config-ui-dist
+          path: rust-mcp/static/dist
+      
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -129,6 +150,12 @@ jobs:
     needs: build-ui
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download UI build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: config-ui-dist
+          path: rust-mcp/static/dist
       
       # Rust coverage with tarpaulin
       - uses: dtolnay/rust-toolchain@stable
@@ -192,6 +219,12 @@ jobs:
       RUST_LOG: debug
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download UI build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: config-ui-dist
+          path: rust-mcp/static/dist
       
       - uses: dtolnay/rust-toolchain@stable
       

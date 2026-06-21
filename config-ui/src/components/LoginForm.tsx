@@ -59,8 +59,8 @@ export function LoginForm() {
             <Title order={1} mt="xs">
               Sign in to configuration
             </Title>
-            <Text c="dimmed" mt="sm">
-              Version {packageJson.version}. Credentials are sourced from environment variables.
+            <Text c="dimmed" size="xs" mt="sm">
+              Version {packageJson.version}
             </Text>
           </Box>
 
@@ -95,6 +95,9 @@ export function LoginForm() {
               <Button type="submit" size="md" loading={loading}>
                 Sign in
               </Button>
+              <Text size="xs" c="dimmed" ta="center">
+                Default: admin / changeme
+              </Text>
             </Stack>
           </form>
         </Stack>

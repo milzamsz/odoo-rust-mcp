@@ -299,17 +299,20 @@ fn find_static_dir() -> PathBuf {
         }
     }
 
-    // Try 3: Relative to executable location (for installed binaries)
+    // Try 3: Relative to executable location or parent (for sidecars/installed binaries)
     if static_dir_abs.is_none()
         && let Ok(exe_path) = std::env::current_exe()
         && let Some(exe_dir) = exe_path.parent()
     {
-        let candidate = exe_dir.join("static/dist");
-        if candidate.exists()
-            && candidate.is_dir()
-            && let Ok(canonical) = candidate.canonicalize()
-        {
-            static_dir_abs = Some(canonical);
+        for root in &[exe_dir.to_path_buf(), exe_dir.join("..")] {
+            let candidate = root.join("static/dist");
+            if candidate.exists()
+                && candidate.is_dir()
+                && let Ok(canonical) = candidate.canonicalize()
+            {
+                static_dir_abs = Some(canonical);
+                break;
+            }
         }
     }
 
@@ -565,6 +568,7 @@ async fn change_password(
 struct McpAuthStatusResponse {
     enabled: bool,
     token_configured: bool,
+    exe_path: Option<String>,
 }
 
 async fn mcp_token_status() -> impl IntoResponse {
@@ -576,9 +580,14 @@ async fn mcp_token_status() -> impl IntoResponse {
         .map(|v| !v.trim().is_empty())
         .unwrap_or(false);
 
+    let exe_path = std::env::current_exe()
+        .ok()
+        .map(|p| p.to_string_lossy().to_string());
+
     Json(McpAuthStatusResponse {
         enabled,
         token_configured,
+        exe_path,
     })
 }
 

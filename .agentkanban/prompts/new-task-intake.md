@@ -25,6 +25,14 @@ Turn a raw idea, feature request, or bug into a well-formed task in `backlog`.
    - add `spec:` and `change:` frontmatter to the task file
 5. Leave the task in `backlog` until the implementation path is clear.
 
+## Repo-local hints
+
+- UI work usually lives in `config-ui/src/components/tabs/`, `config-ui/src/hooks/`, and `config-ui/src/__tests__/`
+- Rust server and config-manager work usually lives in `rust-mcp/src/`
+- checked-in config changes usually belong in `rust-mcp/config/`
+- docs changes usually touch `README.md`, `TECHNICAL.md`, and `docs/src/`
+- release and installer work often spans scripts, workflow files, docs, and version files, so default to spec-driven
+
 ## Definition of ready
 
 - The outcome is concrete enough to test or verify.
@@ -34,8 +42,8 @@ Turn a raw idea, feature request, or bug into a well-formed task in `backlog`.
 
 ## Discovered mid-work
 
-If new work is discovered while implementing something else, create a separate backlog task with the
-label `discovered` and a note linking back to the originating task. Do not silently expand the current task.
+If new work is discovered while implementing something else, create a separate backlog task with a
+note linking back to the originating task. Do not silently expand the current task.
 
 ## Next
 

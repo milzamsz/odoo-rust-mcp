@@ -1,0 +1,20 @@
+{
+  "name": "odoo-rust-mcp-desktop",
+  "version": "0.5.0",
+  "description": "Native Windows desktop app for Odoo Rust MCP",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-shell": "^2",
+    "@tauri-apps/plugin-dialog": "^2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

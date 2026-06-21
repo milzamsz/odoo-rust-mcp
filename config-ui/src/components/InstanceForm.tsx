@@ -519,7 +519,6 @@ export function InstanceForm({
       radius={0}
       trapFocus
       returnFocus
-      transitionProps={{ duration: 0 }}
     >
       {content}
     </Drawer>

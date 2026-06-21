@@ -24,6 +24,9 @@ current cards view:
 ## Non-goals
 
 - No backend, config schema, or API contract changes.
-- No pagination, virtualization, or bulk actions in this pass.
+- No pagination or virtualization in this pass.
+- Bulk delete and `Remove error instances` belong to the dedicated follow-up planning task
+  `.agentkanban/tasks/task_013_instance_bulk_delete_and_error_cleanup.md`, not this delivered
+  card/table refinement slice.
 - No new third-party data table dependency.
 - No redesign of the overall Config UI visual language beyond what is needed for the new controls.

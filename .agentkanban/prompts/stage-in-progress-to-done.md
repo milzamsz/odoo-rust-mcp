@@ -36,8 +36,16 @@ the current task file, and any referenced `spec.md` / `proposal.md` / `design.md
    - `TECHNICAL.md`
    - relevant mdBook docs in `docs/src/`
    - `AGENTS.md` when repo-operator guidance changed
+   - `README.md` when install, shortcut, release, or UI usage guidance changed
 6. Run [production-readiness-audit.md](production-readiness-audit.md) for risky or cross-cutting work.
 7. Record verification evidence in the task file, then explicitly move the task to `done`.
+
+## Repo-local reminders
+
+- UI-only work should usually still run `npm run build`, not just tests
+- embedded UI or config-manager changes should be checked through the Rust-served app, not only Vite
+- release, installer, or shortcut work should verify shipped paths and artifacts, not only source files
+- workflow-only changes should verify prompt/doc consistency even when app tests are intentionally skipped
 
 ## Do not finish as done when
 

@@ -36,6 +36,9 @@ labels:
   - tauri
   - desktop-app
   - release
+  - github
+  - updater
+  - mcp
 enforcement:
   mode: warn
   overrides:

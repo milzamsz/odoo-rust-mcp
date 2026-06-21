@@ -43,11 +43,22 @@ If this file and another doc disagree, **prefer implementation and checked-in co
   - Windsurf
   - ChatGPT Desktop / OpenAI Codex
 - **License**: AGPL-3.0-only
-- **Current version**: `0.4.0`
+- **Current version**: `0.5.0`
 
 ### Version Sync Rule
 
 The Rust crate version in `rust-mcp/Cargo.toml` and the UI version in `config-ui/package.json` must stay in sync.
+
+### Branching & PR Workflow
+
+- **Default Local Branch**: `dev`
+- **Production Branch**: `main`
+
+All local development must be performed on the `dev` branch. When completing a task:
+1. Update the version in manifests (`rust-mcp/Cargo.toml`, `config-ui/package.json`, etc.) to match the target version.
+2. Ensure `CHANGELOG.md` has a new release section corresponding to the target version.
+3. Update the version in `README.md` to match the target version.
+4. Create a Pull Request (PR) from `dev` to `main` (either using the web UI or local `gh pr create` after unsetting `GITHUB_TOKEN`).
 
 ### UI Build Dependency
 

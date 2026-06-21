@@ -105,12 +105,20 @@ samp {
   position: relative;
 }
 
+@keyframes breathe-glow {
+  0% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0.85; transform: scale(1); }
+}
+
 .app-shell-main::before {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   background: var(--app-main-glow);
+  animation: breathe-glow 25s infinite ease-in-out;
+  transform-origin: top left;
 }
 
 .page-eyebrow {
@@ -131,6 +139,56 @@ samp {
 .surface-panel {
   background: var(--app-surface-panel);
   backdrop-filter: blur(12px);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.25s ease, 
+              border-color 0.25s ease;
+}
+
+.surface-panel[style*="cursor: pointer"]:hover,
+.surface-panel.hover-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06);
+  border-color: var(--app-blue);
+}
+
+.surface-panel[style*="cursor: pointer"]:active,
+.surface-panel.hover-card:active {
+  transform: translateY(-1px);
+}
+
+/* Tactile press states for buttons and icons */
+.mantine-Button-root, 
+.mantine-ActionIcon-root {
+  transition: transform 0.1s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mantine-Button-root:active, 
+.mantine-ActionIcon-root:active {
+  transform: scale(0.97);
+}
+
+/* NavLink hover sliding indentation */
+.mantine-NavLink-root {
+  transition: background-color 0.15s ease, padding-left 0.15s ease;
+}
+
+.mantine-NavLink-root:not(.nav-link-collapsed):hover {
+  padding-left: calc(var(--mantine-spacing-sm) + 6px) !important;
+}
+
+.nav-link-collapsed {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.mantine-NavLink-root[data-active] {
+  background-color: var(--app-blue-soft) !important;
+  color: var(--app-blue) !important;
+}
+
+.mantine-NavLink-root[data-active]:hover {
+  background-color: var(--app-blue-soft) !important;
 }
 
 .app-table-status .mantine-Badge-root {
@@ -142,4 +200,13 @@ samp {
 .table-filter-input button,
 .table-filter-input [role='combobox'] {
   background: var(--app-panel-muted);
+}
+
+/* Smooth hover highlight for table rows */
+.mantine-Table-tr {
+  transition: background-color 0.15s ease;
+}
+
+.mantine-Table-tr:hover {
+  background-color: var(--app-panel-muted) !important;
 }

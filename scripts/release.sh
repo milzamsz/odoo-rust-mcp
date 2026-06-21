@@ -27,7 +27,7 @@ fi
 # Commit changes
 echo ""
 echo "Step 2: Committing changes..."
-git add rust-mcp/Cargo.toml config-ui/package.json
+git add rust-mcp/Cargo.toml config-ui/package.json desktop/package.json desktop/src-tauri/Cargo.toml desktop/src-tauri/tauri.conf.json
 
 if ! git diff-index --quiet HEAD --; then
     git commit -m "chore: bump version to $NEW_VERSION"

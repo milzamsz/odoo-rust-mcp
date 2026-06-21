@@ -1,7 +1,8 @@
 # Kanban prompts
 
-Repo-local stage drivers for `odoo-rust-mcp`. These prompts are intentionally aligned to the active
-Lite board profile and the real Rust + React toolchain in this repository.
+Lean prompt pack for developing `odoo-rust-mcp` under the active Lite board profile. These files
+should help contributors move real repo work forward without drifting into Standard-lane workflow
+or generic process text.
 
 Read first:
 
@@ -19,18 +20,22 @@ This repo currently uses the Lite profile from `.agentkanban/board.yaml`:
 backlog -> in-progress -> done
 ```
 
-Spec-driven development is still encouraged for non-trivial work, but it happens inside the Lite flow
-through `spec.md`, `proposal.md`, `design.md`, and `tasks.md` rather than through Standard-only lanes.
+Spec-driven development is still encouraged for non-trivial work, but it stays inside the Lite flow
+through `spec.md`, `proposal.md`, `design.md`, and `tasks.md`.
 
 ## Prompt set
 
-| Prompt | When |
-|---|---|
-| [new-task-intake.md](new-task-intake.md) | Turn a raw request into a well-formed task in `backlog` |
-| [stage-backlog-to-in-progress.md](stage-backlog-to-in-progress.md) | Clarify a ready backlog task, scaffold spec/change files when useful, and start implementation |
-| [stage-in-progress-to-done.md](stage-in-progress-to-done.md) | Finish implementation, verify with real repo commands, update docs, and complete the task |
-| [stage-blocked-and-resume.md](stage-blocked-and-resume.md) | Record a real blocker or resume work after the blocker clears |
-| [production-readiness-audit.md](production-readiness-audit.md) | Reusable audit before `done`, especially for risky or cross-cutting changes |
+- [new-task-intake.md](new-task-intake.md): turn a raw request into a clean backlog task
+- [stage-backlog-to-in-progress.md](stage-backlog-to-in-progress.md): tighten scope, wire in spec-driven artifacts when needed, and start work the right way
+- [stage-in-progress-to-done.md](stage-in-progress-to-done.md): finish implementation, verify with real repo commands, update docs, and close cleanly
+- [stage-blocked-and-resume.md](stage-blocked-and-resume.md): record a real blocker or resume after it clears
+- [production-readiness-audit.md](production-readiness-audit.md): reusable audit before `done`, especially for risky or cross-cutting changes
+
+Removed from the pack:
+
+- any `planning` or `review` lane prompt
+- any sweep-style prompt for processing many tasks at once
+- any generic policy text that does not match this Rust + Mantine + mdBook repo
 
 ## Repo validation gate
 
@@ -47,5 +52,13 @@ cd config-ui && npm run lint && npm run typecheck && npm test && npm run build
 If the change affects auth, transport, config-manager behavior, or embedded UI delivery, also run a
 local HTTP smoke test against `/health`, `/mcp`, and the Config UI.
 
-"Done" means the changed behavior is supported by evidence, not by status alone. Keep the record in the
-task file and in the spec/change artifacts when the work is spec-driven.
+## Best practice for this app
+
+- use spec-driven tasks for cross-cutting work touching `rust-mcp/`, `config-ui/`, release scripts, or docs
+- keep version changes synchronized between `rust-mcp/Cargo.toml` and `config-ui/package.json`
+- treat `rust-mcp/config/*` as checked-in runtime config and `rust-mcp/config-defaults/*` as bootstrap defaults
+- when UI behavior changes, prefer validating both `npm test` and `npm run build`
+- when auth, transport, or config-manager behavior changes, include a local smoke test against the embedded UI
+
+`done` means the changed behavior is supported by evidence, not by status alone. Keep the record in
+the task file and in the spec/change artifacts when the work is spec-driven.

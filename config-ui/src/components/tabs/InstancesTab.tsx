@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Divider,
   Group,
   Loader,
@@ -173,11 +174,12 @@ export function InstancesTab() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [preferredView, setPreferredView] = useLocalStorage<InstanceViewMode>({
     key: INSTANCE_VIEW_STORAGE_KEY,
-    defaultValue: 'card',
+    defaultValue: 'table',
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isCompact = useMediaQuery('(max-width: 64em)');
   const deferredSearch = useDeferredValue(searchQuery);
+  const [selectedInstanceIds, setSelectedInstanceIds] = useState<Set<string>>(new Set());
 
   const loadInstances = useCallback(async () => {
     try {
@@ -334,14 +336,107 @@ export function InstancesTab() {
     }
   }, []);
 
-  const testAll = async () => {
+  const testAll = useCallback(async () => {
     await Promise.all(Object.keys(config).map((name) => testConnection(name)));
-  };
+  }, [config, testConnection]);
 
   const handleEdit = useCallback((name: string) => {
     setEditingName(name);
     setShowForm(true);
   }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedInstanceIds.size === externallyFilteredRows.length) {
+      setSelectedInstanceIds(new Set());
+    } else {
+      setSelectedInstanceIds(new Set(externallyFilteredRows.map((row) => row.name)));
+    }
+  }, [selectedInstanceIds.size, externallyFilteredRows]);
+
+  const handleSelectRow = useCallback((instanceId: string, checked: boolean) => {
+    setSelectedInstanceIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(instanceId);
+      } else {
+        next.delete(instanceId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedInstanceIds.size === 0) return;
+    const candidates = Array.from(selectedInstanceIds);
+    modals.open({
+      title: `Delete ${candidates.length} instance(s)?`,
+      children: <DismissibleDeleteModal
+        candidates={candidates}
+        confirmLabel="Delete instances"
+        confirmColor="red"
+        onCancel={() => modals.closeAll()}
+        onConfirm={async (toDelete) => {
+          const updated = { ...config };
+          toDelete.forEach((name) => delete updated[name]);
+          try {
+            await save(updated);
+            notifications.show({
+              color: 'green',
+              title: 'Instances deleted',
+              message: `${toDelete.length} instance(s) were removed.`,
+            });
+            setSelectedInstanceIds(new Set());
+            await Promise.all([loadInstances(), testAll()]);
+          } catch (error) {
+            notifications.show({
+              color: 'red',
+              title: 'Delete failed',
+              message: error instanceof Error ? error.message : 'Failed to delete instances',
+            });
+          }
+          modals.closeAll();
+        }}
+      />,
+    });
+  }, [selectedInstanceIds, config, save, loadInstances, testAll]);
+
+  const getErrorInstanceIds = useCallback(() => {
+    return externallyFilteredRows.filter((row) => row.connectionStatus.status === 'error').map((row) => row.name);
+  }, [externallyFilteredRows]);
+
+  const handleRemoveErrorInstances = useCallback(async () => {
+    const errorIds = getErrorInstanceIds();
+    if (errorIds.length === 0) return;
+    modals.open({
+      title: `Remove ${errorIds.length} error instance(s)?`,
+      children: <DismissibleDeleteModal
+        candidates={errorIds}
+        confirmLabel="Remove error instances"
+        confirmColor="red"
+        onCancel={() => modals.closeAll()}
+        onConfirm={async (toDelete) => {
+          const updated = { ...config };
+          toDelete.forEach((name) => delete updated[name]);
+          try {
+            await save(updated);
+            notifications.show({
+              color: 'green',
+              title: 'Error instances removed',
+              message: `${toDelete.length} error instance(s) were removed.`,
+            });
+            await Promise.all([loadInstances(), testAll()]);
+          } catch (error) {
+            notifications.show({
+              color: 'red',
+              title: 'Remove failed',
+              message: error instanceof Error ? error.message : 'Failed to remove error instances',
+            });
+          }
+          modals.closeAll();
+        }}
+      />,
+    });
+  }, [config, save, loadInstances, testAll, getErrorInstanceIds]);
 
   const handleDelete = useCallback(async (name: string) => {
     modals.openConfirmModal({
@@ -406,18 +501,40 @@ export function InstancesTab() {
   const columns = useMemo<ColumnDef<InstanceRow>[]>(
     () => [
       {
+        id: 'select',
+        header: () => (
+          <Checkbox
+            aria-label="Select all rows"
+            checked={selectedInstanceIds.size > 0 && selectedInstanceIds.size === rows.length}
+            indeterminate={selectedInstanceIds.size > 0 && selectedInstanceIds.size < rows.length}
+            onChange={handleSelectAll}
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            aria-label={`Select ${row.original.name}`}
+            checked={selectedInstanceIds.has(row.original.name)}
+            onChange={(event) => handleSelectRow(row.original.name, event.currentTarget.checked)}
+          />
+        ),
+        enableSorting: false,
+        enableColumnFilter: false,
+        size: 50,
+      },
+      {
         accessorKey: 'name',
         header: 'Name',
         filterFn: textIncludesFilter,
         sortingFn: 'alphanumeric',
+        size: 280,
         cell: ({ row }) => (
-          <Group gap="sm">
-            <ActionIcon variant="light" color="blue" radius="xl">
+          <Group gap="sm" wrap="nowrap">
+            <ActionIcon variant="light" color="blue" radius="xl" style={{ flexShrink: 0 }}>
               <Database size={16} weight="duotone" />
             </ActionIcon>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <NameChip>{row.original.name}</NameChip>
-              <Text size="sm" c="dimmed" mt={4}>
+              <Text size="sm" c="dimmed" mt={4} style={{ wordBreak: 'break-all' }}>
                 {row.original.instance.url}
               </Text>
             </div>
@@ -492,7 +609,7 @@ export function InstancesTab() {
         ),
       },
     ],
-    [handleDelete, handleEdit, testConnection]
+    [handleDelete, handleEdit, testConnection, selectedInstanceIds, externallyFilteredRows.length, handleSelectAll, handleSelectRow]
   );
 
   const table = useReactTable({
@@ -555,6 +672,31 @@ export function InstancesTab() {
               subtitle={`Showing ${rows.length} of ${instanceRows.length}. Filters stack across search, tag chips, and column filters.`}
             />
             <Group>
+              {selectedInstanceIds.size > 0 ? (
+                <>
+                  <Badge variant="light" color="blue">
+                    {selectedInstanceIds.size} selected
+                  </Badge>
+                  <Button
+                    variant="default"
+                    color="red"
+                    leftSection={<Trash size={16} />}
+                    onClick={() => void handleBulkDelete()}
+                  >
+                    Delete selected
+                  </Button>
+                </>
+              ) : null}
+              {effectiveView === 'table' && getErrorInstanceIds().length > 0 ? (
+                <Button
+                  variant="default"
+                  color="red"
+                  leftSection={<Trash size={16} />}
+                  onClick={() => void handleRemoveErrorInstances()}
+                >
+                  Remove error instances
+                </Button>
+              ) : null}
               <Button variant="default" leftSection={<WifiHigh size={16} />} onClick={() => void testAll()}>
                 Test all
               </Button>
@@ -622,7 +764,7 @@ export function InstancesTab() {
                   <Table.Thead>
                     <Table.Tr>
                       {table.getHeaderGroups()[0].headers.map((header) => (
-                        <Table.Th key={header.id}>
+                        <Table.Th key={header.id} w={header.column.columnDef.size}>
                           {header.isPlaceholder ? null : header.column.getCanSort() ? (
                             <Group gap={6} wrap="nowrap" style={{ cursor: 'pointer' }} onClick={header.column.getToggleSortingHandler()}>
                               <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
@@ -635,6 +777,7 @@ export function InstancesTab() {
                       ))}
                     </Table.Tr>
                     <Table.Tr>
+                      <Table.Th w={50} />
                       <Table.Th>
                         <TextInput
                           className="table-filter-input"
@@ -840,6 +983,67 @@ function StatusBadge({ status }: { status: ConnStatus }) {
     <Badge color={color} className="app-table-status">
       {getStatusLabel(status)}
     </Badge>
+  );
+}
+
+function DismissibleDeleteModal({
+  candidates,
+  confirmLabel,
+  confirmColor,
+  onCancel,
+  onConfirm,
+}: {
+  candidates: string[];
+  confirmLabel: string;
+  confirmColor: 'red' | 'blue';
+  onCancel: () => void;
+  onConfirm: (toDelete: string[]) => void;
+}) {
+  const [toDelete, setToDelete] = useState<Set<string>>(new Set(candidates));
+
+  const toggleInstance = (id: string) => {
+    setToDelete((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  return (
+    <Stack gap="md">
+      <Text size="sm" c="dimmed">
+        Click any item to exclude it from deletion:
+      </Text>
+      <Group gap="xs" wrap="wrap">
+        {candidates.map((id) => (
+          <Pill
+            key={id}
+            withRemoveButton={toDelete.has(id)}
+            onRemove={() => toggleInstance(id)}
+            onClick={() => toggleInstance(id)}
+            style={{ opacity: toDelete.has(id) ? 1 : 0.4, cursor: 'pointer' }}
+          >
+            {id}
+          </Pill>
+        ))}
+      </Group>
+      <Text size="sm" c="dimmed">
+        {candidates.length - toDelete.size} of {candidates.length} excluded. This action cannot be undone.
+      </Text>
+
+      <Group justify="flex-end">
+        <Button variant="default" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button color={confirmColor} onClick={() => onConfirm(Array.from(toDelete))} disabled={toDelete.size === 0}>
+          {confirmLabel}
+        </Button>
+      </Group>
+    </Stack>
   );
 }
 

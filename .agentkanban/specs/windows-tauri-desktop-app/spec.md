@@ -43,6 +43,7 @@ preserving the current Rust MCP server and Mantine Config UI architecture.
 - the release pipeline builds a Windows Tauri installer artifact
 - the current ZIP + shortcut flow still works after desktop-app changes
 - docs explain when to use the Tauri app versus the ZIP install path
+- external MCP clients can connect to the running desktop app over HTTP, and the app surfaces ready-to-paste connection config
 
 ## Verification
 

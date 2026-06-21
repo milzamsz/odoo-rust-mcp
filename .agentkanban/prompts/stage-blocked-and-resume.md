@@ -35,4 +35,5 @@ only the user can make.
 - missing Node or Rust dependencies needed for validation
 - config-manager or HTTP smoke tests cannot run because the local environment is unavailable
 - a design decision would widen scope beyond the approved task
+- release signing secrets, packaging prerequisites, or platform toolchains required for the current slice are unavailable
 ```

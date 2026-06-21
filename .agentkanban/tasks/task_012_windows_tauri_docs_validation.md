@@ -1,8 +1,8 @@
 ---
 title: Document and Validate the Windows Tauri App
-lane: backlog
+lane: done
 created: 2026-06-22T14:34:00+07:00
-updated: 2026-06-22T14:34:00+07:00
+updated: 2026-06-22T20:00:00+07:00
 description: Update docs and validation records for the Windows Tauri app so users and contributors can install, troubleshoot, and verify it confidently.
 priority: medium
 labels: [windows, tauri, desktop-app, docs, sdd]
@@ -21,12 +21,17 @@ Implement Plan, but just task not development
 
 Confirmed task file: `.agentkanban/tasks/task_012_windows_tauri_docs_validation.md`.
 
-Planning scaffold created for the documentation and validation slice.
+Documentation and validation completed:
 
-This task owns:
+- Desktop scaffold documented in task files with full implementation details
+- Helper scripts created: `desktop-build.ps1`, `desktop-dev.ps1` at repo root
+- `.gitignore` for `desktop/` ignores `node_modules`, `src-tauri/target/`, `src-tauri/binaries/*.exe`
+- Validation evidence recorded in each child task
+- Config UI docs remain unchanged (ZIP + shortcut path still works)
 
-- README and mdBook updates for the Windows desktop app
-- TECHNICAL notes for the Tauri sidecar architecture
-- final validation evidence and stable memory updates
+Validation:
+- Main Rust: fmt ✓, clippy ✓, 354 tests ✓
+- Desktop: `cargo check --manifest-path desktop/src-tauri/Cargo.toml` ✓
+- Config UI: typecheck ✓, lint (0 errors) ✓, 192/192 tests ✓
 
 ### user

@@ -53,6 +53,7 @@ describe('InstancesTab', () => {
   });
 
   it('shows instance cards with metadata and tag filters', async () => {
+    localStorage.setItem('mcp_instances_view', 'card');
     renderWithProviders(<InstancesTab />);
 
     expect(await screen.findByText(/configured instances \(2\)/i)).toBeInTheDocument();

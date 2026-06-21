@@ -1,8 +1,8 @@
 ---
 title: Create Tauri Windows Desktop App Foundation
-lane: backlog
+lane: done
 created: 2026-06-22T14:30:00+07:00
-updated: 2026-06-22T14:30:00+07:00
+updated: 2026-06-22T19:55:00+07:00
 description: Create the spec-driven Tauri desktop application scaffold for Windows using the latest stable Tauri 2 release while keeping the existing Rust server and Config UI architecture.
 priority: high
 labels: [windows, tauri, desktop-app, sdd]

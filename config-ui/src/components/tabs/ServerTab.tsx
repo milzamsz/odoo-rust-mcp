@@ -1,5 +1,4 @@
 import {
-  Accordion,
   Button,
   Card,
   Grid,
@@ -137,7 +136,9 @@ export function ServerTab() {
                 placeholder="System instructions shown to clients..."
                 value={instructions}
                 onChange={(event) => setInstructions(event.currentTarget.value)}
-                minRows={8}
+                minRows={20}
+                resize="vertical"
+                styles={{ input: { minHeight: 400 } }}
               />
 
               <TextInput
@@ -213,24 +214,22 @@ export function ServerTab() {
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, xl: 4 }}>
-          <Accordion variant="separated">
-            <Accordion.Item value="reference">
-              <Accordion.Control>Reference</Accordion.Control>
-              <Accordion.Panel>
-                <Stack gap="sm">
-                  <Text size="sm">
-                    `serverName` is the display name exposed to MCP clients during initialize.
-                  </Text>
-                  <Text size="sm">
-                    `instructions` should stay concise and aligned with the checked-in server JSON.
-                  </Text>
-                  <Text size="sm">
-                    `protocolVersionDefault` sets the fallback protocol for clients that do not specify one.
-                  </Text>
-                </Stack>
-              </Accordion.Panel>
-            </Accordion.Item>
-          </Accordion>
+          <Card p="lg" className="surface-panel">
+            <Title order={4} mb="md">
+              Reference
+            </Title>
+            <Stack gap="sm">
+              <Text size="sm">
+                <code>serverName</code> is the display name exposed to MCP clients during initialize.
+              </Text>
+              <Text size="sm">
+                <code>instructions</code> should stay concise and aligned with the checked-in server JSON.
+              </Text>
+              <Text size="sm">
+                <code>protocolVersionDefault</code> sets the fallback protocol for clients that do not specify one.
+              </Text>
+            </Stack>
+          </Card>
         </Grid.Col>
       </Grid>
     </Stack>

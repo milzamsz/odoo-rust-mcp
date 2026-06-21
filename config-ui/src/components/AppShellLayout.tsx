@@ -55,7 +55,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Instances', icon: Database, path: '/instances', section: 'Workspace' },
   { label: 'Tools', icon: SquaresFour, path: '/tools', section: 'Workspace' },
   { label: 'Prompts', icon: ChatCircleText, path: '/prompts', section: 'Workspace' },
-  { label: 'Documentation', icon: BookOpenText, href: '/docs/', section: 'Workspace' },
+  { label: 'Documentation', icon: BookOpenText, href: 'https://milzamsz.github.io/odoo-rust-mcp/', section: 'Workspace' },
   { label: 'Server', icon: GearSix, path: '/server', section: 'Operations' },
   { label: 'Security', icon: ShieldCheck, path: '/security', section: 'Operations' },
 ] as const;
@@ -118,6 +118,22 @@ export function AppShellLayout() {
     { value: 'auto', label: 'Auto', icon: Monitor },
   ] as const;
 
+  const openUrlExternally = useCallback((url: string) => {
+    const tauri = (window as Window & {
+      __TAURI__?: {
+        core?: {
+          invoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+      };
+    }).__TAURI__;
+    if (tauri && tauri.core && tauri.core.invoke) {
+      tauri.core.invoke('plugin:opener|open_url', { url })
+        .catch((err: unknown) => console.error('Failed to open URL via Tauri:', err));
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }, []);
+
   const navigateWithGuard = useCallback(
     (target: string) => {
       const currentTarget = `${location.pathname}${location.search}`;
@@ -171,10 +187,7 @@ export function AppShellLayout() {
     await logout();
   };
 
-  const openDocs = useCallback(() => {
-    window.open('/docs/', '_blank', 'noopener,noreferrer');
-    close();
-  }, [close]);
+
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -383,18 +396,27 @@ export function AppShellLayout() {
                       <NavLink
                         aria-label={item.href ? `${item.label} (opens in a new tab)` : item.label}
                         active={Boolean(item.path && location.pathname === item.path)}
-                        component="button"
+                        component={item.href ? 'a' : 'button'}
+                        href={item.href}
+                        target={item.href ? '_blank' : undefined}
+                        rel={item.href ? 'noopener noreferrer' : undefined}
+                        className={desktopCollapsed && desktop ? 'nav-link-collapsed' : undefined}
                         label={desktopCollapsed && desktop ? undefined : item.label}
                         leftSection={<item.icon size={18} />}
-                        onClick={() => {
+                        onClick={(event) => {
+                          if (item.href) {
+                            const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+                            if (isTauri) {
+                              event.preventDefault();
+                              openUrlExternally(item.href);
+                            }
+                            return;
+                          }
                           if (item.path) {
                             navigateWithGuard(item.path);
                             return;
                           }
-
-                          if (item.href) {
-                            openDocs();
-                          }
+                          close();
                         }}
                         variant="subtle"
                         type="button"
@@ -442,6 +464,7 @@ export function AppShellLayout() {
                   onClick={() => void handleLogout()}
                   variant="subtle"
                   type="button"
+                  className={desktopCollapsed && desktop ? 'nav-link-collapsed' : undefined}
                   styles={{
                     root: {
                       borderRadius: 10,
@@ -474,7 +497,7 @@ export function AppShellLayout() {
                 Hot reload
               </Badge>
               <Text size="sm" c="dimmed">
-                v0.4.2 — Changes are applied to the embedded config surface without restart.
+                v0.5.0 — Changes are applied to the embedded config surface without restart.
               </Text>
             </Group>
             <Group gap="xs" wrap="nowrap">

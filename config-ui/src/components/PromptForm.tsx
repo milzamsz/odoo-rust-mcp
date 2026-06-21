@@ -120,7 +120,9 @@ export function PromptForm({ prompt, onSave, onCancel }: PromptFormProps) {
             <Textarea
               label="Content"
               placeholder="Enter prompt content"
-              minRows={18}
+              minRows={20}
+              resize="vertical"
+              styles={{ input: { minHeight: 320 } }}
               {...form.getInputProps('content')}
             />
           </Stack>
@@ -162,7 +164,6 @@ export function PromptForm({ prompt, onSave, onCancel }: PromptFormProps) {
       withCloseButton
       trapFocus
       returnFocus
-      transitionProps={{ duration: 0 }}
       styles={{
         content: { display: 'flex', flexDirection: 'column' },
         body: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' },

@@ -53,15 +53,15 @@ cd rust-mcp-<platform>
 ### Option 2: Homebrew (macOS/Linux)
 
 ```bash
-brew tap rachmataditiya/odoo-rust-mcp
+brew tap milzamsz/odoo-rust-mcp
 brew install rust-mcp
 ```
 
 ### Option 3: APT (Debian/Ubuntu)
 
 ```bash
-curl -fsSL https://rachmataditiya.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg
-echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://rachmataditiya.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
+curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg
+echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://milzamsz.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
 sudo apt update && sudo apt install rust-mcp
 ```
 
@@ -73,7 +73,7 @@ docker run -d --name odoo-mcp \
   -e ODOO_DB=mydb \
   -e ODOO_API_KEY=your-key \
   -p 8787:8787 -p 3008:3008 \
-  ghcr.io/rachmataditiya/odoo-rust-mcp:latest
+  ghcr.io/milzamsz/odoo-rust-mcp:latest
 ```
 
 ### Option 5: Build from Source
@@ -235,6 +235,67 @@ Options:
   -h, --help                      Print help
   -V, --version                   Print version
 ```
+
+## Connecting MCP Clients to the Desktop App
+
+When running the native Tauri desktop application, the local MCP HTTP server is automatically started in the background on port `8787` (`http://127.0.0.1:8787`).
+
+You can connect external AI tools (Cursor, Claude Desktop, Claude Code, VS Code, Antigravity, etc.) using one of the following methods.
+
+### Option 1: HTTP / SSE Connection (Recommended for Desktop App)
+
+If your client supports HTTP/SSE, you can configure it to connect directly to the running desktop app. This is the most efficient method as it doesn't spawn additional processes.
+
+#### 1. Claude Code
+Add to your project's `.mcp.json` file:
+```json
+{
+  "mcpServers": {
+    "odoo-rust-mcp": {
+      "url": "http://127.0.0.1:8787/mcp"
+    }
+  }
+}
+```
+*(If HTTP Authentication is enabled, make sure to add `"headers": { "Authorization": "Bearer <YOUR_TOKEN>" }` inside the server configuration object)*
+
+#### 2. VS Code / Antigravity / Other HTTP-capable clients
+Configure your client settings with the server URL:
+`http://127.0.0.1:8787/mcp` (or `/sse` depending on the client).
+
+---
+
+### Option 2: Stdio Connection (For Cursor and Claude Desktop)
+
+Clients like **Cursor** and **Claude Desktop** require launching their own MCP subprocess. For these clients, configure them to run the standalone `rust-mcp.exe` binary.
+
+#### 1. Cursor (`~/.cursor/mcp.json`)
+Add the following configuration (replace with the absolute path to your downloaded binary):
+```json
+{
+  "mcpServers": {
+    "odoo-rust-mcp": {
+      "command": "C:\\path\\to\\rust-mcp.exe",
+      "args": ["--transport", "stdio"]
+    }
+  }
+}
+```
+
+#### 2. Claude Desktop (`%APPDATA%\Claude\claude_desktop_config.json`)
+```json
+{
+  "mcpServers": {
+    "odoo-rust-mcp": {
+      "command": "C:\\path\\to\\rust-mcp.exe",
+      "args": ["--transport", "stdio"]
+    }
+  }
+}
+```
+
+> [!TIP]
+> Surfacing ready-to-paste configurations is built into the desktop app! Click **Copy MCP Endpoint** from the system tray menu, or navigate to the **Overview** tab in the app to copy tailored configuration snippets.
 
 ---
 

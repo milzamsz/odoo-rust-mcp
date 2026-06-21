@@ -1,8 +1,8 @@
 ---
 title: Refine README for Install, Shortcut, UI Usage, and Screenshot Gallery
-lane: in-progress
+lane: done
 created: 2026-06-21T23:55:00+07:00
-updated: 2026-06-21T23:55:00+07:00
+updated: 2026-06-22T17:42:00+07:00
 description: Rewrite the README into a Windows-first onboarding guide, fix release packaging so shortcut docs stay truthful, and add a dark-mode screenshot gallery with sensitive identifiers blurred.
 priority: medium
 labels: [docs, windows, installer, screenshots]
@@ -73,5 +73,20 @@ Validation note:
 - during the installed-layout smoke run, the same process exposed `127.0.0.1:8787`, but the
   `/health` request timed out in this environment, so this task records only the verified Config UI
   success and does not overclaim the HTTP MCP endpoint as fully revalidated from the temp folder
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_006_refine_readme_install_shortcuts_and_screenshots.md`.
+
+Task moved to `done` after full validation gate passed:
+
+- `cd config-ui && npm run lint` — passed
+- `cd config-ui && npm run typecheck` — passed
+- `cd config-ui && npm test` — 192/192 tests passed
+- `cd config-ui && npm run build` — production build successful
+- README.md verified at 155 lines with 8 screenshot assets in `docs/src/images/config-ui/`
+- All checklist items confirmed complete in `todo_006_refine_readme_install_shortcuts_and_screenshots.md`
+
+No Rust or auth/transport changes in this task — Rust validation gate skipped (documentation-only).
 
 ### user
