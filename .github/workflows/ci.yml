@@ -50,6 +50,13 @@ jobs:
     needs: build-ui
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download UI build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: config-ui-dist
+          path: rust-mcp/static/dist
+      
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
