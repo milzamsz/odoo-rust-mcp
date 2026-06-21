@@ -28,11 +28,12 @@ Recommended implementation shape:
 - apply sorting last
 - render either cards or a semantic table from the same processed rows
 
-### 2. Preserve the current card workflow
+### 2. Keep table as the desktop default, preserve cards as the responsive fallback
 
-Cards should not become a second-class fallback. They remain the default desktop view and the
-mandatory narrow-screen rendering. The current visual hierarchy should stay intact so the refinement
-feels like an extension of the existing screen, not a redesign.
+Cards should not become a second-class fallback, but the denser workflow should lead on desktop.
+Table becomes the default desktop view, while cards remain the mandatory narrow-screen rendering and
+the alternate desktop presentation. The current visual hierarchy should stay intact so the
+refinement feels like an extension of the existing screen, not a redesign.
 
 ### 3. Use typed filters that match the data
 
@@ -43,10 +44,13 @@ the screen faster to scan and lowers filter mistakes:
 - selects for Authentication, Version, and Status
 - a compact semantic filter for Tools, such as enabled/partial/none or a threshold-based choice
 
-### 4. Persist view preference defensively
+### 4. Place the view switch in the top action area and persist it defensively
 
 Desktop view preference should be stored in local storage and restored on mount. Invalid or missing
-values should gracefully fall back to `card`.
+values should gracefully fall back to `table`.
+
+The switch itself should live alongside the main page actions at the top of the instances screen so
+operators can discover it before they interact with search or table filters.
 
 Responsive behavior should compute an effective view:
 
@@ -60,6 +64,7 @@ The stored preference should remain untouched when the layout auto-falls back to
 Update `config-ui/src/__tests__/instances-tab.test.tsx` to cover:
 
 - card/table toggle behavior
+- default desktop table rendering when no preference exists
 - persisted preference restore and fallback
 - narrow-screen effective card rendering
 - combined filter behavior across global search, tags, and columns

@@ -10,10 +10,12 @@ connections effectively in either a compact table workflow or the existing card-
 ### View modes
 
 1. The instances screen must offer two explicit views: `Card` and `Table`.
-2. Card view must remain the default desktop presentation.
+2. Table view must remain the default desktop presentation.
 3. The chosen desktop view must persist across reloads in local storage.
 4. Narrow screens must automatically render cards even if the persisted desktop preference is table.
 5. Auto-switching to cards on narrow screens must not overwrite the stored desktop preference.
+6. The `Card/Table` switch control must live in the top action area of the instances screen rather
+   than being visually buried below the primary toolbar.
 
 ### Shared discovery controls
 
@@ -85,8 +87,9 @@ connections effectively in either a compact table workflow or the existing card-
 
 ## Acceptance Criteria
 
-- Operators can switch between Card and Table views on desktop.
+- Operators can switch between Card and Table views on desktop from the top action area.
 - Reloading preserves the chosen desktop view.
+- Desktop loads Table view by default when there is no stored preference.
 - Mobile or narrow layouts still render cards regardless of the stored desktop view.
 - Table view supports per-column filtering and sorting for every data column except Actions.
 - Table view supports checkbox selection and bulk deletion without breaking existing per-row actions.

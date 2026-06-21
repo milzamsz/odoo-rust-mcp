@@ -2,7 +2,7 @@
 title: Refine instances card and table views
 lane: done
 created: 2026-06-20T13:14:35+07:00
-updated: 2026-06-20T13:26:23+07:00
+updated: 2026-06-21T00:00:00+07:00
 description: Refine the Config UI instances experience so operators can switch between card and table views, filter data more precisely, and manage larger instance lists without losing the current card-based workflow.
 priority: medium
 labels: [config-ui, instances, ux, sdd]
@@ -11,6 +11,30 @@ spec: .agentkanban/specs/instance-list-views/spec.md
 ---
 
 ## Conversation
+
+### user
+
+adjust task swith instance view position button table & card, make table is default view
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_002_refine_instances_card_and_table_views.md`.
+
+Adjusted the planning contract for the instances view switch without starting new product
+development.
+
+What changed in the planning artifacts:
+
+- updated the shared capability spec so `Table` is now the default desktop view
+- added an explicit requirement that the `Card/Table` switch lives in the top action area
+- aligned the change proposal and design notes with the new default-view and control-placement
+  decision
+
+Decision now locked for future implementation work:
+
+- desktop default: `Table`
+- narrow-screen fallback: `Card`
+- switch position: top action area, not below the search and filter stack
 
 ### user
 
