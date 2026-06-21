@@ -1,0 +1,68 @@
+# ===============================================================
+# Agentic Kanban board configuration (managed file)
+# Edit the values below; this header is regenerated on every save.
+#
+# profile: standard | lite        (lanes derive from profile)
+# enforcement.mode: strict | warn  (strict blocks illegal moves; warn allows and warns)
+#   overrides.allowed: true | false
+#   overrides.actors: [human] | [human, agent] | [agent]
+#   overrides.requireReason: true | false
+# reviewPolicy.<low|medium|high|critical>.<planning|implementation>:
+#   self-agent | independent-agent | independent-agent+human
+# worktreePolicy.requiredForImplementation: true | false
+# wipLimits.<lane>: <max tasks in that lane>  (e.g. in-progress: 1; omit/0 = no limit)
+# ===============================================================
+profile: lite
+profileVersion: 3
+lanes:
+  - backlog
+  - in-progress
+  - done
+users: []
+labels:
+  - workflow
+  - docs
+  - sdd
+  - config-ui
+  - instances
+  - ux
+  - mantine
+  - rewrite
+  - minimalist
+  - typography
+  - windows
+  - installer
+  - screenshots
+  - tauri
+  - desktop-app
+  - release
+enforcement:
+  mode: warn
+  overrides:
+    allowed: true
+    actors:
+      - human
+      - agent
+    requireReason: false
+reviewPolicy:
+  low:
+    planning: self-agent
+    implementation: self-agent
+  medium:
+    planning: self-agent
+    implementation: self-agent
+  high:
+    planning: independent-agent
+    implementation: independent-agent
+  critical:
+    planning: independent-agent
+    implementation: independent-agent+human
+worktreePolicy:
+  requiredForImplementation: false
+policies:
+  transition:
+    requireChecklistForInProgress: false
+    requireSpecForInProgress: false
+    requireDescriptionForReview: false
+    requireWorktreeForInProgress: false
+  verification: {}
