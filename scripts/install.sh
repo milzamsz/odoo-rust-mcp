@@ -63,6 +63,11 @@ install() {
         $NEED_SUDO cp "$SCRIPT_DIR/.env.example" "$CONFIG_DIR/" || warn "Failed to copy .env.example"
     fi
 
+    if [ -d "$SCRIPT_DIR/docs/book" ]; then
+        $NEED_SUDO mkdir -p "$CONFIG_DIR/docs"
+        $NEED_SUDO cp -r "$SCRIPT_DIR/docs/book" "$CONFIG_DIR/docs/" || warn "Failed to copy documentation"
+    fi
+
     info "Installation complete!"
     echo ""
     echo "Binary installed to: $INSTALL_DIR/$BINARY_NAME"

@@ -35,7 +35,7 @@ Called by clients to establish a session.
     "protocolVersion": "2025-03-26",
     "serverInfo": {
       "name": "odoo-rust-mcp",
-      "version": "0.3.30"
+      "version": "0.4.2"
     },
     "capabilities": {
       "tools": {},

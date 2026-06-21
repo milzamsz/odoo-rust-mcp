@@ -21,85 +21,88 @@ pub const PROMPTS: &[PromptDef] = &[
         name: "odoo_common_models",
         description: "List of commonly used Odoo models",
         content: r#"
-# Common Odoo Models (v17-19)
+# Common Odoo Models (v16-19)
+
+Use when: you need the technical model name for a business concept.
 
 ## Sales & CRM
-- sale.order - Sales Orders
-- sale.order.line - Sales Order Lines
-- crm.lead - CRM Leads/Opportunities
-- crm.team - Sales Teams
+- sale.order — Sales Orders
+- sale.order.line — Sales Order Lines
+- crm.lead — Leads/Opportunities (type: lead | opportunity)
+- crm.team — Sales Teams
 
 ## Accounting & Invoicing
-- account.move - Invoices & Bills
-- account.move.line - Invoice/Bill Lines
-- account.payment - Payments
-- account.journal - Journals
-- account.account - Chart of Accounts
+- account.move — Invoices, Bills & Journal Entries (move_type: out_invoice, in_invoice, out_refund, in_refund, entry)
+- account.move.line — Invoice/Bill/Entry Lines
+- account.payment — Payments
+- account.journal — Journals
+- account.account — Chart of Accounts
 
-## Inventory & Manufacturing
-- stock.picking - Transfers
-- stock.move - Stock Moves
-- stock.warehouse - Warehouses
-- stock.location - Locations
-- product.product - Products (variants)
-- product.template - Product Templates
+## Inventory & Warehouse
+- stock.picking — Transfers/Deliveries/Receipts
+- stock.move — Stock Moves
+- stock.move.line — Detailed Move Lines
+- stock.warehouse / stock.location — Warehouses / Locations
+- product.product — Products (variants)
+- product.template — Product Templates
 
 ## Partners & Contacts
-- res.partner - Contacts/Customers/Vendors
-- res.company - Companies
-- res.users - Users
+- res.partner — Contacts/Customers/Vendors
+- res.company / res.users — Companies / Users
 
-## HR & Employees
-- hr.employee - Employees
-- hr.department - Departments
-- hr.leave - Time Off
+## HR
+- hr.employee / hr.department — Employees / Departments
+- hr.leave / hr.contract — Time Off / Contracts
 
-## Projects & Tasks
-- project.project - Projects
-- project.task - Tasks
+## Projects
+- project.project / project.task / project.task.type — Projects / Tasks / Stages
 
 ## Purchase
-- purchase.order - Purchase Orders
-- purchase.order.line - Purchase Order Lines
+- purchase.order / purchase.order.line — Purchase Orders / Lines
 "#,
     },
     PromptDef {
         name: "odoo_domain_filters",
-        description: "Guide for Odoo domain filter syntax",
+        description: "Guide for Odoo domain filter syntax (the `domain` arg)",
         content: r#"
-# Odoo Domain Filter Examples
+# Odoo Domain Filters — the `domain` argument
 
-## Basic Operators
-- ['name', '=', 'John'] - Exact match
-- ['name', '!=', 'John'] - Not equal
-- ['age', '>', 18] - Greater than
-- ['age', '>=', 18] - Greater than or equal
-- ['age', '<', 65] - Less than
-- ['age', '<=', 65] - Less than or equal
+Use when: building the `domain` for odoo_search, odoo_search_read, odoo_count, or odoo_read_group.
 
-## String Operators
-- ['name', 'like', 'John'] - Contains (case-sensitive)
-- ['name', 'ilike', 'john'] - Contains (case-insensitive)
-- ['email', '=like', '%@example.com'] - Pattern match
-- ['name', '=ilike', 'john%'] - Pattern match (case-insensitive)
+A domain is a list of triplets [field, operator, value] combined with prefix logical operators.
 
-## List Operators
-- ['state', 'in', ['draft', 'posted']] - In list
-- ['state', 'not in', ['cancel', 'draft']] - Not in list
+## Comparison Operators
+- ['amount_total', '=', 1000] / '!=' / '>' / '>=' / '<' / '<='
 
-## Logical Operators
-- ['&', ['name', '=', 'John'], ['age', '>', 18]] - AND
-- ['|', ['name', '=', 'John'], ['name', '=', 'Jane']] - OR
-- ['!', ['state', '=', 'cancel']] - NOT
+## String / Pattern
+- ['name', 'like', 'John']   contains, case-sensitive
+- ['name', 'ilike', 'john']  contains, case-insensitive (most common)
+- ['email', '=like', '%@example.com']  SQL LIKE pattern
+- ['name', '=ilike', 'john%']           SQL ILIKE pattern
 
-## Complex Example
+## Membership
+- ['state', 'in', ['draft', 'posted']]
+- ['state', 'not in', ['cancel']]
+- ['partner_id', 'in', [3, 7, 12]]   (ids for Many2one)
+
+## Logical Operators (prefix / Polish notation)
+Default between triplets is AND. '&' AND and '|' OR take the next two items; '!' NOT takes the next one.
+- ['&', ['state', '=', 'sale'], ['amount_total', '>', 1000]]
+- ['|', ['state', '=', 'draft'], ['state', '=', 'sent']]
+- ['!', ['state', '=', 'cancel']]
+
+## Traverse related fields with dotted paths
+- ['partner_id.country_id.code', '=', 'US']
+- ['order_line.product_id.name', 'ilike', 'laptop']
+
+## Complex Example — confirmed US orders over $1000
 [
-  '&',
-  ['state', '=', 'sale'],
-  '|',
-  ['amount_total', '>', 1000],
-  ['partner_id.country_id.code', '=', 'US']
+  '&', ['state', '=', 'sale'],
+  '&', ['amount_total', '>', 1000],
+       ['partner_id.country_id.code', '=', 'US']
 ]
+
+Tip: empty domain [] matches all records — always pair it with a limit.
 "#,
     },
 ];

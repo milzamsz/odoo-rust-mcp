@@ -14,8 +14,8 @@ current cards view:
 
 ## What changes
 
-1. Add a desktop view toggle for `Card` and `Table`.
-2. Preserve cards as the default and persist the chosen desktop view.
+1. Add a desktop view toggle for `Card` and `Table` in the top action area.
+2. Preserve table as the default desktop view and persist the chosen desktop view.
 3. Add table columns for the operational instance fields and actions.
 4. Add per-column filters and sortable headers in table view.
 5. Keep global search, tag chips, and existing instance actions working across both views.

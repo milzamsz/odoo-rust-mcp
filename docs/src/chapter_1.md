@@ -1,60 +1,65 @@
+<img src="images/brand/app-icon.svg" alt="Odoo Rust MCP Rust Hexagon app icon" width="72">
+
 # Introduction
 
 ## What is the Model Context Protocol (MCP)?
 
-The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard that enables AI assistants to interact with external tools and data sources through a unified interface. Instead of building custom integrations for each AI platform, MCP provides a single protocol that works across clients like Cursor, Claude Desktop, Claude Code, Windsurf, ChatGPT Desktop, and others.
+The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard that lets AI
+assistants interact with external tools and data sources through one shared interface.
 
 ## What is odoo-rust-mcp?
 
-**odoo-rust-mcp** is a high-performance MCP server written in Rust that bridges AI assistants with [Odoo ERP](https://www.odoo.com/) systems. It translates natural language requests from AI tools into Odoo API calls, enabling you to query, create, update, and manage Odoo data through conversational AI.
+**odoo-rust-mcp** is a Rust MCP server that connects AI assistants to [Odoo ERP](https://www.odoo.com/).
+It translates AI requests into Odoo API calls so you can query, create, update, and manage Odoo
+data through conversational tooling.
 
 ### Key Capabilities
 
-- **22 tools** covering CRUD operations, workflow actions, reports, model discovery, and database cleanup
-- **11 built-in prompts** covering Odoo data operations plus Owl/frontend addon guidance
-- **Multi-instance support** — connect to multiple Odoo servers (production, staging, development) simultaneously
-- **Dual authentication** — API keys (Odoo 19+ JSON-2 API) and username/password (Odoo <19 JSON-RPC)
-- **Multiple transports** — stdio (for AI clients), HTTP (for remote access), WebSocket, and SSE
-- **Web-based Config UI** on port 3008 for visual configuration without editing JSON files
-- **Fully declarative tools** defined in JSON, customizable without recompiling
-- **Hot-reload** — configuration and instance changes apply instantly without restarting the server
-- **Bidirectional instance sync** — Config UI edits update the live MCP pool; env-var instances merge into the UI automatically
-- **Production-ready** with Docker, Kubernetes, Helm, systemd, and Windows service support
+- **22 tools** covering CRUD, workflow actions, reports, model discovery, and cleanup
+- **11 built-in prompts** covering Odoo data operations plus Owl and frontend guidance
+- **Multi-instance support** for production, staging, and local environments
+- **Dual authentication** for Odoo 19+ JSON-2 and Odoo 18 and earlier JSON-RPC
+- **Multiple transports** including stdio, HTTP, WebSocket, and SSE compatibility
+- **Built-in Config UI** on port 3008
+- **Hot reload** for config, tool, prompt, and instance updates
 
 ### Who Is This For?
 
 | Audience | Use Case |
 |----------|----------|
-| **Odoo users & IT admins** | Query data, generate reports, and automate workflows through AI assistants |
-| **Developers** | Build AI-powered Odoo integrations, extend the tool set, contribute to the project |
-| **DevOps engineers** | Deploy and manage the MCP server in production environments |
+| **Odoo users and IT admins** | Query data, generate reports, and automate workflows through AI assistants |
+| **Developers** | Build AI-powered Odoo integrations and extend the server |
+| **DevOps engineers** | Deploy and operate the MCP server in production |
 
 ### Technical Details
 
-- **Language**: Rust (2024 edition)
+- **Language**: Rust
 - **License**: AGPL-3.0
-- **Version**: 0.3.30
-- **Repository**: [github.com/rachmataditiya/odoo-rust-mcp](https://github.com/rachmataditiya/odoo-rust-mcp)
+- **Version**: 0.4.2
+- **Repository**: [github.com/milzamsz/odoo-rust-mcp](https://github.com/milzamsz/odoo-rust-mcp)
 
 ---
 
 ## Config UI at a Glance
 
-The built-in web UI runs at `http://localhost:3008` and provides:
+The built-in web UI runs at `http://localhost:3008`.
 
-| Tab | Purpose |
-|-----|---------|
-| **Server** | Edit server name, instructions, and protocol version |
-| **Instances** | Add/edit/delete Odoo connections; test connectivity; export & import |
-| **Tools** | Enable/disable tools individually or by group (Read / Write / Cleanup) |
+| Area | Purpose |
+|------|---------|
+| **Overview** | Runtime summary, auth posture, and config-source checks |
+| **Instances** | Add, edit, test, import, and export Odoo connections |
+| **Tools** | Enable or disable tool groups and individual tools |
 | **Prompts** | Manage built-in and custom prompts |
-| **Security** | Change Config UI password; manage MCP HTTP auth tokens |
+| **Server** | Edit server name, instructions, and protocol version |
+| **Security** | Change Config UI password and manage MCP HTTP auth |
+| **Documentation** | Open the built-in docs in a separate tab from the sidebar |
 
-![Config UI overview](./images/config-ui/overview-server.png)
+![Config UI overview](./images/config-ui/overview-dark.png)
 
-*The built-in Config UI with the expanded sidebar and live server configuration panel.*
+*The current Config UI shell with the expanded sidebar and the built-in documentation shortcut.*
 
-The sidebar is **collapsible** (auto-collapses on small screens) and includes a direct link to this documentation.
+The sidebar is **collapsible**, adapts to smaller screens, and now includes a direct route to the
+documentation.
 
 ---
 
@@ -62,20 +67,20 @@ The sidebar is **collapsible** (auto-collapses on small screens) and includes a 
 
 This documentation is organized into two sections:
 
-### Functional Documentation (Users & Admins)
+### Functional Documentation
 
-- [Getting Started](./functional/getting-started.md) — Installation and first-time setup
-- [Configuration](./functional/configuration.md) — Instances, authentication, environment variables, CLI options
-- [Config UI Guide](./functional/config-ui.md) — Complete guide to the web configuration interface
-- [Tools Reference](./functional/tools-reference.md) — Complete reference for all 22 tools
-- [Prompts Reference](./functional/prompts-reference.md) — Built-in prompts for Odoo domain knowledge
-- [Use Cases](./functional/use-cases.md) — Real-world examples and workflows
-- [Deployment](./functional/deployment.md) — Docker, Kubernetes, Helm, systemd, Windows service
+- [Getting Started](./functional/getting-started.md)
+- [Configuration](./functional/configuration.md)
+- [Config UI Guide](./functional/config-ui.md)
+- [Tools Reference](./functional/tools-reference.md)
+- [Prompts Reference](./functional/prompts-reference.md)
+- [Use Cases](./functional/use-cases.md)
+- [Deployment](./functional/deployment.md)
 
-### Developer Documentation (Contributors)
+### Developer Documentation
 
-- [Building from Source](./developer/building.md) — Prerequisites, build order, development setup
-- [Architecture](./developer/architecture.md) — System design, code structure, data flows
-- [API Reference](./developer/api-reference.md) — MCP protocol, HTTP endpoints, Config UI API
-- [Testing](./developer/testing.md) — Running and writing tests, CI pipeline
-- [Contributing](./developer/contributing.md) — How to contribute tools, prompts, and features
+- [Building from Source](./developer/building.md)
+- [Architecture](./developer/architecture.md)
+- [API Reference](./developer/api-reference.md)
+- [Testing](./developer/testing.md)
+- [Contributing](./developer/contributing.md)

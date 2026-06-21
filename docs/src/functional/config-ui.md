@@ -1,6 +1,8 @@
 # Config UI Guide
 
-The Config UI is a built-in web interface that lets you manage every aspect of the MCP server without editing JSON files by hand. It runs on **port 3008** alongside the main MCP server.
+The Config UI is the built-in control surface for `odoo-rust-mcp`. It lets you manage instances,
+tools, prompts, server metadata, and security settings without editing JSON by hand. It runs on
+**port 3008** alongside the main MCP server.
 
 **URL:** `http://localhost:3008`
 
@@ -8,69 +10,86 @@ The Config UI is a built-in web interface that lets you manage every aspect of t
 
 ## Accessing the Config UI
 
-Open a browser and navigate to `http://localhost:3008`. If authentication is enabled (recommended), you will be prompted to log in.
+Open a browser and navigate to `http://localhost:3008`.
 
 ### Default credentials
 
-Set via environment variables (see [Configuration](./configuration.md#config-ui-authentication)):
+Set via environment variables (see [Configuration](./configuration.md#config-ui)):
 
-```
+```text
 CONFIG_UI_USERNAME=admin
 CONFIG_UI_PASSWORD=changeme
 ```
 
-> **Important:** Change the default password immediately after first install using the **Security** tab.
-
-![Config UI login screen](../images/config-ui/login.png)
-
-*The default login page before you enter the credentials configured for the Config UI.*
+> **Important:** Change the default password immediately after first install using the
+> **Security** tab.
 
 ---
 
 ## Sidebar Navigation
 
-The left sidebar provides navigation to all tabs. It is **collapsible** to save screen space:
+The left sidebar is the main workspace navigator. It is **collapsible** to save space.
 
 | State | Behavior |
 |-------|----------|
-| **Expanded** | Full width (256 px) — shows icon + label for each nav item |
-| **Collapsed** | Narrow strip (64 px) — shows icons only; labels appear as tooltips |
+| **Expanded** | Full width (about 244 px) and shows icon + label for each entry |
+| **Collapsed** | Narrow icon rail (about 64 px) with tooltips on hover |
 
-- Click the **‹** / **›** arrow button at the top of the sidebar to toggle manually.
-- On screens narrower than **768 px** the sidebar auto-collapses.
+- Click the sidebar toggle button in the top header to collapse or expand it.
+- On screens narrower than **768 px** the sidebar becomes a mobile drawer.
 - Your preference is saved in `localStorage` and restored on the next visit.
 
-### Sidebar footer
+Current sidebar entries:
 
-The sidebar footer always shows:
+| Section | Entry | Purpose |
+|---------|-------|---------|
+| Workspace | **Overview** | Runtime summary and quick posture checks |
+| Workspace | **Instances** | Odoo connection records |
+| Workspace | **Tools** | MCP catalog toggles |
+| Workspace | **Prompts** | Shared prompt definitions |
+| Workspace | **Documentation** | Opens `/docs/` in a new tab |
+| Operations | **Server** | Server metadata and runtime source signals |
+| Operations | **Security** | UI password and MCP HTTP auth |
+
+### Header and footer
+
+The header stays intentionally quiet and focuses on:
 
 | Item | Description |
 |------|-------------|
-| 📖 **Documentation** | Opens this documentation at `/docs/` in a new tab |
-| ● **Hot Reload Active** | Green dot — confirms configuration changes apply instantly |
-| **Username + Logout** | Shown when authentication is enabled |
+| **Route title** | The current workspace section |
+| **Sidebar toggle** | Collapse or expand the desktop sidebar |
+| **Keyboard help** | Opens the shortcut reference |
+| **Theme mode** | Chooses `Light`, `Dark`, or `Auto` (follow system theme) |
 
-![Config UI overview](../images/config-ui/overview-server.png)
+The footer shows:
 
-*A logged-in overview of the Config UI with the expanded sidebar, server settings, and documentation link visible.*
+| Item | Description |
+|------|-------------|
+| **Hot Reload** | Confirms configuration changes apply instantly |
+| **Unsaved state** | Warns when edits are still pending |
+
+![Config UI overview](../images/config-ui/overview-dark.png)
+
+*The current dark-mode overview with the collapsible sidebar and the `Documentation` entry in the
+workspace navigation.*
 
 ---
 
 ## Tabs Overview
 
-### Server Tab
+### Overview Tab
 
-Edit the MCP server identity and system prompt that AI clients receive.
+The authenticated landing route is **Overview**. It highlights:
 
-| Field | Description |
-|-------|-------------|
-| **Server Name** | Name advertised to MCP clients (e.g., `odoo-rust-mcp`) |
-| **Instructions** | Agent-oriented system instructions sent to AI clients — covers how to work safely and when to fetch deeper prompt references |
-| **Protocol Version** | MCP protocol version string |
+- configured instance count
+- tool catalog count
+- prompt count
+- UI auth posture
+- runtime source and env snapshot posture
 
-Changes are saved and hot-reloaded immediately — no server restart required.
-
----
+Use this page when you want to quickly confirm whether the running server is reading the config you
+expect.
 
 ### Instances Tab
 
@@ -78,153 +97,122 @@ Manage Odoo server connections. This is the most commonly used tab.
 
 #### Instance list
 
-Each configured instance is displayed as a searchable card. Use the search field to filter by name, URL, database, auth mode, version, or manual tags.
+Each configured instance can be viewed as cards or in a denser table. Use the primary search field
+to filter by name, URL, database, auth mode, version, or manual tags.
 
-| Column | Description |
-|--------|-------------|
-| **Name** | Unique identifier used in tool calls (`instance` parameter) |
-| **URL** | Odoo server URL (clickable link) |
+| Field | Description |
+|-------|-------------|
+| **Name** | Unique identifier used in tool calls (`instance`) |
+| **URL** | Odoo server URL |
 | **Database** | Database name |
-| **Auth Type** | `API Key` (Odoo 19+) or `Username/Password` (Odoo <19) |
-| **Version** | Odoo version badge if specified |
+| **Authentication** | `API Key` (Odoo 19+) or `Username/Password` (Odoo 18 and earlier) |
+| **Version** | Odoo version badge when specified |
 | **Tags** | Optional manual labels such as `prod`, `staging`, or `finance` |
-| **Status** | Connection test result (idle / checking / ✓ Xms / ✗ error) |
+| **Status** | Connection test result |
 | **Actions** | Test, Edit, Delete |
 
-![Configured instances list](../images/config-ui/instances-list.png)
+![Configured instances list](../images/config-ui/instances-dark.png)
 
-*The Instances tab with example values redacted before capture so the screenshot stays realistic without exposing live instance details.*
+*The current instances workspace supports both card and table views, with public screenshots
+redacted before capture.*
 
-#### Adding / editing an instance
+#### Adding and editing an instance
 
-Click **Add Instance** or the ✏ (edit) icon to open the instance form. Fields:
+Click **Add Instance** or an edit action to open the right-side drawer.
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| `url` | Yes | e.g. `https://myodoo.com` |
-| `db` | v<19 | Required for JSON-RPC auth |
-| `apiKey` | v19+ | Bearer token from Odoo Settings → API Keys |
-| `version` | v<19 | e.g. `18` — triggers username/password mode |
-| `username` | v<19 | Odoo login username |
-| `password` | v<19 | Odoo login password |
-| `protocol` | No | `auto` (default), `jsonrpc`, or `json2` |
-| `tags` | No | Manual labels used to search and filter Odoo Instances |
-| `timeout_ms` | No | Request timeout; default `30000` ms |
-| `max_retries` | No | Retry attempts; default `2` |
-
-![Add instance form](../images/config-ui/instance-form.png)
-
-*The add-instance form used for both new connections and edits to existing entries.*
+| `url` | Yes | Example: `https://myodoo.com` |
+| `db` | Odoo 18 and earlier | Required for JSON-RPC auth |
+| `apiKey` | Odoo 19+ | API key from Odoo settings |
+| `version` | Optional | Example: `16`, `17`, `18`, `19` |
+| `username` | Odoo 18 and earlier | Odoo login username |
+| `password` | Odoo 18 and earlier | Odoo login password |
+| `protocol` | No | `auto`, `jsonrpc`, or `json2` |
+| `tags` | No | Manual labels for filtering |
+| `timeout_ms` | No | Request timeout, default `30000` |
+| `max_retries` | No | Retry attempts, default `2` |
 
 #### Testing connections
 
-- **Per-row test** — click the wifi icon (⊘) on any instance row. Shows latency in ms on success or error message on failure.
-- **Test All** — button in the card header runs all tests in parallel.
+- **Per-row test** runs a connection probe for one instance.
+- **Test all** runs the checks across the visible instance set.
 
-Connection tests run server-side (Rust → Odoo), so they bypass browser CORS restrictions.
+Connection tests run server-side, so they are not blocked by browser CORS restrictions.
 
-#### Bidirectional instance sync
+#### Import and export
 
-The running MCP tool pool stays in sync with the Config UI:
-
-- **Config UI → MCP pool**: When you save an instance, the live `OdooClientPool` reloads automatically. Tool calls immediately use the updated credentials — no restart needed.
-- **Env vars → Config UI**: On startup, instances defined via the `ODOO_INSTANCES` environment variable (that are not already in `instances.json`) are merged into the file, so they appear in the UI.
-
-#### Export instances
-
-Click **Export** to download the full `instances.json` as a file named `odoo-instances-YYYY-MM-DD.json`. Useful for backups or moving config between environments.
-
-#### Import instances
-
-Click **Import** and select a JSON file (previously exported or hand-crafted). A confirmation dialog shows:
-
-| Section | Description |
-|---------|-------------|
-| **New instances** (green) | Instances in the file that don't yet exist locally |
-| **Conflicts** (amber) | Instances whose names match existing ones |
-| **Import mode** | Choose **Merge** or **Replace all** |
-
-**Merge** (default) — adds new instances and overwrites conflicting ones; all other existing instances are kept.
-
-**Replace all** — removes all current instances and uses only the imported file. The confirm button turns red as a visual warning.
-
----
+- **Export** downloads the current `instances.json`.
+- **Import** lets you merge or replace the current instance catalog from a JSON file.
 
 ### Tools Tab
 
-Enable or disable individual MCP tools. Disabled tools are hidden from AI clients entirely.
-
-#### Group-based control
+Enable or disable MCP tools. Disabled tools disappear from AI clients entirely.
 
 Tools are organized into three operation groups:
 
-| Group | Color | Env Gate | Tools |
-|-------|-------|----------|-------|
-| **Read Operations** | Blue | None (always available) | `odoo_search`, `odoo_search_read`, `odoo_read`, `odoo_count`, `odoo_read_group`, `odoo_name_search`, `odoo_name_get`, `odoo_default_get`, `odoo_list_models`, `odoo_get_model_metadata`, `odoo_check_access`, `odoo_generate_report`, `odoo_onchange` |
-| **Write Operations** | Yellow | `ODOO_ENABLE_WRITE_TOOLS=true` | `odoo_create`, `odoo_create_batch`, `odoo_update`, `odoo_delete`, `odoo_copy`, `odoo_execute`, `odoo_workflow_action` |
-| **Cleanup Operations** | Red | `ODOO_ENABLE_CLEANUP_TOOLS=true` | `odoo_database_cleanup`, `odoo_deep_cleanup` |
+| Group | Gate | Purpose |
+|-------|------|---------|
+| **Read Operations** | None | Always-available read and discovery tools |
+| **Write Operations** | `ODOO_ENABLE_WRITE_TOOLS=true` | Create, update, delete, execute, workflow |
+| **Cleanup Operations** | `ODOO_ENABLE_CLEANUP_TOOLS=true` | Cleanup and deep-cleanup tools |
 
-Each group header shows a badge **X / Y enabled** and has **Enable All** / **Disable All** buttons for that group.
+Each group exposes bulk enable and disable controls, plus individual toggles.
 
-Tools not in any defined group appear under an **Other** section.
+![Tool groups and toggles](../images/config-ui/tools-dark.png)
 
-> **Note:** Cleanup tools also require the `ODOO_ENABLE_CLEANUP_TOOLS` environment variable to be `true` — the UI toggle alone is not sufficient.
-
-![Tool groups and toggles](../images/config-ui/tools-groups.png)
-
-*The Tools tab groups operations into read, write, and cleanup sections with bulk enable and disable controls.*
-
-#### Individual tool control
-
-Expand a group (click the header) to see individual tools with their toggle switches, descriptions, and operation type badges.
-
----
+*The current tools workspace keeps the catalog compact while preserving grouped enable and disable
+controls.*
 
 ### Prompts Tab
 
-Manage MCP prompts — canned context snippets that AI clients can request by name.
+Manage MCP prompts that AI clients can request by name. The prompt drawer follows the same
+right-side editing pattern as instance editing, so long prompt content remains usable on smaller
+screens.
 
-The built-in prompts cover:
+![Prompt catalog](../images/config-ui/prompts-dark.png)
 
-| Prompt | Topic |
-|--------|-------|
-| `odoo_common_models` | List of commonly used Odoo models |
-| `odoo_domain_filters` | Domain filter syntax guide |
-| `odoo_field_types` | Field types and relational field patterns |
-| `odoo_workflow_states` | Common workflow states for Odoo documents |
-| `odoo_read_group` | Aggregation and reporting with `read_group` |
-| `odoo_context` | Odoo context parameters |
-| `odoo_api_tips` | Best practices for Odoo API usage |
-| `odoo_owl_components` | Owl component structure and first-pass debugging checks |
-| `odoo_assets_and_bundles` | Asset bundle selection and module wiring |
-| `odoo_frontend_contexts` | Choosing backend, client action, standalone Owl, or website runtime |
-| `odoo_qweb_and_templates` | QWeb/Owl template rules and version-sensitive XML guidance |
+*The prompt workspace keeps the shared prompt catalog in the same shell as instances, tools, and
+server settings.*
 
-You can add custom prompts or edit existing ones directly in the JSON editor.
+### Server Tab
 
----
+Edit the MCP server identity and inspect runtime source signals that explain where live instance
+data is coming from.
+
+Key uses:
+
+- update server name
+- update instructions exposed to MCP clients
+- inspect env snapshot posture
+- review alternate nearby `instances.json` files that may confuse operators
+
+![Server configuration](../images/config-ui/server-dark.png)
+
+*The current server workspace combines editable metadata with runtime source visibility.*
 
 ### Security Tab
 
 Manage authentication for both the Config UI and the MCP HTTP transport.
 
-![Security settings tab](../images/config-ui/security.png)
+![Security settings tab](../images/config-ui/security-dark.png)
 
-*The Security tab covers Config UI password changes and MCP HTTP authentication token management.*
+*The Security tab covers Config UI password changes and MCP HTTP authentication token management in
+the current shell.*
 
 #### Config UI password
 
-Change the password for the web interface. Requires your current session (you must already be logged in).
+Change the password for the web interface while signed in.
 
 #### MCP HTTP auth
 
 When running in HTTP transport mode, you can require AI clients to present a bearer token:
 
-1. **Enable MCP Auth** — toggle the `MCP_AUTH_ENABLED` setting.
-2. **Generate Token** — creates a new random token and writes it to the env file.
-3. Copy the token to your AI client's MCP configuration.
+1. Enable MCP auth.
+2. Generate a token.
+3. Copy the token into your AI client's MCP configuration.
 
-The token is written to `~/.config/odoo-rust-mcp/env` and hot-reloaded immediately.
+The token is written to the env file and hot-reloaded immediately.
 
 ---
 
@@ -234,11 +222,11 @@ All changes through the Config UI are applied **instantly** without restarting t
 
 | Change | Effect |
 |--------|--------|
-| Save instances | `OdooClientPool` reloads; cached clients cleared |
-| Save tools / prompts | Registry reloads; AI clients see new tool list on next `tools/list` |
-| Save server config | Server name and instructions updated |
-| Change password | Auth config reloads in memory |
-| Toggle MCP auth | HTTP transport reloads auth settings |
+| Save instances | `OdooClientPool` reloads and cached clients clear |
+| Save tools or prompts | Registry reloads |
+| Save server config | Server name and instructions update |
+| Change password | UI auth reloads in memory |
+| Toggle MCP auth | HTTP transport auth reloads |
 
 ---
 
@@ -246,21 +234,27 @@ All changes through the Config UI are applied **instantly** without restarting t
 
 | Action | Shortcut |
 |--------|----------|
-| Toggle sidebar | Click **‹ / ›** button |
-| Submit form | `Enter` (in most text inputs) |
-| Cancel form | `Escape` |
+| Toggle sidebar | Ctrl/Cmd + B |
+| Open create flow | Ctrl/Cmd + N |
+| Focus primary search | / |
+| Jump to Overview | Ctrl/Cmd + 1 |
+| Jump to Instances | Ctrl/Cmd + 2 |
+| Jump to Tools | Ctrl/Cmd + 3 |
+| Jump to Prompts | Ctrl/Cmd + 4 |
+| Jump to Server | Ctrl/Cmd + 5 |
+| Jump to Security | Ctrl/Cmd + 6 |
+| Open shortcuts help | ? |
 
 ---
 
 ## Accessing the Documentation
 
-The built-in mdBook documentation is served at `http://localhost:3008/docs/` when the docs have been built.
+The built-in mdBook documentation is served at `http://localhost:3008/docs/` when the docs have
+been built. Official release packages include the generated book, so installed copies expose this
+route without a separate mdBook build.
 
-To build the docs:
+You can also open it from the **Documentation** sidebar item, which launches the docs in a new tab
+so the current Config UI workspace is not interrupted.
 
-```bash
-cd docs
-mdbook build
-```
-
-Once built, the **📖 Documentation** link in the sidebar footer opens the docs directly.
+The Rust Hexagon mark is shared by the Config UI header, browser favicon, Windows shortcut, and
+this documentation site.

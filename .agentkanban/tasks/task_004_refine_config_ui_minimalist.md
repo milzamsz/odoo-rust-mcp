@@ -2,7 +2,7 @@
 title: Refine Config UI to Minimalist Light-First Shell
 lane: in-progress
 created: 2026-06-20T16:05:00+07:00
-updated: 2026-06-20T16:05:00+07:00
+updated: 2026-06-21T00:00:00+07:00
 description: Refine the Mantine Config UI into a cleaner shadcn-inspired experience with a collapsible desktop sidebar, quieter layout, and drawer-based editing flows.
 priority: high
 labels: [config-ui, mantine, minimalist, sdd]
@@ -11,8 +11,6 @@ spec: .agentkanban/specs/config-ui-experience/spec.md
 ---
 
 ## Conversation
-
-### user
 
 ### agent
 
@@ -599,5 +597,38 @@ Validation note:
 
 - Docker was unavailable locally, so the Dockerfile-specific build check could not run. The shared
   UI, docs, Rust, packaging, and runtime validations passed.
+
+### user
+
+Implement Plan, but just task not development
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_004_refine_config_ui_minimalist.md`.
+
+Created a new planning-only Agentic Kanban task for the next instances refinement without starting
+UI development.
+
+What was created:
+
+- shared capability spec update:
+  - `.agentkanban/specs/instance-list-views/spec.md`
+- spec-driven change folder:
+  - `.agentkanban/changes/instance-bulk-delete-and-error-cleanup/`
+- new task file:
+  - `.agentkanban/tasks/task_013_instance_bulk_delete_and_error_cleanup.md`
+
+Planning decisions captured in the new task:
+
+- add a checkbox selection column in table view only
+- show a bulk delete action when rows are selected
+- use one destructive modal that lists candidates, allows final deselection, and requires typing
+  `DELETE`
+- define the cleanup shortcut as `Remove error instances`
+- treat only current `Error` connection states as cleanup candidates; `Not checked`, `Checking`,
+  and healthy rows are excluded
+
+No Config UI source files, Rust files, tests, or release assets were changed in this pass beyond
+the planning artifacts.
 
 ### user

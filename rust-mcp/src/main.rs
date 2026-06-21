@@ -855,6 +855,9 @@ async fn run_http_with_auth(
 #[cfg(test)]
 mod tests {
     use super::should_auto_set_instances_json;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     struct EnvGuard {
         key: &'static str,
@@ -895,6 +898,7 @@ mod tests {
 
     #[test]
     fn auto_sets_instances_json_when_no_env_source_is_present() {
+        let _lock = ENV_LOCK.lock().expect("env test lock poisoned");
         let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
         let _instances = EnvGuard::set("ODOO_INSTANCES", None);
 
@@ -903,6 +907,7 @@ mod tests {
 
     #[test]
     fn still_auto_sets_instances_json_when_instances_env_is_present() {
+        let _lock = ENV_LOCK.lock().expect("env test lock poisoned");
         let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
         let _instances = EnvGuard::set(
             "ODOO_INSTANCES",
@@ -914,6 +919,7 @@ mod tests {
 
     #[test]
     fn skips_auto_setting_instances_json_when_path_is_already_set() {
+        let _lock = ENV_LOCK.lock().expect("env test lock poisoned");
         let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", Some("/tmp/instances.json"));
         let _instances = EnvGuard::set("ODOO_INSTANCES", None);
 

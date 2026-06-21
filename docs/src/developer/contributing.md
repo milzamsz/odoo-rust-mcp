@@ -81,6 +81,22 @@ Then create a Pull Request on GitHub.
 
 ---
 
+## Agentic Kanban Workflow
+
+This repository also carries a repo-local Agentic Kanban workspace in `.agentkanban/`.
+
+- The current board profile is `lite`, so the working lane flow is `backlog -> in-progress -> done`.
+- For non-trivial changes, prefer spec-driven work with:
+  - `.agentkanban/specs/<capability>/spec.md`
+  - `.agentkanban/changes/<task-slug>/proposal.md`
+  - `.agentkanban/changes/<task-slug>/design.md`
+  - `.agentkanban/changes/<task-slug>/tasks.md`
+- `changes/<task-slug>/tasks.md` is the authoritative checklist for spec-driven work.
+
+See [Agentic Kanban Workflow](agentic-kanban.md) for the full repo-local conventions.
+
+---
+
 ## Coding Standards
 
 ### Rust Style

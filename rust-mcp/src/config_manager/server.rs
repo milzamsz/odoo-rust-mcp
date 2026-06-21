@@ -339,50 +339,39 @@ fn find_static_dir() -> PathBuf {
 /// Returns None when the docs haven't been built yet — the /docs route is simply
 /// not mounted in that case, so the server still starts cleanly.
 fn find_docs_dir() -> Option<PathBuf> {
-    let candidates: &[&str] = &[
-        // Running from rust-mcp/ working directory
-        "../docs/book",
-        // Running from project root
-        "docs/book",
-    ];
+    let cwd = std::env::current_dir().ok();
+    let executable_dir = std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(std::path::Path::to_path_buf));
 
-    for rel in candidates {
-        let p = std::path::Path::new(rel);
-        if p.exists()
-            && p.is_dir()
-            && let Ok(canonical) = p.canonicalize()
-        {
-            return Some(canonical);
-        }
-    }
+    find_docs_dir_from(cwd.as_deref(), executable_dir.as_deref())
+}
 
-    // Relative to executable
-    if let Ok(exe) = std::env::current_exe()
-        && let Some(exe_dir) = exe.parent()
-    {
-        let candidate = exe_dir.join("../docs/book");
-        if candidate.exists()
-            && candidate.is_dir()
-            && let Ok(canonical) = candidate.canonicalize()
-        {
-            return Some(canonical);
-        }
-    }
+fn find_docs_dir_from(
+    current_dir: Option<&std::path::Path>,
+    executable_dir: Option<&std::path::Path>,
+) -> Option<PathBuf> {
+    let candidates = current_dir
+        .into_iter()
+        .flat_map(|root| [root.join("docs/book"), root.join("../docs/book")])
+        .chain(
+            executable_dir
+                .into_iter()
+                .flat_map(|root| [root.join("docs/book"), root.join("../docs/book")]),
+        )
+        .chain(
+            [
+                "/opt/homebrew/share/odoo-rust-mcp/docs/book",
+                "/usr/local/share/odoo-rust-mcp/docs/book",
+                "/usr/share/rust-mcp/docs/book",
+            ]
+            .into_iter()
+            .map(PathBuf::from),
+        );
 
-    // Relative to current working directory (project root variant)
-    if let Ok(cwd) = std::env::current_dir() {
-        for rel in &["docs/book", "../docs/book"] {
-            let candidate = cwd.join(rel);
-            if candidate.exists()
-                && candidate.is_dir()
-                && let Ok(canonical) = candidate.canonicalize()
-            {
-                return Some(canonical);
-            }
-        }
-    }
-
-    None
+    candidates
+        .filter(|candidate| candidate.is_dir())
+        .find_map(|candidate| candidate.canonicalize().ok())
 }
 
 // =============================================================================
@@ -1409,8 +1398,8 @@ async fn update_server(
 mod tests {
     use super::{
         AppState, AuthConfig, DynamicAuthConfig, InstanceEnvSyncState, build_instances_sync_status,
-        deactivate_env_var, read_active_env_vars, sync_instances_to_env, test_instance_connection,
-        update_env_var,
+        deactivate_env_var, find_docs_dir_from, read_active_env_vars, sync_instances_to_env,
+        test_instance_connection, update_env_var,
     };
     use crate::{
         TEST_ENV_MUTEX,
@@ -1434,6 +1423,19 @@ mod tests {
     struct EnvGuard {
         key: &'static str,
         original: Option<String>,
+    }
+
+    #[test]
+    fn finds_packaged_docs_beside_the_executable() {
+        let temp_dir = TempDir::new().unwrap();
+        let executable_dir = temp_dir.path().join("install");
+        let docs_dir = executable_dir.join("docs/book");
+        std::fs::create_dir_all(&docs_dir).unwrap();
+
+        assert_eq!(
+            find_docs_dir_from(None, Some(&executable_dir)),
+            Some(docs_dir.canonicalize().unwrap())
+        );
     }
 
     impl EnvGuard {

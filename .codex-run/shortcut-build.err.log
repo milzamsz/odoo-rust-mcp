@@ -1,3 +1,2 @@
-    Blocking waiting for file lock on artifact directory
-    Finished `release` profile [optimized] target(s) in 23.16s
-(s) in 3m 28s
+   Compiling rust-mcp v0.4.0 (C:\Workspace\tools\mcp\odoo-rust-mcp\rust-mcp)
+    Finished `release` profile [optimized] target(s) in 1m 08s

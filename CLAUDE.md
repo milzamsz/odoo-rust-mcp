@@ -5,9 +5,9 @@
 A **dual-stack Model Context Protocol (MCP) server** for Odoo ERP integration, written in Rust with a React TypeScript configuration UI.
 
 - **Backend** (`rust-mcp/`): Rust MCP server - protocol handling, Odoo API clients, tool execution
-- **Frontend** (`config-ui/`): React 18 + TypeScript + Vite + Tailwind CSS - web-based config editor
+- **Frontend** (`config-ui/`): React 19 + TypeScript + Vite + Mantine - web-based config editor
 - Supports **Odoo 19+** (JSON-2 External API, API key auth) and **Odoo <19** (JSON-RPC, username/password)
-- License: AGPL-3.0 | Current version: 0.3.30
+- License: AGPL-3.0 | Current version: 0.4.2
 
 ## Build & Test Commands
 

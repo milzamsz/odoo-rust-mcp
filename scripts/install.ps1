@@ -37,6 +37,26 @@ function Install-OdooMcp {
     Write-Info "Installing binary to $InstallDir..."
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     Copy-Item "$ScriptDir\$BinaryName.exe" -Destination $InstallDir -Force
+    foreach ($launcherFile in @(
+        "Start-MCP-Server.ps1",
+        "Start-MCP-Server.bat",
+        "Create-Shortcut.ps1",
+        "Start-WSL-MCP-Server.ps1",
+        "Start-WSL-MCP-Server.bat",
+        "Create-WSL-Shortcut.ps1",
+        "start.sh"
+    )) {
+        $sourcePath = Join-Path $ScriptDir $launcherFile
+        if (Test-Path $sourcePath) {
+            Copy-Item $sourcePath -Destination $InstallDir -Force
+        }
+    }
+    foreach ($assetDirectory in @("assets", "docs")) {
+        $sourcePath = Join-Path $ScriptDir $assetDirectory
+        if (Test-Path $sourcePath) {
+            Copy-Item $sourcePath -Destination $InstallDir -Recurse -Force
+        }
+    }
 
     Write-Info "Installing config files to $ConfigDir..."
     New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null
@@ -60,6 +80,7 @@ function Install-OdooMcp {
     Write-Info "Installation complete!"
     Write-Host ""
     Write-Host "Binary installed to: $InstallDir\$BinaryName.exe"
+    Write-Host "Desktop shortcut launcher: $InstallDir\Start-MCP-Server.ps1"
     Write-Host "Config files installed to: $ConfigDir"
     Write-Host ""
     Write-Host "Usage:"
@@ -67,6 +88,7 @@ function Install-OdooMcp {
     Write-Host "  Run as HTTP server:    $BinaryName --transport http --listen 127.0.0.1:8787"
     Write-Host "  Install as service:    .\install.ps1 -Service"
     Write-Host "  Create shortcuts:      .\install.ps1 -Shortcut"
+    Write-Host "  Open Config UI:        Double-click 'Odoo MCP Server.lnk' on the Desktop"
     Write-Host ""
     Write-Host "For Cursor/Claude Desktop, see README for configuration examples."
 }

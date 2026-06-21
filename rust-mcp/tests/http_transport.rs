@@ -12,12 +12,15 @@ use rust_mcp::mcp::tools::OdooClientPool;
 use serde_json::json;
 use std::sync::Arc;
 use tempfile::TempDir;
+use tokio::sync::Mutex;
 
 const MCP_SESSION_HEADER: &str = "mcp-session-id";
 const AUTH_HEADER: &str = "authorization";
+static TEST_ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
 /// Setup test environment and create a test server.
 async fn setup_test_server(with_auth: bool) -> (TestServer, TempDir) {
+    let _lock = TEST_ENV_LOCK.lock().await;
     let temp_dir = TempDir::new().unwrap();
 
     // Write minimal config files

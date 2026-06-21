@@ -1,3 +1,5 @@
+import '@testing-library/jest-dom/vitest';
+
 const storageState = new Map<string, string>();
 
 const storageMock: Storage = {
@@ -23,5 +25,38 @@ const storageMock: Storage = {
 
 Object.defineProperty(globalThis, 'localStorage', {
   value: storageMock,
+  configurable: true,
+});
+
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }),
+});
+
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+Object.defineProperty(globalThis, 'ResizeObserver', {
+  value: ResizeObserverMock,
+  configurable: true,
+});
+
+Object.defineProperty(window, 'visualViewport', {
+  value: {
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  },
   configurable: true,
 });

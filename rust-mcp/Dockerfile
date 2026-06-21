@@ -45,6 +45,11 @@ RUN npm ci || npm install
 COPY config-ui ./
 RUN npm run build
 
+# Build the documentation served from /docs/ by the Config UI server.
+WORKDIR /app
+COPY docs ./docs
+RUN cargo install mdbook --locked && mdbook build docs
+
 # React UI is now built at /app/rust-mcp/static/dist
 
 # Verify UI build output
@@ -109,6 +114,9 @@ COPY --from=builder /app/rust-mcp/target/release/rust-mcp /usr/local/bin/rust-mc
 # Copy static files (React UI) from builder
 # Note: Working directory is /app, so static/dist will be at /app/static/dist
 COPY --from=builder --chown=mcp:mcp /app/rust-mcp/static /app/static
+
+# Copy built mdBook documentation for the Config UI sidebar link.
+COPY --from=builder --chown=mcp:mcp /app/docs/book /app/docs/book
 
 # Copy default config files
 COPY --chown=mcp:mcp config /config

@@ -26,3 +26,6 @@ mcp_config.json
 install.ps1
 env
 static/
+.codex-run/
+test-run.log
+

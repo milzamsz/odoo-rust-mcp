@@ -17,3 +17,4 @@
     - [API Reference](developer/api-reference.md)
     - [Testing](developer/testing.md)
     - [Contributing](developer/contributing.md)
+    - [Agentic Kanban Workflow](developer/agentic-kanban.md)

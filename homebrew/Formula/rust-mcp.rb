@@ -2,7 +2,7 @@ class RustMcp < Formula
   desc "Odoo MCP Server - Model Context Protocol server for Odoo integration"
   homepage "https://github.com/rachmataditiya/odoo-rust-mcp"
   homepage "https://github.com/milzamsz/odoo-rust-mcp"
-  version "0.3.30"
+  version "0.4.2"
   license "AGPL-3.0-only"
 
   on_macos do
@@ -33,6 +33,9 @@ class RustMcp < Formula
     # Install static files (React UI) if present
     if Dir.exist?("static/dist")
       (share/"odoo-rust-mcp/static/dist").install Dir["static/dist/*"]
+    end
+    if Dir.exist?("docs/book")
+      (share/"odoo-rust-mcp/docs/book").install Dir["docs/book/*"]
     end
 
     # Create wrapper script that loads env file before running

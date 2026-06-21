@@ -1,132 +1,61 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle,
-  CheckCircle2,
+  ActionIcon,
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Divider,
+  Group,
+  Loader,
+  Modal,
+  Pill,
+  ScrollArea,
+  SegmentedControl,
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
+import {
+  ArrowClockwise,
+  ArrowsDownUp,
   Database,
-  Download,
-  Edit2,
-  Key,
-  Loader2,
+  DownloadSimple,
+  MagnifyingGlass,
+  PencilSimple,
   Plus,
-  RefreshCw,
-  Search,
   Tag,
-  Trash2,
-  Upload,
-  User,
-  Wifi,
-  XCircle,
-} from 'lucide-react';
+  Trash,
+  UploadSimple,
+  WifiHigh,
+} from '@phosphor-icons/react';
+import {
+  ColumnFiltersState,
+  SortingState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type FilterFn,
+} from '@tanstack/react-table';
 import { useConfig } from '../../hooks/useConfig';
-import { countEnabledToolsForInstance } from '../../toolGroups';
-import type { InstanceConfig, ToolConfig } from '../../types';
-import { Button } from '../Button';
-import { Card } from '../Card';
-import { InstanceForm } from '../InstanceForm';
-import { StatusMessage } from '../StatusMessage';
+import { fetchJson, getAuthHeaders } from '../../lib/api';
 import { getInstanceTags } from '../../instanceTags';
-
-const TOKEN_STORAGE_KEY = 'mcp_config_token';
-
-class HttpResponseError extends Error {
-  status: number;
-  bodyText: string;
-
-  constructor(message: string, status: number, bodyText = '') {
-    super(message);
-    this.name = 'HttpResponseError';
-    this.status = status;
-    this.bodyText = bodyText;
-  }
-}
-
-function getAuthHeaders(): HeadersInit {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  return headers;
-}
-
-function handleUnauthorized(response: Response) {
-  if (response.status === 401) {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-    window.location.reload();
-  }
-}
-
-function looksLikeHtml(text: string): boolean {
-  const trimmed = text.trim().toLowerCase();
-  return (
-    trimmed.startsWith('<!doctype') ||
-    trimmed.startsWith('<html') ||
-    trimmed.startsWith('<body') ||
-    trimmed.includes('<head')
-  );
-}
-
-function extractErrorText(body: unknown): string | null {
-  if (typeof body === 'string') {
-    const trimmed = body.trim();
-    if (!trimmed || looksLikeHtml(trimmed)) {
-      return null;
-    }
-    return trimmed.replace(/\s+/g, ' ');
-  }
-
-  if (
-    typeof body === 'object' &&
-    body !== null &&
-    'error' in body &&
-    typeof body.error === 'string' &&
-    body.error.trim()
-  ) {
-    return body.error.trim();
-  }
-
-  if (
-    typeof body === 'object' &&
-    body !== null &&
-    'message' in body &&
-    typeof body.message === 'string' &&
-    body.message.trim()
-  ) {
-    return body.message.trim();
-  }
-
-  return null;
-}
-
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-
-  if (response.status === 401) {
-    handleUnauthorized(response);
-    throw new Error('Session expired. Please log in again.');
-  }
-
-  const rawText = await response.text().catch(() => '');
-  let data: unknown = {};
-
-  if (rawText.trim()) {
-    try {
-      data = JSON.parse(rawText);
-    } catch {
-      if (response.ok) {
-        throw new HttpResponseError('Invalid JSON response', response.status, rawText);
-      }
-      data = rawText;
-    }
-  }
-
-  if (!response.ok) {
-    const errorMessage = extractErrorText(data) ?? `HTTP ${response.status}`;
-    throw new HttpResponseError(errorMessage, response.status, rawText);
-  }
-
-  return data as T;
-}
+import { countEnabledToolsForInstance } from '../../toolGroups';
+import { InstanceForm } from '../InstanceForm';
+import { SectionTitle } from '../SectionTitle';
+import { NameChip } from '../NameChip';
+import type { InstanceConfig, InstanceDetails, ToolConfig } from '../../types';
+import { useSearchParams } from 'react-router-dom';
 
 type ConnStatus =
   | { status: 'idle' }
@@ -135,6 +64,7 @@ type ConnStatus =
   | { status: 'error'; error: string };
 
 type ImportMode = 'merge' | 'replace';
+type InstanceViewMode = 'card' | 'table';
 
 interface ImportPreview {
   incoming: InstanceConfig;
@@ -143,47 +73,176 @@ interface ImportPreview {
   mode: ImportMode;
 }
 
+interface InstanceRow {
+  name: string;
+  instance: InstanceDetails;
+  tags: string[];
+  searchableText: string;
+  dbLabel: string;
+  authLabel: string;
+  authFilterValue: 'api-key' | 'username-password';
+  versionLabel: string;
+  versionFilterValue: string;
+  toolsLabel: string;
+  toolsFilterValue: 'full' | 'limited' | 'none' | 'unknown';
+  toolsEnabledCount: number;
+  toolsTotalCount: number;
+  connectionStatus: ConnStatus;
+  statusFilterValue: 'idle' | 'checking' | 'healthy' | 'error';
+}
+
+const INSTANCE_VIEW_STORAGE_KEY = 'mcp_instances_view';
+
+const textIncludesFilter: FilterFn<InstanceRow> = (row, columnId, filterValue) => {
+  const value = String(row.getValue(columnId) ?? '').toLowerCase();
+  const needle = String(filterValue ?? '').trim().toLowerCase();
+  return needle.length === 0 || value.includes(needle);
+};
+
+const exactFilter: FilterFn<InstanceRow> = (row, columnId, filterValue) => {
+  const needle = String(filterValue ?? '');
+  return !needle || String(row.getValue(columnId) ?? '') === needle;
+};
+
+function buildInstanceRow(
+  name: string,
+  instance: InstanceDetails,
+  availableTools: ToolConfig[],
+  connStatuses: Record<string, ConnStatus>
+): InstanceRow {
+  const tags = getInstanceTags(instance);
+  const authLabel = instance.apiKey ? 'API Key' : 'Username/Password';
+  const toolsTotalCount = availableTools.length;
+  const toolsEnabledCount = countEnabledToolsForInstance(
+    availableTools,
+    instance.toolConfig?.disabledTools ?? []
+  );
+  const toolsFilterValue =
+    toolsTotalCount === 0
+      ? 'unknown'
+      : toolsEnabledCount === 0
+        ? 'none'
+        : toolsEnabledCount === toolsTotalCount
+          ? 'full'
+          : 'limited';
+  const status = connStatuses[name] ?? { status: 'idle' };
+
+  return {
+    name,
+    instance,
+    tags,
+    searchableText: [name, instance.url, instance.db ?? '', authLabel, instance.version ?? '', ...tags]
+      .join(' ')
+      .toLowerCase(),
+    dbLabel: instance.db || 'Optional / unset',
+    authLabel,
+    authFilterValue: instance.apiKey ? 'api-key' : 'username-password',
+    versionLabel: instance.version ? `v${instance.version}` : 'Auto',
+    versionFilterValue: instance.version ? String(instance.version) : 'auto',
+    toolsLabel: toolsTotalCount > 0 ? `${toolsEnabledCount}/${toolsTotalCount} enabled` : 'Catalog unavailable',
+    toolsFilterValue,
+    toolsEnabledCount,
+    toolsTotalCount,
+    connectionStatus: status,
+    statusFilterValue:
+      status.status === 'ok' ? 'healthy' : status.status === 'error' ? 'error' : status.status,
+  };
+}
+
+function getStatusLabel(status: ConnStatus) {
+  if (status.status === 'idle') return 'Not checked';
+  if (status.status === 'checking') return 'Checking';
+  if (status.status === 'ok') return `Healthy ${status.latency}ms`;
+  return 'Error';
+}
+
 export function InstancesTab() {
-  const { load, save, status, loading } = useConfig('instances');
+  const { load, save, loading } = useConfig('instances');
   const { load: loadTools, loading: toolsLoading } = useConfig('tools');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [config, setConfig] = useState<InstanceConfig>({});
   const [availableTools, setAvailableTools] = useState<ToolConfig[]>([]);
+  const [connStatuses, setConnStatuses] = useState<Record<string, ConnStatus>>({});
   const [showForm, setShowForm] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
-  const [connStatuses, setConnStatuses] = useState<Record<string, ConnStatus>>({});
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [preferredView, setPreferredView] = useLocalStorage<InstanceViewMode>({
+    key: INSTANCE_VIEW_STORAGE_KEY,
+    defaultValue: 'card',
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isCompact = useMediaQuery('(max-width: 64em)');
+  const deferredSearch = useDeferredValue(searchQuery);
 
   const loadInstances = useCallback(async () => {
     try {
-      const data = (await load()) as InstanceConfig;
-      setConfig(data);
+      setConfig((await load()) as InstanceConfig);
       setConnStatuses({});
     } catch (error) {
-      console.error('Failed to load instances:', error);
+      notifications.show({
+        color: 'red',
+        title: 'Load failed',
+        message: error instanceof Error ? error.message : 'Failed to load instances',
+      });
     }
   }, [load]);
 
   const loadAvailableTools = useCallback(async () => {
     try {
-      const data = (await loadTools()) as ToolConfig[];
-      setAvailableTools(data);
-    } catch (error) {
-      console.error('Failed to load tools for instance overrides:', error);
+      setAvailableTools((await loadTools()) as ToolConfig[]);
+    } catch {
       setAvailableTools([]);
     }
   }, [loadTools]);
 
-  const refreshData = useCallback(async () => {
-    await Promise.all([loadInstances(), loadAvailableTools()]);
+  useEffect(() => {
+    void Promise.all([loadInstances(), loadAvailableTools()]);
   }, [loadAvailableTools, loadInstances]);
 
   useEffect(() => {
-    void refreshData();
-  }, [refreshData]);
+    if (searchParams.get('action') !== 'new') {
+      return;
+    }
+
+    setEditingName(null);
+    setShowForm(true);
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('action');
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const effectiveView = isCompact ? 'card' : preferredView;
+  const instanceRows = useMemo(
+    () => Object.entries(config).map(([name, instance]) => buildInstanceRow(name, instance, availableTools, connStatuses)),
+    [availableTools, config, connStatuses]
+  );
+
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    for (const row of instanceRows) {
+      row.tags.forEach((tag) => tags.add(tag));
+    }
+    return [...tags].sort((left, right) => left.localeCompare(right));
+  }, [instanceRows]);
+
+  const externallyFilteredRows = useMemo(() => {
+    const needle = deferredSearch.trim().toLowerCase();
+    return instanceRows.filter((row) => {
+      if (selectedTag && !row.tags.some((tag) => tag.toLowerCase() === selectedTag.toLowerCase())) {
+        return false;
+      }
+      if (needle && !row.searchableText.includes(needle)) {
+        return false;
+      }
+      return true;
+    });
+  }, [deferredSearch, instanceRows, selectedTag]);
 
   const handleExport = () => {
     const json = JSON.stringify(config, null, 2);
@@ -208,15 +267,12 @@ export function InstancesTab() {
     }
 
     event.target.value = '';
-
     const reader = new FileReader();
     reader.onload = (loadEvent) => {
       try {
         const parsed = JSON.parse(loadEvent.target?.result as string);
         if (typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null) {
-          setImportError(
-            'Invalid file: expected a JSON object mapping instance names to configs.'
-          );
+          setImportError('Expected a JSON object that maps instance names to configs.');
           return;
         }
 
@@ -225,9 +281,8 @@ export function InstancesTab() {
         const conflicts = Object.keys(incoming).filter((name) => existingNames.has(name));
         const newNames = Object.keys(incoming).filter((name) => !existingNames.has(name));
         setImportPreview({ incoming, conflicts, newNames, mode: 'merge' });
-        setImportError(null);
       } catch {
-        setImportError('Invalid JSON file. Please select a valid instances export.');
+        setImportError('Invalid JSON file.');
       }
     };
     reader.readAsText(file);
@@ -238,24 +293,26 @@ export function InstancesTab() {
       return;
     }
 
+    const merged = importPreview.mode === 'replace' ? importPreview.incoming : { ...config, ...importPreview.incoming };
     try {
-      const merged =
-        importPreview.mode === 'replace'
-          ? { ...importPreview.incoming }
-          : { ...config, ...importPreview.incoming };
       await save(merged);
-      await refreshData();
+      notifications.show({ color: 'green', title: 'Instances imported', message: 'The instance catalog has been updated.' });
       setImportPreview(null);
+      await loadInstances();
     } catch (error) {
-      console.error('Failed to import instances:', error);
+      notifications.show({
+        color: 'red',
+        title: 'Import failed',
+        message: error instanceof Error ? error.message : 'Failed to import instances',
+      });
     }
   };
 
-  const testConnection = async (name: string) => {
-    setConnStatuses((previous) => ({ ...previous, [name]: { status: 'checking' } }));
+  const testConnection = useCallback(async (name: string) => {
+    setConnStatuses((current) => ({ ...current, [name]: { status: 'checking' } }));
 
     try {
-      const data = await fetchJson<{ ok: boolean; latency_ms?: number; error?: string }>(
+      const response = await fetchJson<{ ok: boolean; latency_ms?: number; error?: string }>(
         `/api/config/instances/${encodeURIComponent(name)}/test`,
         {
           method: 'POST',
@@ -263,490 +320,527 @@ export function InstancesTab() {
         }
       );
 
-      if (data.ok) {
-        setConnStatuses((previous) => ({
-          ...previous,
-          [name]: { status: 'ok', latency: data.latency_ms ?? 0 },
-        }));
-      } else {
-        setConnStatuses((previous) => ({
-          ...previous,
-          [name]: { status: 'error', error: data.error ?? 'Connection failed' },
-        }));
-      }
+      setConnStatuses((current) => ({
+        ...current,
+        [name]: response.ok
+          ? { status: 'ok', latency: response.latency_ms ?? 0 }
+          : { status: 'error', error: response.error ?? 'Connection failed' },
+      }));
     } catch (error) {
-      setConnStatuses((previous) => ({
-        ...previous,
-        [name]: {
-          status: 'error',
-          error: error instanceof Error ? error.message : 'Network error',
-        },
+      setConnStatuses((current) => ({
+        ...current,
+        [name]: { status: 'error', error: error instanceof Error ? error.message : 'Network error' },
       }));
     }
-  };
+  }, []);
 
   const testAll = async () => {
-    const names = Object.keys(config);
-    await Promise.all(names.map((name) => testConnection(name)));
+    await Promise.all(Object.keys(config).map((name) => testConnection(name)));
   };
 
-  const handleAdd = () => {
-    setEditingName(null);
-    setShowForm(true);
-  };
-
-  const handleEdit = (name: string) => {
+  const handleEdit = useCallback((name: string) => {
     setEditingName(name);
     setShowForm(true);
-  };
+  }, []);
 
-  const handleDelete = async (name: string) => {
-    if (!window.confirm(`Are you sure you want to delete the instance "${name}"?`)) {
-      return;
+  const handleDelete = useCallback(async (name: string) => {
+    modals.openConfirmModal({
+      title: `Delete ${name}?`,
+      children: (
+        <Text size="sm" c="dimmed">
+          This removes the instance from the live runtime config after save.
+        </Text>
+      ),
+      labels: { confirm: 'Delete instance', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        const updated = { ...config };
+        delete updated[name];
+        try {
+          await save(updated);
+          notifications.show({ color: 'green', title: 'Instance deleted', message: `${name} was removed.` });
+          await loadInstances();
+        } catch (error) {
+          notifications.show({
+            color: 'red',
+            title: 'Delete failed',
+            message: error instanceof Error ? error.message : 'Failed to delete instance',
+          });
+        }
+      },
+    });
+  }, [config, loadInstances, save]);
+
+  const handleSaveInstance = async (name: string, data: InstanceDetails) => {
+    const updated = { ...config };
+    if (editingName && editingName !== name) {
+      delete updated[editingName];
     }
+    updated[name] = data;
 
     try {
-      const updatedConfig = { ...config };
-      delete updatedConfig[name];
-      await save(updatedConfig);
-      await refreshData();
-    } catch (error) {
-      console.error('Failed to delete instance:', error);
-    }
-  };
-
-  const handleSaveInstance = async (name: string, data: InstanceConfig[string]) => {
-    try {
-      const updatedConfig = { ...config };
-      if (editingName && editingName !== name) {
-        delete updatedConfig[editingName];
-      }
-
-      updatedConfig[name] = data;
-      await save(updatedConfig);
-      await refreshData();
+      await save(updated);
+      notifications.show({
+        color: 'green',
+        title: editingName ? 'Instance updated' : 'Instance added',
+        message: `${name} is now available to the runtime config.`,
+      });
       setShowForm(false);
       setEditingName(null);
+      await loadInstances();
     } catch (error) {
-      console.error('Failed to save instance:', error);
+      notifications.show({
+        color: 'red',
+        title: 'Save failed',
+        message: error instanceof Error ? error.message : 'Failed to save instance',
+      });
     }
   };
 
-  const instances = useMemo(() => Object.entries(config), [config]);
-  const existingNames = useMemo(() => Object.keys(config), [config]);
-  const isBusy = loading || toolsLoading;
-  const activeStatus = status;
-  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
-  const allTags = useMemo(() => {
-    const tagsByKey = new Map<string, string>();
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setSelectedTag(null);
+    setColumnFilters([]);
+  };
 
-    for (const [, instance] of instances) {
-      for (const tag of getInstanceTags(instance)) {
-        const key = tag.toLocaleLowerCase();
-        if (!tagsByKey.has(key)) {
-          tagsByKey.set(key, tag);
-        }
-      }
-    }
-
-    return [...tagsByKey.values()].sort((left, right) =>
-      left.localeCompare(right, undefined, { sensitivity: 'base' })
-    );
-  }, [instances]);
-  const filteredInstances = useMemo(
-    () =>
-      instances.filter(([name, instance]) => {
-        const tags = getInstanceTags(instance);
-        if (
-          selectedTag &&
-          !tags.some((tag) => tag.toLocaleLowerCase() === selectedTag.toLocaleLowerCase())
-        ) {
-          return false;
-        }
-
-        if (!normalizedSearchQuery) {
-          return true;
-        }
-
-        const authMode = instance.apiKey ? 'api key json2 token' : 'username password user pass jsonrpc';
-        const searchableText = [
-          name,
-          instance.url,
-          instance.db ?? '',
-          authMode,
-          instance.version ? `v${instance.version} ${instance.version}` : 'auto version',
-          ...tags,
-        ]
-          .join(' ')
-          .toLocaleLowerCase();
-
-        return searchableText.includes(normalizedSearchQuery);
-      }),
-    [instances, normalizedSearchQuery, selectedTag]
+  const columns = useMemo<ColumnDef<InstanceRow>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Name',
+        filterFn: textIncludesFilter,
+        sortingFn: 'alphanumeric',
+        cell: ({ row }) => (
+          <Group gap="sm">
+            <ActionIcon variant="light" color="blue" radius="xl">
+              <Database size={16} weight="duotone" />
+            </ActionIcon>
+            <div>
+              <NameChip>{row.original.name}</NameChip>
+              <Text size="sm" c="dimmed" mt={4}>
+                {row.original.instance.url}
+              </Text>
+            </div>
+          </Group>
+        ),
+      },
+      {
+        accessorKey: 'dbLabel',
+        header: 'Database',
+        filterFn: textIncludesFilter,
+      },
+      {
+        accessorKey: 'authFilterValue',
+        header: 'Authentication',
+        filterFn: exactFilter,
+        cell: ({ row }) => row.original.authLabel,
+      },
+      {
+        accessorKey: 'versionFilterValue',
+        header: 'Version',
+        filterFn: exactFilter,
+        cell: ({ row }) => row.original.versionLabel,
+      },
+      {
+        accessorKey: 'tags',
+        header: 'Tags',
+        filterFn: (row, columnId, filterValue) => {
+          const tags = (row.getValue(columnId) as string[]).join(' ').toLowerCase();
+          const needle = String(filterValue ?? '').trim().toLowerCase();
+          return !needle || tags.includes(needle);
+        },
+        cell: ({ row }) => (
+          <Group gap={6}>
+            {row.original.tags.length > 0 ? row.original.tags.map((tag) => <Badge key={tag} variant="light">{tag}</Badge>) : <Text size="sm" c="dimmed">No tags</Text>}
+          </Group>
+        ),
+      },
+      {
+        accessorKey: 'toolsFilterValue',
+        header: 'Tools',
+        filterFn: exactFilter,
+        cell: ({ row }) => row.original.toolsLabel,
+      },
+      {
+        accessorKey: 'statusFilterValue',
+        header: 'Status',
+        filterFn: exactFilter,
+        cell: ({ row }) => <StatusBadge status={row.original.connectionStatus} />,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        enableColumnFilter: false,
+        cell: ({ row }) => (
+          <Group gap="xs" justify="flex-end" wrap="nowrap">
+            <Button
+              variant="light"
+              size="compact-sm"
+              leftSection={row.original.connectionStatus.status === 'checking' ? <Loader size={12} /> : <WifiHigh size={12} />}
+              onClick={() => void testConnection(row.original.name)}
+            >
+              Test
+            </Button>
+            <ActionIcon variant="light" color="blue" onClick={() => handleEdit(row.original.name)}>
+              <PencilSimple size={16} />
+            </ActionIcon>
+            <ActionIcon variant="light" color="red" onClick={() => void handleDelete(row.original.name)}>
+              <Trash size={16} />
+            </ActionIcon>
+          </Group>
+        ),
+      },
+    ],
+    [handleDelete, handleEdit, testConnection]
   );
-  const filtersActive = Boolean(normalizedSearchQuery || selectedTag);
+
+  const table = useReactTable({
+    data: externallyFilteredRows,
+    columns,
+    state: {
+      columnFilters,
+      sorting,
+    },
+    onColumnFiltersChange: setColumnFilters,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  const rows = table.getRowModel().rows;
+  const currentInstance = editingName ? config[editingName] : null;
+
+  const activeFilterCount = columnFilters.length + (selectedTag ? 1 : 0) + (searchQuery.trim() ? 1 : 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <Stack gap="xl">
+      <Group justify="space-between" align="flex-end" wrap="wrap">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Odoo Instances</h2>
-          <p className="mt-2 text-gray-600">
-            Configure your Odoo instance connections. Changes are applied immediately with hot
-            reload.
-          </p>
+          <Title order={1} fw={500}>
+            Odoo instances
+          </Title>
+          <Text className="page-lead" mt={4}>
+            Search, test, filter, and edit connection records from one quiet workspace. Desktop can
+            switch between cards and a denser table, while smaller screens stay readable.
+          </Text>
         </div>
-        <div className="flex gap-2 flex-wrap" role="group" aria-label="Page actions">
-          <Button
-            onClick={handleImportClick}
-            icon={<Upload size={16} />}
-            variant="ghost"
-            disabled={isBusy}
-          >
+        <Group>
+          <Button variant="default" leftSection={<UploadSimple size={16} />} onClick={handleImportClick}>
             Import
           </Button>
-          <Button
-            onClick={handleExport}
-            icon={<Download size={16} />}
-            variant="ghost"
-            disabled={instances.length === 0 || isBusy}
-          >
+          <Button variant="default" leftSection={<DownloadSimple size={16} />} onClick={handleExport}>
             Export
           </Button>
-          <Button
-            onClick={handleAdd}
-            icon={<Plus size={18} />}
-            variant="primary"
-            disabled={isBusy}
-          >
-            Add Instance
+          <Button leftSection={<Plus size={16} />} onClick={() => { setEditingName(null); setShowForm(true); }}>
+            Add instance
           </Button>
-        </div>
-      </div>
+        </Group>
+      </Group>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json,application/json"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      <input ref={fileInputRef} type="file" accept=".json,application/json" hidden onChange={handleFileChange} />
 
-      {activeStatus && <StatusMessage status={activeStatus} />}
-
-      {importError && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          <XCircle size={16} className="flex-shrink-0" />
+      {importError ? (
+        <Alert color="red" radius="xl">
           {importError}
-          <button
-            onClick={() => setImportError(null)}
-            className="ml-auto text-red-500 hover:text-red-700"
-          >
-            x
-          </button>
-        </div>
-      )}
+        </Alert>
+      ) : null}
 
-      {importPreview && (
-        <ImportConfirmDialog
-          preview={importPreview}
-          onModeChange={(mode) =>
-            setImportPreview((previous) => (previous ? { ...previous, mode } : previous))
-          }
-          onConfirm={handleImportConfirm}
-          onCancel={() => setImportPreview(null)}
-          loading={isBusy}
-        />
-      )}
-
-      <Card>
-        <div className="mb-5 flex items-center justify-between gap-3 flex-wrap">
-          <div className="min-w-[280px] flex-1">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Configured Instances ({instances.length})
-            </h3>
-            <p className="mt-1 text-sm text-slate-600">
-              Search, tag, test, and edit Odoo connections without the env snapshot details in
-              the way.
-            </p>
-          </div>
-          <div
-            className="flex gap-2 flex-wrap"
-            role="group"
-            aria-label="Instance table actions"
-          >
-            {instances.length > 0 && (
-              <Button onClick={testAll} icon={<Wifi size={16} />} variant="ghost" size="sm">
-                Test All
+      <Card p="lg" className="surface-panel">
+        <Stack gap="md">
+          <Group justify="space-between" align="flex-start" wrap="wrap">
+            <SectionTitle
+              title={`Configured instances (${Object.keys(config).length})`}
+              subtitle={`Showing ${rows.length} of ${instanceRows.length}. Filters stack across search, tag chips, and column filters.`}
+            />
+            <Group>
+              <Button variant="default" leftSection={<WifiHigh size={16} />} onClick={() => void testAll()}>
+                Test all
               </Button>
-            )}
-            <Button
-              onClick={() => {
-                void refreshData();
-              }}
-              loading={loading || toolsLoading}
-              icon={<RefreshCw size={16} />}
-              variant="ghost"
-              size="sm"
-            >
-              Refresh
-            </Button>
-          </div>
-        </div>
-
-        {instances.length > 0 && (
-          <div className="mb-5 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-emerald-50 p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <label className="relative min-w-[240px] flex-1">
-                <span className="sr-only">Search Odoo instances</span>
-                <Search
-                  size={16}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search name, URL, DB, auth, version, or tags..."
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <Tag size={15} className="text-emerald-600" />
-                <span>
-                  Showing {filteredInstances.length} of {instances.length}
-                </span>
-              </div>
-            </div>
-
-            {allTags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2" aria-label="Instance tag filters">
-                {allTags.map((tag) => {
-                  const active = selectedTag?.toLocaleLowerCase() === tag.toLocaleLowerCase();
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => setSelectedTag(active ? null : tag)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                        active
-                          ? 'border-emerald-500 bg-emerald-600 text-white shadow-sm'
-                          : 'border-emerald-200 bg-white text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  );
-                })}
-                {filtersActive && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSelectedTag(null);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    <XCircle size={12} />
-                    Clear filters
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {instances.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center">
-            <Database className="mx-auto mb-4 text-slate-400" size={48} />
-            <h4 className="text-lg font-semibold text-slate-900">No instances configured</h4>
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-              Add your first Odoo instance to start testing connections, adding tags, and managing
-              tool access.
-            </p>
-            <div className="mt-5 flex justify-center gap-3">
-              <Button onClick={handleAdd} icon={<Plus size={16} />} variant="primary">
-                Add Your First Instance
+              <Button variant="default" leftSection={<ArrowClockwise size={16} />} loading={loading || toolsLoading} onClick={() => void Promise.all([loadInstances(), loadAvailableTools()])}>
+                Refresh
               </Button>
-              <Button onClick={handleImportClick} icon={<Upload size={16} />} variant="ghost">
-                Import from File
-              </Button>
-            </div>
-          </div>
-        ) : filteredInstances.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-emerald-200 bg-emerald-50/60 py-14 text-center">
-            <Search className="mx-auto mb-4 text-emerald-500" size={44} />
-            <h4 className="text-lg font-semibold text-slate-900">No instances match your filters</h4>
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-              Try a different search term or clear the selected tag filter.
-            </p>
-            <Button
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedTag(null);
-              }}
-              icon={<XCircle size={16} />}
-              variant="ghost"
-              className="mt-5"
-            >
-              Clear filters
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredInstances.map(([name, instance]) => {
-              const authType = instance.apiKey ? 'API Key' : 'Username/Password';
-              const AuthIcon = instance.apiKey ? Key : User;
-              const connectionStatus = connStatuses[name] ?? { status: 'idle' };
-              const instanceTags = getInstanceTags(instance);
-              const totalToolCount = availableTools.length;
-              const enabledToolCount = countEnabledToolsForInstance(
-                availableTools,
-                instance.toolConfig?.disabledTools ?? []
-              );
+            </Group>
+          </Group>
 
-              return (
-                <div
-                  key={name}
-                  data-testid={`instance-card-${name}`}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+          <Group wrap="wrap" align="flex-end">
+            <TextInput
+              leftSection={<MagnifyingGlass size={16} />}
+              placeholder="Search name, URL, database, auth, version, or tags"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.currentTarget.value)}
+              data-global-search="true"
+              style={{ flex: 1, minWidth: 260 }}
+            />
+            {!isCompact ? (
+              <SegmentedControl
+                value={preferredView}
+                onChange={(value) => setPreferredView(value as InstanceViewMode)}
+                data={[
+                  { label: 'Cards', value: 'card' },
+                  { label: 'Table', value: 'table' },
+                ]}
+              />
+            ) : null}
+          </Group>
+
+          {allTags.length > 0 ? (
+            <Group gap="xs">
+              {allTags.map((tag) => (
+                <Pill
+                  key={tag}
+                  withRemoveButton={selectedTag === tag}
+                  onRemove={() => setSelectedTag(null)}
+                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
                 >
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start gap-3">
-                        <div className="rounded-2xl bg-blue-50 p-3 text-blue-600">
-                          <Database size={18} />
-                        </div>
+                  {tag}
+                </Pill>
+              ))}
+            </Group>
+          ) : null}
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <code className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-sm font-semibold text-slate-900">
-                              {name}
-                            </code>
-                            <ConnectionStatusBadge cs={connectionStatus} />
-                          </div>
+          <Group gap="xs">
+            {searchQuery.trim() ? <Badge variant="light">Search: {searchQuery.trim()}</Badge> : null}
+            {selectedTag ? <Badge variant="light">Tag: {selectedTag}</Badge> : null}
+            {columnFilters.map((filter) => (
+              <Badge key={filter.id} variant="light">
+                {filter.id}: {String(filter.value)}
+              </Badge>
+            ))}
+            {activeFilterCount > 0 ? (
+              <Button variant="subtle" size="compact-sm" onClick={clearAllFilters}>
+                Clear all
+              </Button>
+            ) : null}
+          </Group>
 
-                          <a
-                            href={instance.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-3 block truncate text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                            title={instance.url}
-                          >
-                            {instance.url}
-                          </a>
-
-                          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                            <InstanceMetaPill
-                              label="Database"
-                              value={instance.db || 'Optional / unset'}
-                              monospace={Boolean(instance.db)}
-                            />
-                            <InstanceMetaPill
-                              label="Authentication"
-                              value={authType}
-                              icon={<AuthIcon size={14} />}
-                            />
-                            <InstanceMetaPill
-                              label="Version"
-                              value={instance.version ? `v${instance.version}` : 'Auto'}
-                            />
-                            <InstanceMetaPill
-                              label="Tools"
-                              value={
-                                totalToolCount > 0
-                                  ? `${enabledToolCount}/${totalToolCount} enabled`
-                                  : 'Catalog unavailable'
-                              }
-                            />
-                          </div>
-
-                          {instanceTags.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-1.5">
-                              {instanceTags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
-                                >
-                                  <Tag size={11} />
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      className="flex flex-wrap items-center gap-2 xl:justify-end"
-                      role="group"
-                      aria-label={`Actions for ${name}`}
-                    >
-                      <Button
-                        onClick={() => testConnection(name)}
-                        icon={
-                          connectionStatus.status === 'checking' ? (
-                            <Loader2 size={14} className="animate-spin" />
+          {effectiveView === 'table' ? (
+            <Card p={0} className="surface-panel">
+              <ScrollArea>
+                <Table miw={1120} verticalSpacing="md" striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      {table.getHeaderGroups()[0].headers.map((header) => (
+                        <Table.Th key={header.id}>
+                          {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                            <Group gap={6} wrap="nowrap" style={{ cursor: 'pointer' }} onClick={header.column.getToggleSortingHandler()}>
+                              <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                              <ArrowsDownUp size={14} />
+                            </Group>
                           ) : (
-                            <Wifi size={14} />
-                          )
-                        }
-                        variant="ghost"
-                        size="sm"
-                        disabled={connectionStatus.status === 'checking'}
-                      >
-                        Test
-                      </Button>
-                      <Button
-                        onClick={() => handleEdit(name)}
-                        icon={<Edit2 size={14} />}
-                        variant="ghost"
-                        size="sm"
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        onClick={() => handleDelete(name)}
-                        icon={<Trash2 size={14} />}
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                            flexRender(header.column.columnDef.header, header.getContext())
+                          )}
+                        </Table.Th>
+                      ))}
+                    </Table.Tr>
+                    <Table.Tr>
+                      <Table.Th>
+                        <TextInput
+                          className="table-filter-input"
+                          placeholder="Search name"
+                          value={String(table.getColumn('name')?.getFilterValue() ?? '')}
+                          onChange={(event) => table.getColumn('name')?.setFilterValue(event.currentTarget.value)}
+                        />
+                      </Table.Th>
+                      <Table.Th>
+                        <TextInput
+                          className="table-filter-input"
+                          placeholder="Search DB"
+                          value={String(table.getColumn('dbLabel')?.getFilterValue() ?? '')}
+                          onChange={(event) => table.getColumn('dbLabel')?.setFilterValue(event.currentTarget.value)}
+                        />
+                      </Table.Th>
+                      <Table.Th>
+                        <Select
+                          className="table-filter-input"
+                          placeholder="All auth"
+                          clearable
+                          data={[
+                            { label: 'API Key', value: 'api-key' },
+                            { label: 'Username/Password', value: 'username-password' },
+                          ]}
+                          value={(table.getColumn('authFilterValue')?.getFilterValue() as string | null) ?? null}
+                          onChange={(value) => table.getColumn('authFilterValue')?.setFilterValue(value ?? undefined)}
+                        />
+                      </Table.Th>
+                      <Table.Th>
+                        <Select
+                          className="table-filter-input"
+                          placeholder="All versions"
+                          clearable
+                          data={[...new Set(instanceRows.map((row) => row.versionFilterValue))].map((value) => ({
+                            value,
+                            label: value === 'auto' ? 'Auto' : `v${value}`,
+                          }))}
+                          value={(table.getColumn('versionFilterValue')?.getFilterValue() as string | null) ?? null}
+                          onChange={(value) => table.getColumn('versionFilterValue')?.setFilterValue(value ?? undefined)}
+                        />
+                      </Table.Th>
+                      <Table.Th>
+                        <TextInput
+                          className="table-filter-input"
+                          placeholder="Search tags"
+                          value={String(table.getColumn('tags')?.getFilterValue() ?? '')}
+                          onChange={(event) => table.getColumn('tags')?.setFilterValue(event.currentTarget.value)}
+                        />
+                      </Table.Th>
+                      <Table.Th>
+                        <Select
+                          className="table-filter-input"
+                          placeholder="All tools"
+                          clearable
+                          data={[
+                            { value: 'full', label: 'All enabled' },
+                            { value: 'limited', label: 'Partially enabled' },
+                            { value: 'none', label: 'No tools enabled' },
+                            { value: 'unknown', label: 'Catalog unavailable' },
+                          ]}
+                          value={(table.getColumn('toolsFilterValue')?.getFilterValue() as string | null) ?? null}
+                          onChange={(value) => table.getColumn('toolsFilterValue')?.setFilterValue(value ?? undefined)}
+                        />
+                      </Table.Th>
+                      <Table.Th>
+                        <Select
+                          className="table-filter-input"
+                          placeholder="All status"
+                          clearable
+                          data={[
+                            { value: 'idle', label: 'Not checked' },
+                            { value: 'checking', label: 'Checking' },
+                            { value: 'healthy', label: 'Healthy' },
+                            { value: 'error', label: 'Error' },
+                          ]}
+                          value={(table.getColumn('statusFilterValue')?.getFilterValue() as string | null) ?? null}
+                          onChange={(value) => table.getColumn('statusFilterValue')?.setFilterValue(value ?? undefined)}
+                        />
+                      </Table.Th>
+                      <Table.Th />
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {rows.map((row) => (
+                      <Table.Tr key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                          <Table.Td key={cell.id}>
+                            {cell.column.columnDef.cell
+                              ? flexRender(cell.column.columnDef.cell, cell.getContext())
+                              : String(cell.getValue() ?? '')}
+                          </Table.Td>
+                        ))}
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            </Card>
+          ) : (
+            <SimpleGrid cols={{ base: 1, xl: 2 }}>
+              {rows.map((row) => (
+                <Card key={row.original.name} p="lg" className="surface-panel">
+                  <Stack gap="md">
+                    <Group justify="space-between" align="flex-start">
+                      <Group align="flex-start">
+                        <ActionIcon variant="light" color="blue" radius="xl" size="lg">
+                          <Database size={18} weight="duotone" />
+                        </ActionIcon>
+                        <div>
+                          <Group gap="xs">
+                            <NameChip>{row.original.name}</NameChip>
+                            <StatusBadge status={row.original.connectionStatus} />
+                          </Group>
+                          <Text c="blue.4" size="sm" mt={6}>
+                            {row.original.instance.url}
+                          </Text>
+                        </div>
+                      </Group>
+                      <Group gap="xs">
+                        <Button variant="default" size="compact-sm" leftSection={<WifiHigh size={12} />} onClick={() => void testConnection(row.original.name)}>
+                          Test
+                        </Button>
+                        <ActionIcon variant="light" color="blue" onClick={() => handleEdit(row.original.name)}>
+                          <PencilSimple size={16} />
+                        </ActionIcon>
+                        <ActionIcon variant="light" color="red" onClick={() => void handleDelete(row.original.name)}>
+                          <Trash size={16} />
+                        </ActionIcon>
+                      </Group>
+                    </Group>
+
+                    <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                      <MetaBlock label="Database" value={row.original.dbLabel} />
+                      <MetaBlock label="Authentication" value={row.original.authLabel} />
+                      <MetaBlock label="Version" value={row.original.versionLabel} />
+                      <MetaBlock label="Tools" value={row.original.toolsLabel} />
+                    </SimpleGrid>
+
+                    {row.original.tags.length > 0 ? (
+                      <>
+                        <Divider />
+                        <Group gap="xs">
+                          {row.original.tags.map((tag) => (
+                            <Badge key={tag} variant="light" leftSection={<Tag size={10} />}>
+                              {tag}
+                            </Badge>
+                          ))}
+                        </Group>
+                      </>
+                    ) : null}
+                  </Stack>
+                </Card>
+              ))}
+            </SimpleGrid>
+          )}
+        </Stack>
       </Card>
 
-      {showForm && (
+      {showForm ? (
         <InstanceForm
           instanceName={editingName}
-          instanceData={editingName ? config[editingName] : null}
-          existingNames={existingNames}
+          instanceData={currentInstance}
+          existingNames={Object.keys(config)}
           availableTools={availableTools}
-          onSave={handleSaveInstance}
+          onSave={(name, data) => void handleSaveInstance(name, data)}
           onCancel={() => {
             setShowForm(false);
             setEditingName(null);
           }}
         />
-      )}
-    </div>
+      ) : null}
+
+      {importPreview ? (
+        <ImportConfirmDialog
+          preview={importPreview}
+          onModeChange={(mode) => setImportPreview((current) => (current ? { ...current, mode } : current))}
+          onConfirm={() => void handleImportConfirm()}
+          onCancel={() => setImportPreview(null)}
+          loading={loading}
+        />
+      ) : null}
+    </Stack>
   );
 }
 
-interface ImportConfirmDialogProps {
-  preview: ImportPreview;
-  onModeChange: (mode: ImportMode) => void;
-  onConfirm: () => void;
-  onCancel: () => void;
-  loading: boolean;
+function MetaBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <Card p="sm" bg="var(--app-panel-muted)">
+      <Text size="xs" tt="uppercase" fw={500} c="dimmed" style={{ letterSpacing: '0.08em' }}>
+        {label}
+      </Text>
+      <Text mt={6}>{value}</Text>
+    </Card>
+  );
+}
+
+function StatusBadge({ status }: { status: ConnStatus }) {
+  const color =
+    status.status === 'ok' ? 'green' : status.status === 'error' ? 'red' : status.status === 'checking' ? 'yellow' : 'gray';
+
+  return (
+    <Badge color={color} className="app-table-status">
+      {getStatusLabel(status)}
+    </Badge>
+  );
 }
 
 function ImportConfirmDialog({
@@ -755,202 +849,52 @@ function ImportConfirmDialog({
   onConfirm,
   onCancel,
   loading,
-}: ImportConfirmDialogProps) {
-  const totalIncoming = Object.keys(preview.incoming).length;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div
-        className="w-full max-w-lg rounded-xl bg-white shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="border-b border-gray-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-blue-100 p-2">
-              <Upload size={20} className="text-blue-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Import Instances</h3>
-              <p className="text-sm text-gray-500">
-                {totalIncoming} instance{totalIncoming !== 1 ? 's' : ''} found in file
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4 p-6">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center">
-              <div className="text-2xl font-bold text-green-700">{preview.newNames.length}</div>
-              <div className="mt-0.5 text-xs text-green-600">New instances</div>
-            </div>
-            <div
-              className={`rounded-lg border p-3 text-center ${
-                preview.conflicts.length > 0
-                  ? 'border-amber-200 bg-amber-50'
-                  : 'border-gray-200 bg-gray-50'
-              }`}
-            >
-              <div
-                className={`text-2xl font-bold ${
-                  preview.conflicts.length > 0 ? 'text-amber-700' : 'text-gray-400'
-                }`}
-              >
-                {preview.conflicts.length}
-              </div>
-              <div
-                className={`mt-0.5 text-xs ${
-                  preview.conflicts.length > 0 ? 'text-amber-600' : 'text-gray-400'
-                }`}
-              >
-                Conflicts
-              </div>
-            </div>
-          </div>
-
-          {preview.conflicts.length > 0 && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <div className="mb-2 flex items-center gap-2">
-                <AlertTriangle size={14} className="flex-shrink-0 text-amber-600" />
-                <span className="text-xs font-medium text-amber-700">
-                  These instances already exist and will be overwritten:
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {preview.conflicts.map((name) => (
-                  <code
-                    key={name}
-                    className="rounded bg-amber-100 px-2 py-0.5 text-xs font-mono text-amber-800"
-                  >
-                    {name}
-                  </code>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <p className="mb-2 text-sm font-medium text-gray-700">Import mode</p>
-            <div className="space-y-2">
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-gray-50 has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50">
-                <input
-                  type="radio"
-                  name="importMode"
-                  value="merge"
-                  checked={preview.mode === 'merge'}
-                  onChange={() => onModeChange('merge')}
-                  className="mt-0.5"
-                />
-                <div>
-                  <div className="text-sm font-medium text-gray-900">Merge</div>
-                  <div className="text-xs text-gray-500">
-                    Add new instances and overwrite conflicts. Existing non-conflicting instances
-                    are kept.
-                  </div>
-                </div>
-              </label>
-
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-gray-50 has-[:checked]:border-red-400 has-[:checked]:bg-red-50">
-                <input
-                  type="radio"
-                  name="importMode"
-                  value="replace"
-                  checked={preview.mode === 'replace'}
-                  onChange={() => onModeChange('replace')}
-                  className="mt-0.5"
-                />
-                <div>
-                  <div className="text-sm font-medium text-gray-900">Replace all</div>
-                  <div className="text-xs text-gray-500">
-                    Remove all existing instances and use only the imported ones.
-                  </div>
-                </div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 border-t border-gray-200 p-6">
-          <Button variant="ghost" onClick={onCancel} disabled={loading}>
-            Cancel
-          </Button>
-          <Button
-            variant={preview.mode === 'replace' ? 'danger' : 'primary'}
-            onClick={onConfirm}
-            loading={loading}
-            icon={<Upload size={16} />}
-          >
-            {preview.mode === 'replace' ? 'Replace All' : `Import ${totalIncoming}`}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function InstanceMetaPill({
-  label,
-  value,
-  icon,
-  monospace = false,
 }: {
-  label: string;
-  value: string;
-  icon?: ReactNode;
-  monospace?: boolean;
+  preview: ImportPreview;
+  onModeChange: (mode: ImportMode) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-        {label}
-      </div>
-      <div
-        className={`mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-900 ${
-          monospace ? 'font-mono text-[13px]' : ''
-        }`}
-      >
-        {icon}
-        <span className="truncate">{value}</span>
-      </div>
-    </div>
-  );
-}
+    <Modal opened onClose={onCancel} title="Import instances" centered withinPortal={false} transitionProps={{ duration: 0 }}>
+      <Stack gap="md">
+        <Text size="sm" c="dimmed">
+          {Object.keys(preview.incoming).length} instances found in the selected file.
+        </Text>
+        <Group>
+          <Badge color="green" variant="light">
+            {preview.newNames.length} new
+          </Badge>
+          <Badge color={preview.conflicts.length > 0 ? 'yellow' : 'gray'} variant="light">
+            {preview.conflicts.length} conflicts
+          </Badge>
+        </Group>
 
-function ConnectionStatusBadge({ cs }: { cs: ConnStatus }) {
-  if (cs.status === 'idle') {
-    return (
-      <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
-        Not checked
-      </span>
-    );
-  }
+        <SegmentedControl
+          value={preview.mode}
+          onChange={(value) => onModeChange(value as ImportMode)}
+          data={[
+            { label: 'Merge', value: 'merge' },
+            { label: 'Replace all', value: 'replace' },
+          ]}
+        />
 
-  if (cs.status === 'checking') {
-    return (
-      <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-500">
-        <Loader2 size={13} className="animate-spin" />
-        <span>Checking...</span>
-      </div>
-    );
-  }
+        {preview.conflicts.length > 0 ? (
+          <Alert color="yellow" radius="lg">
+            Existing names that will be overwritten: {preview.conflicts.join(', ')}
+          </Alert>
+        ) : null}
 
-  if (cs.status === 'ok') {
-    return (
-      <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-        <CheckCircle2 size={13} />
-        <span>Healthy {cs.latency}ms</span>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600"
-      title={cs.error}
-    >
-      <XCircle size={13} />
-      <span className="max-w-[140px] truncate">Error</span>
-    </div>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button color={preview.mode === 'replace' ? 'red' : 'blue'} loading={loading} onClick={onConfirm}>
+            {preview.mode === 'replace' ? 'Replace all' : 'Import instances'}
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 }

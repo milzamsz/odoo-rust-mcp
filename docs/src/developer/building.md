@@ -267,14 +267,14 @@ docker compose up --build
 ## Release Process
 
 ```bash
-./scripts/release.sh 0.3.31
+./scripts/release.sh 0.4.0
 ```
 
 This script:
 1. Bumps version in `rust-mcp/Cargo.toml` and `config-ui/package.json`
-2. Commits with message `chore: bump version to 0.3.31`
+2. Commits with message `chore: bump version to 0.4.0`
 3. Pushes to remote
-4. Creates and pushes git tag `v0.3.31`
+4. Creates and pushes git tag `v0.4.0`
 
 The tag triggers GitHub Actions to build multi-platform binaries, Docker images, and packages.
 

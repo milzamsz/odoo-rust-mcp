@@ -10,10 +10,12 @@ connections effectively in either a compact table workflow or the existing card-
 ### View modes
 
 1. The instances screen must offer two explicit views: `Card` and `Table`.
-2. Card view must remain the default desktop presentation.
+2. Table view must remain the default desktop presentation.
 3. The chosen desktop view must persist across reloads in local storage.
 4. Narrow screens must automatically render cards even if the persisted desktop preference is table.
 5. Auto-switching to cards on narrow screens must not overwrite the stored desktop preference.
+6. The `Card/Table` switch control must live in the top action area of the instances screen rather
+   than being visually buried below the primary toolbar.
 
 ### Shared discovery controls
 
@@ -28,6 +30,7 @@ connections effectively in either a compact table workflow or the existing card-
 ### Table view behavior
 
 1. Table view must present the following columns:
+   - Selection
    - Name
    - URL
    - Database
@@ -37,13 +40,24 @@ connections effectively in either a compact table workflow or the existing card-
    - Tools
    - Status
    - Actions
-2. Every data column except `Actions` must support sorting.
-3. Every data column except `Actions` must provide a column-specific filter control.
+2. Every data column except `Selection` and `Actions` must support sorting.
+3. Every data column except `Selection` and `Actions` must provide a column-specific filter control.
 4. Filter control types must match the data shape:
    - text filters for Name, URL, Database, and Tags
    - select filters for Authentication, Version, and Status
    - a compact semantic filter for Tools
-5. Pagination is out of scope for this capability.
+5. Table view must support row selection through checkboxes, including a select-all control for the
+   currently visible rows.
+6. When one or more rows are selected, the UI must expose a bulk delete action for the selected
+   instances.
+7. The UI must expose a dedicated `Remove error instances` action that targets only rows whose
+   current connection status is `Error`.
+8. `Not checked`, `Checking`, and healthy rows must never be treated as error-cleanup candidates.
+9. Both bulk delete flows must use a destructive confirmation modal that:
+   - lists the candidate instances before deletion
+   - allows users to unselect instances inside the modal
+   - requires the exact validation text `DELETE` before confirmation is enabled
+10. Pagination is out of scope for this capability.
 
 ### Card view continuity
 
@@ -73,10 +87,13 @@ connections effectively in either a compact table workflow or the existing card-
 
 ## Acceptance Criteria
 
-- Operators can switch between Card and Table views on desktop.
+- Operators can switch between Card and Table views on desktop from the top action area.
 - Reloading preserves the chosen desktop view.
+- Desktop loads Table view by default when there is no stored preference.
 - Mobile or narrow layouts still render cards regardless of the stored desktop view.
 - Table view supports per-column filtering and sorting for every data column except Actions.
+- Table view supports checkbox selection and bulk deletion without breaking existing per-row actions.
+- The `Remove error instances` action includes only rows with current `Error` status.
 - Global search, tags, and column filters work together instead of replacing one another.
 - All existing instances actions remain available after the refinement.
 
@@ -92,4 +109,7 @@ connections effectively in either a compact table workflow or the existing card-
    - narrow-screen card fallback
    - combined global, tag, and column filtering
    - column sorting behavior
+   - visible-row row-selection behavior
+   - typed `DELETE` confirmation for destructive actions
+   - exclusion of healthy and not-checked rows from error cleanup
    - preservation of existing actions and status rendering

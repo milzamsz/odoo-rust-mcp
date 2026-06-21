@@ -9,9 +9,6 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: false,
   },
-  optimizeDeps: {
-    exclude: ['lucide-react'],
-  },
   server: {
     proxy: {
       '/api': {

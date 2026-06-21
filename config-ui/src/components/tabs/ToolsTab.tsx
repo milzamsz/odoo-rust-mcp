@@ -1,10 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Search, ChevronDown, ChevronRight } from 'lucide-react';
-import { useConfig } from '../../hooks/useConfig';
-import { Card } from '../Card';
-import { Button } from '../Button';
-import { StatusMessage } from '../StatusMessage';
+import {
+  Accordion,
+  Badge,
+  Button,
+  Card,
+  Group,
+  SegmentedControl,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { ArrowClockwise, MagnifyingGlass } from '@phosphor-icons/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ToolDetail } from '../ToolDetail';
+import { useConfig } from '../../hooks/useConfig';
 import type { ToolConfig } from '../../types';
 import { ALL_GROUPED_TOOL_NAMES, OTHER_TOOL_GROUP, TOOL_GROUPS } from '../../toolGroups';
 
@@ -12,30 +23,31 @@ const AVAILABLE_GUARDS = [
   {
     key: 'requiresEnvTrue',
     value: 'ODOO_ENABLE_WRITE_TOOLS',
-    label: 'Require Write Tools Enabled',
+    label: 'Write gate',
   },
   {
     key: 'requiresEnvTrue',
     value: 'ODOO_ENABLE_CLEANUP_TOOLS',
-    label: 'Require Cleanup Tools Enabled',
+    label: 'Cleanup gate',
   },
-];
+] as const;
 
 export function ToolsTab() {
-  const { load, save, status, loading } = useConfig('tools');
+  const { load, save, loading } = useConfig('tools');
   const [editedTools, setEditedTools] = useState<ToolConfig[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'enabled' | 'disabled'>('all');
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set<string>([...TOOL_GROUPS.map(g => g.id), 'other'])
-  );
 
   const loadTools = useCallback(async () => {
     try {
-      const data = await load() as ToolConfig[];
+      const data = (await load()) as ToolConfig[];
       setEditedTools(data);
     } catch (error) {
-      console.error('Failed to load tools:', error);
+      notifications.show({
+        color: 'red',
+        title: 'Load failed',
+        message: error instanceof Error ? error.message : 'Failed to load tools',
+      });
     }
   }, [load]);
 
@@ -43,354 +55,252 @@ export function ToolsTab() {
     void loadTools();
   }, [loadTools]);
 
-  const isToolEnabled = (tool: ToolConfig) => {
-    return !tool.guards?.requiresEnvTrue;
-  };
+  const isToolEnabled = useCallback((tool: ToolConfig) => !tool.guards?.requiresEnvTrue, []);
 
-  const autoSave = async (updatedTools: ToolConfig[]) => {
-    try {
+  const autoSave = useCallback(
+    async (updatedTools: ToolConfig[]) => {
       await save(updatedTools);
       setEditedTools(updatedTools);
+    },
+    [save]
+  );
+
+  const applyToggle = useCallback((tools: ToolConfig[], names: Set<string>, enabled: boolean): ToolConfig[] => {
+    return tools.map((tool) => {
+      if (!names.has(tool.name)) {
+        return tool;
+      }
+
+      if (enabled) {
+        if (!tool.guards?.requiresEnvTrue) {
+          return tool;
+        }
+        const { requiresEnvTrue, ...rest } = tool.guards;
+        void requiresEnvTrue;
+        return { ...tool, guards: Object.keys(rest).length ? rest : undefined };
+      }
+
+      return {
+        ...tool,
+        guards: {
+          ...tool.guards,
+          requiresEnvTrue: `ENABLE_${tool.name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`,
+        },
+      };
+    });
+  }, []);
+
+  const toggleTool = async (toolName: string, enabled: boolean) => {
+    try {
+      await autoSave(applyToggle(editedTools, new Set([toolName]), enabled));
     } catch (error) {
-      console.error('Failed to auto-save tools:', error);
+      notifications.show({
+        color: 'red',
+        title: 'Save failed',
+        message: error instanceof Error ? error.message : 'Failed to update tool state',
+      });
     }
   };
 
-  const applyToggle = (tools: ToolConfig[], names: Set<string>, enabled: boolean): ToolConfig[] => {
-    return tools.map(tool => {
-      if (!names.has(tool.name)) return tool;
-      const newTool = { ...tool };
-      if (!enabled) {
-        newTool.guards = {
-          ...newTool.guards,
-          requiresEnvTrue: `ENABLE_${tool.name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`,
-        };
-      } else {
-        if (newTool.guards?.requiresEnvTrue) {
-          const restGuards = { ...newTool.guards };
-          delete restGuards.requiresEnvTrue;
-          newTool.guards = Object.keys(restGuards).length === 0 ? undefined : restGuards;
-        }
-      }
-      return newTool;
-    });
-  };
-
-  const toggleTool = async (toolName: string, enabled: boolean) => {
-    const updated = applyToggle(editedTools, new Set([toolName]), enabled);
-    await autoSave(updated);
-  };
-
-  const toggleGroup = async (groupId: string, enabled: boolean) => {
-    const group = TOOL_GROUPS.find(g => g.id === groupId);
-    const names = group
-      ? new Set<string>(group.tools)
-      : new Set<string>(editedTools.filter(t => !ALL_GROUPED_TOOL_NAMES.has(t.name)).map(t => t.name));
-    const updated = applyToggle(editedTools, names, enabled);
-    await autoSave(updated);
-  };
-
-  const toggleAll = async (enabled: boolean) => {
-    const allNames = new Set(editedTools.map(t => t.name));
-    const updated = applyToggle(editedTools, allNames, enabled);
-    await autoSave(updated);
-  };
-
   const toggleGuard = async (toolName: string, guardKey: string, enabled: boolean) => {
-    const updatedTools = editedTools.map(tool => {
-      if (tool.name !== toolName) return tool;
-      const newTool = { ...tool };
-      if (enabled) {
-        const guard = AVAILABLE_GUARDS.find(g => g.key === guardKey);
-        if (guard) {
-          newTool.guards = { ...newTool.guards, [guardKey]: guard.value };
-        }
-      } else {
-        if (newTool.guards) {
-          const newGuards = { ...newTool.guards };
-          delete newGuards[guardKey as keyof typeof newGuards];
-          newTool.guards = Object.keys(newGuards).length === 0 ? undefined : newGuards;
-        }
+    const updatedTools = editedTools.map((tool) => {
+      if (tool.name !== toolName) {
+        return tool;
       }
-      return newTool;
+
+      const guard = AVAILABLE_GUARDS.find((entry) => entry.key === guardKey);
+      if (!guard) {
+        return tool;
+      }
+
+      if (enabled) {
+        return {
+          ...tool,
+          guards: {
+            ...tool.guards,
+            [guard.key]: guard.value,
+          },
+        };
+      }
+
+      if (!tool.guards) {
+        return tool;
+      }
+
+      const nextGuards = { ...tool.guards };
+      delete nextGuards[guardKey];
+
+      return { ...tool, guards: Object.keys(nextGuards).length ? nextGuards : undefined };
     });
-    await autoSave(updatedTools);
+
+    try {
+      await autoSave(updatedTools);
+    } catch (error) {
+      notifications.show({
+        color: 'red',
+        title: 'Save failed',
+        message: error instanceof Error ? error.message : 'Failed to update guard',
+      });
+    }
   };
 
-  const toggleGroupExpanded = (groupId: string) => {
-    setExpandedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
+  const filteredTools = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    return editedTools.filter((tool) => {
+      const matchesSearch =
+        !normalizedQuery ||
+        tool.name.toLowerCase().includes(normalizedQuery) ||
+        (tool.description ?? '').toLowerCase().includes(normalizedQuery);
+      const enabled = isToolEnabled(tool);
+      const matchesFilter =
+        filterType === 'all' ||
+        (filterType === 'enabled' && enabled) ||
+        (filterType === 'disabled' && !enabled);
+
+      return matchesSearch && matchesFilter;
     });
-  };
+  }, [editedTools, filterType, isToolEnabled, searchQuery]);
 
-  const filteredTools = editedTools.filter(tool => {
-    const matchesSearch =
-      !searchQuery ||
-      tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (tool.description?.toLowerCase() || '').includes(searchQuery.toLowerCase());
-    const enabled = isToolEnabled(tool);
-    const matchesFilter =
-      filterType === 'all' ||
-      (filterType === 'enabled' && enabled) ||
-      (filterType === 'disabled' && !enabled);
-    return matchesSearch && matchesFilter;
+  const enabledCount = editedTools.filter((tool) => isToolEnabled(tool)).length;
+  const groupSections = TOOL_GROUPS.map((group) => {
+    const groupTools = filteredTools.filter((tool) => group.tools.includes(tool.name));
+    const totalTools = editedTools.filter((tool) => group.tools.includes(tool.name));
+    return { group, groupTools, totalTools };
   });
 
-  const enabledCount = editedTools.filter(t => isToolEnabled(t)).length;
-  const disabledCount = editedTools.length - enabledCount;
-
-  // Build per-group filtered slices
-  const groupSections = TOOL_GROUPS.map(group => {
-    const groupToolSet = new Set<string>(group.tools);
-    const allGroupTools = editedTools.filter(t => groupToolSet.has(t.name));
-    const visibleTools = filteredTools.filter(t => groupToolSet.has(t.name));
-    const enabledInGroup = allGroupTools.filter(t => isToolEnabled(t)).length;
-    return { ...group, allGroupTools, visibleTools, enabledInGroup };
-  });
-
-  const otherTools = filteredTools.filter(t => !ALL_GROUPED_TOOL_NAMES.has(t.name));
-  const allOtherTools = editedTools.filter(t => !ALL_GROUPED_TOOL_NAMES.has(t.name));
-  const enabledOtherCount = allOtherTools.filter(t => isToolEnabled(t)).length;
+  const otherTools = filteredTools.filter((tool) => !ALL_GROUPED_TOOL_NAMES.has(tool.name));
 
   return (
-    <div className="space-y-6">
+    <Stack gap="xl">
       <div>
-        <h2 className="text-3xl font-bold text-gray-900">MCP Tools</h2>
-        <p className="mt-2 text-gray-600">
-          View and manage available Odoo MCP tools. Toggle individual tools or entire groups.
-        </p>
+        <Title order={1}>Manage the live MCP catalog</Title>
+        <Text className="page-lead" mt={4}>
+          Keep the catalog light where possible, and reserve environment-guarded tools for the cases
+          where write or cleanup power is truly needed.
+        </Text>
       </div>
 
-      {status && (
-        <StatusMessage
-          status={status}
-          onDismiss={status.type === 'error' ? () => {} : undefined}
-        />
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-200">
-          <div className="text-center">
-            <p className="text-sm text-gray-600 mb-1">Total Tools</p>
-            <p className="text-3xl font-bold text-gray-900">{editedTools.length}</p>
-          </div>
+      <SimpleGrid cols={{ base: 1, md: 3 }}>
+        <Card p="lg" className="surface-panel">
+          <Text className="page-eyebrow">Total tools</Text>
+          <Title order={2} mt={8}>
+            {editedTools.length}
+          </Title>
         </Card>
-
-        <Card className="bg-gradient-to-br from-green-50 to-white border-green-200">
-          <div className="text-center">
-            <p className="text-sm text-gray-600 mb-1">Enabled</p>
-            <p className="text-3xl font-bold text-green-600">{enabledCount}</p>
-          </div>
+        <Card p="lg" className="surface-panel">
+          <Text className="page-eyebrow">Enabled</Text>
+          <Title order={2} mt={8}>
+            {enabledCount}
+          </Title>
         </Card>
-
-        <Card className="bg-gradient-to-br from-gray-50 to-white border-gray-200">
-          <div className="text-center">
-            <p className="text-sm text-gray-600 mb-1">Disabled</p>
-            <p className="text-3xl font-bold text-gray-500">{disabledCount}</p>
-          </div>
+        <Card p="lg" className="surface-panel">
+          <Text className="page-eyebrow">Guarded</Text>
+          <Title order={2} mt={8}>
+            {editedTools.filter((tool) => tool.guards?.requiresEnvTrue).length}
+          </Title>
         </Card>
+      </SimpleGrid>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-white border-orange-200">
-          <div className="text-center">
-            <p className="text-sm text-gray-600 mb-1">With Guards</p>
-            <p className="text-3xl font-bold text-orange-600">
-              {editedTools.filter(t => t.guards && Object.keys(t.guards).length > 0).length}
-            </p>
-          </div>
-        </Card>
-      </div>
-
-      <Card>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search tools by name or description..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      <Card p="lg" className="surface-panel">
+        <Group justify="space-between" align="flex-end" wrap="wrap">
+          <TextInput
+            leftSection={<MagnifyingGlass size={16} />}
+            placeholder="Search by tool name or description"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.currentTarget.value)}
+            data-global-search="true"
+            style={{ flex: 1, minWidth: 260 }}
+          />
+          <Group>
+            <SegmentedControl
+              value={filterType}
+              onChange={(value) => setFilterType(value as typeof filterType)}
+              data={[
+                { label: 'All', value: 'all' },
+                { label: 'Enabled', value: 'enabled' },
+                { label: 'Disabled', value: 'disabled' },
+              ]}
             />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFilterType('all')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                filterType === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilterType('enabled')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                filterType === 'enabled'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Enabled
-            </button>
-            <button
-              onClick={() => setFilterType('disabled')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                filterType === 'disabled'
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Disabled
-            </button>
-          </div>
-        </div>
+            <Button variant="default" leftSection={<ArrowClockwise size={16} />} loading={loading} onClick={() => void loadTools()}>
+              Refresh
+            </Button>
+          </Group>
+        </Group>
       </Card>
 
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
-          Showing {filteredTools.length} of {editedTools.length} tools
-        </p>
-        <div className="flex gap-2">
-          <Button onClick={() => toggleAll(true)} variant="secondary" size="sm">
-            Enable All
-          </Button>
-          <Button onClick={() => toggleAll(false)} variant="secondary" size="sm">
-            Disable All
-          </Button>
-          <Button
-            onClick={loadTools}
-            loading={loading}
-            icon={<RefreshCw size={14} />}
-            variant="secondary"
-            size="sm"
-          >
-            Refresh
-          </Button>
-        </div>
-      </div>
+      <Accordion variant="separated" radius="xl" defaultValue={TOOL_GROUPS[0]?.id}>
+        {groupSections.map(({ group, groupTools, totalTools }) => {
+          if (groupTools.length === 0) {
+            return null;
+          }
 
-      <div className="space-y-4">
-        {filteredTools.length === 0 ? (
-          <Card>
-            <div className="text-center py-8">
-              <p className="text-gray-500">No tools found matching your criteria</p>
-            </div>
-          </Card>
-        ) : (
-          <>
-            {groupSections.map(group => {
-              if (group.visibleTools.length === 0) return null;
-              const isExpanded = expandedGroups.has(group.id);
-              return (
-                <div key={group.id} className={`border rounded-lg overflow-hidden ${group.headerClass}`}>
-                  <div className={`flex items-center justify-between px-4 py-3 ${group.headerClass}`}>
-                    <button
-                      onClick={() => toggleGroupExpanded(group.id)}
-                      className="flex items-center gap-2 flex-1 text-left min-w-0"
-                    >
-                      {isExpanded
-                        ? <ChevronDown size={16} className="flex-shrink-0 text-gray-600" />
-                        : <ChevronRight size={16} className="flex-shrink-0 text-gray-600" />}
-                      <span className="font-semibold text-gray-900">{group.label}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${group.badgeClass}`}>
-                        {group.enabledInGroup}/{group.allGroupTools.length} enabled
-                      </span>
-                    </button>
-                    <div className="flex gap-2 ml-3 flex-shrink-0">
-                      <button
-                        onClick={() => toggleGroup(group.id, true)}
-                        className={`text-xs px-2.5 py-1 border rounded font-medium transition-colors ${group.enableBtnClass}`}
-                      >
-                        Enable
-                      </button>
-                      <button
-                        onClick={() => toggleGroup(group.id, false)}
-                        className="text-xs px-2.5 py-1 border border-gray-300 rounded font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-                      >
-                        Disable
-                      </button>
+          const enabledInGroup = totalTools.filter((tool) => isToolEnabled(tool)).length;
+
+          return (
+            <Accordion.Item key={group.id} value={group.id}>
+              <Accordion.Control>
+                <Group justify="space-between">
+                    <div>
+                      <Text>{group.label}</Text>
+                      <Text size="sm" c="dimmed">
+                        Curated tool family for this area of the MCP catalog.
+                      </Text>
                     </div>
-                  </div>
+                  <Badge variant="light" color="blue">
+                    {enabledInGroup}/{totalTools.length} enabled
+                  </Badge>
+                </Group>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="sm">
+                  {groupTools.map((tool) => (
+                    <ToolDetail
+                      key={tool.name}
+                      tool={tool}
+                      enabled={isToolEnabled(tool)}
+                      onToggle={(enabled) => toggleTool(tool.name, enabled)}
+                      onToggleGuard={(guardKey, enabled) => toggleGuard(tool.name, guardKey, enabled)}
+                      availableGuards={[...AVAILABLE_GUARDS]}
+                    />
+                  ))}
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+          );
+        })}
 
-                  {isExpanded && (
-                    <div className="p-3 space-y-2 bg-white">
-                      {group.visibleTools.map(tool => (
-                        <ToolDetail
-                          key={tool.name}
-                          tool={tool}
-                          enabled={isToolEnabled(tool)}
-                          onToggle={async (enabled) => await toggleTool(tool.name, enabled)}
-                          onToggleGuard={async (guardKey, enabled) => await toggleGuard(tool.name, guardKey, enabled)}
-                          availableGuards={AVAILABLE_GUARDS}
-                        />
-                      ))}
-                    </div>
-                  )}
+        {otherTools.length > 0 ? (
+          <Accordion.Item value="other">
+            <Accordion.Control>
+              <Group justify="space-between">
+                <div>
+                  <Text>{OTHER_TOOL_GROUP.label}</Text>
+                  <Text size="sm" c="dimmed">
+                    Tools outside the curated group catalog.
+                  </Text>
                 </div>
-              );
-            })}
-
-            {otherTools.length > 0 && (
-              <div
-                className={`border rounded-lg overflow-hidden ${OTHER_TOOL_GROUP.headerClass}`}
-              >
-                <div
-                  className={`flex items-center justify-between px-4 py-3 ${OTHER_TOOL_GROUP.headerClass}`}
-                >
-                  <button
-                    onClick={() => toggleGroupExpanded('other')}
-                    className="flex items-center gap-2 flex-1 text-left min-w-0"
-                  >
-                    {expandedGroups.has('other')
-                      ? <ChevronDown size={16} className="flex-shrink-0 text-gray-600" />
-                      : <ChevronRight size={16} className="flex-shrink-0 text-gray-600" />}
-                    <span className="font-semibold text-gray-900">{OTHER_TOOL_GROUP.label}</span>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${OTHER_TOOL_GROUP.badgeClass}`}
-                    >
-                      {enabledOtherCount}/{allOtherTools.length} enabled
-                    </span>
-                  </button>
-                  <div className="flex gap-2 ml-3 flex-shrink-0">
-                    <button
-                      onClick={() => toggleGroup('other', true)}
-                      className={`text-xs px-2.5 py-1 border rounded font-medium transition-colors ${OTHER_TOOL_GROUP.enableBtnClass}`}
-                    >
-                      Enable
-                    </button>
-                    <button
-                      onClick={() => toggleGroup('other', false)}
-                      className="text-xs px-2.5 py-1 border border-gray-300 rounded font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-                    >
-                      Disable
-                    </button>
-                  </div>
-                </div>
-
-                {expandedGroups.has('other') && (
-                  <div className="p-3 space-y-2 bg-white">
-                    {otherTools.map(tool => (
-                      <ToolDetail
-                        key={tool.name}
-                        tool={tool}
-                        enabled={isToolEnabled(tool)}
-                        onToggle={async (enabled) => await toggleTool(tool.name, enabled)}
-                        onToggleGuard={async (guardKey, enabled) => await toggleGuard(tool.name, guardKey, enabled)}
-                        availableGuards={AVAILABLE_GUARDS}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
+                <Badge variant="light" color="gray">
+                  {otherTools.length} visible
+                </Badge>
+              </Group>
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Stack gap="sm">
+                {otherTools.map((tool) => (
+                  <ToolDetail
+                    key={tool.name}
+                    tool={tool}
+                    enabled={isToolEnabled(tool)}
+                    onToggle={(enabled) => toggleTool(tool.name, enabled)}
+                    onToggleGuard={(guardKey, enabled) => toggleGuard(tool.name, guardKey, enabled)}
+                    availableGuards={[...AVAILABLE_GUARDS]}
+                  />
+                ))}
+              </Stack>
+            </Accordion.Panel>
+          </Accordion.Item>
+        ) : null}
+      </Accordion>
+    </Stack>
   );
 }
