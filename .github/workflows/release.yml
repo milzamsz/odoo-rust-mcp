@@ -170,7 +170,7 @@ jobs:
           Copy-Item LICENSE -Destination release/ -ErrorAction SilentlyContinue
           Copy-Item dotenv.example -Destination release/.env.example
           Copy-Item instances.example.json -Destination release/instances.json
-          Copy-Item install.ps1 -Destination release/
+          Copy-Item scripts/install.ps1 -Destination release/install.ps1
           Copy-Item Start-MCP-Server.ps1 -Destination release/
           Copy-Item Start-MCP-Server.bat -Destination release/
           Copy-Item Create-Shortcut.ps1 -Destination release/
@@ -339,7 +339,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: desktop/package-lock.json
+          cache-dependency-path: desktop/package.json
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
