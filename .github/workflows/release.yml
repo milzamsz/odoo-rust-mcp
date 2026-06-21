@@ -414,7 +414,7 @@ jobs:
       - name: Flatten release assets
         run: |
           echo "=== Flattening release-assets ==="
-          find release-assets -type f -exec mv -t release-assets/ {} +
+          find release-assets -mindepth 2 -type f -exec mv -t release-assets/ {} + || true
           find release-assets -type d -empty -delete
           echo "=== Flattened release-assets ==="
           ls -la release-assets
