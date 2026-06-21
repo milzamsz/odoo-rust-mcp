@@ -28,7 +28,7 @@ If this file and another doc disagree, **prefer implementation and checked-in co
 - **Backend**: `rust-mcp/`
   Rust MCP server, transport handling, registry loading, Odoo clients, tool execution, config bootstrap, and auth.
 - **Frontend**: `config-ui/`
-  React 18 + TypeScript + Vite + Tailwind Config UI for instances, tools, prompts, server metadata, and security settings.
+  React 19 + TypeScript + Vite + Mantine Config UI for instances, tools, prompts, server metadata, and security settings.
 - **Supported Odoo auth stacks**:
   - Odoo `19+`: JSON-2 API with API key auth
   - Odoo `18 and earlier`: JSON-RPC with username/password auth
@@ -43,7 +43,7 @@ If this file and another doc disagree, **prefer implementation and checked-in co
   - Windsurf
   - ChatGPT Desktop / OpenAI Codex
 - **License**: AGPL-3.0-only
-- **Current version**: `0.3.30`
+- **Current version**: `0.4.0`
 
 ### Version Sync Rule
 
@@ -179,7 +179,7 @@ npm run test:coverage
 ### Release
 
 ```bash
-./scripts/release.sh 0.3.31
+./scripts/release.sh 0.4.0
 ```
 
 That script is expected to bump both `rust-mcp/Cargo.toml` and `config-ui/package.json`.
@@ -203,7 +203,7 @@ rust-mcp/
 
 config-ui/
   src/
-    components/tabs/         Instances, Tools, Prompts, Server, Security
+    components/tabs/         Overview, Instances, Tools, Prompts, Server, Security
     hooks/                   Config UI data/auth hooks
     __tests__/               Vitest coverage for UI behavior and types
   package.json               UI scripts and version
@@ -280,6 +280,14 @@ Tools are declarative. The JSON config provides:
   Hosts the Config UI, REST API, login/session auth, and MCP HTTP auth management.
 - `config-ui/src/`
   React application for editing the same underlying JSON and env-backed settings.
+
+Current UI architecture highlights:
+
+- Mantine `AppShell` with hash-route navigation
+- Operations Overview landing page after login
+- dual-view instances workflow with card and table modes
+- TanStack Table state for instances sorting and column filtering
+- notification and confirmation flows replacing browser-native alerts/confirmations
 
 Hot-reload boundaries:
 
@@ -592,3 +600,19 @@ For runtime/client setup, use:
 - `docs/src/functional/config-ui.md`
 
 That is where client JSON or TOML snippets, HTTP auth examples, deployment instructions, and full operational walkthroughs belong.
+
+<!-- BEGIN AGENTIC KANBAN — DO NOT EDIT THIS SECTION -->
+## Agentic Kanban
+
+Read `.agentkanban/INSTRUCTION.md` for task workflow rules.
+Read `.agentkanban/memory.md` for project context.
+
+Enforcement mode: `warn`
+Review policy:
+low: planning=self-agent, implementation=self-agent
+medium: planning=self-agent, implementation=self-agent
+high: planning=independent-agent, implementation=independent-agent
+critical: planning=independent-agent, implementation=independent-agent+human
+
+If a task file (`.agentkanban/tasks/**/*.md`) was referenced earlier in this conversation, re-read it before responding and always respond in and at the end the task file.
+<!-- END AGENTIC KANBAN -->
