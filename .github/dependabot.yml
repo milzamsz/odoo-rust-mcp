@@ -1,61 +1,117 @@
 version: 2
 updates:
-  # GitHub Actions
+  # GitHub Actions (CI/CD workflows)
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     groups:
       github-actions:
         patterns:
           - "*"
 
-  # Rust MCP Server (Backend)
+  # Rust MCP Server (Backend dependencies)
   - package-ecosystem: "cargo"
     directory: "/rust-mcp"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     groups:
-      cargo-deps:
+      minor-and-patch:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
-  # React Config UI (Frontend)
+  # React Config UI (Frontend JS/TS dependencies)
   - package-ecosystem: "npm"
     directory: "/config-ui"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     groups:
-      npm-deps:
+      minor-and-patch:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
-  # Tauri Desktop App (Frontend JS dependencies)
+  # Tauri Desktop App (Frontend JS/TS dependencies)
   - package-ecosystem: "npm"
     directory: "/desktop"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     groups:
-      npm-deps:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Tauri Desktop App (Rust Tauri crate dependencies)
+  - package-ecosystem: "cargo"
+    directory: "/desktop/src-tauri"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Docker Container (docker-compose in root)
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    groups:
+      docker-deps:
         patterns:
           - "*"
 
-  # Tauri Desktop App (Rust dependencies)
-  - package-ecosystem: "cargo"
-    directory: "/desktop/src-tauri"
+  # Docker Container (Dockerfile in rust-mcp)
+  - package-ecosystem: "docker"
+    directory: "/rust-mcp"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     groups:
-      cargo-deps:
+      docker-deps:
+        patterns:
+          - "*"
+
+  # Helm Chart (Kubernetes manifests)
+  - package-ecosystem: "helm"
+    directory: "/helm/odoo-rust-mcp"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    groups:
+      helm-deps:
         patterns:
           - "*"
