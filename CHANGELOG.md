@@ -1,0 +1,61 @@
+# Changelog
+
+All notable changes to the **Odoo Rust MCP Server** are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
+
+## [v0.4.2] - 2026-06-21
+
+### Added
+- Display application version in the Config UI footer bar
+- Version badge showing current release across all UI tabs
+
+## [v0.4.1] - 2026-06-11
+
+### Changed
+- Updated dependency versions across Rust and TypeScript stacks
+
+## [v0.4.0] - 2026-05-15
+
+### Added
+- Config UI rewrite with Mantine 9, Vite, and React 19
+- Operations Overview landing page with config summary metrics
+- Dual-view instances management (card + table modes)
+- Right-side drawer editing for instances and prompts
+- Persisted collapsible sidebar (icon rail on collapse)
+- Light/Dark/Auto theme selector (default: Auto)
+- Keyboard shortcut panel (? shortcut)
+- Runtime env sync status card in Server tab
+- Documentation entry in sidebar (opens /docs/ in new tab)
+- Rust Hexagon app mark as shared product identity
+
+### Changed
+- Simplified Lite workflow profile as the default Agentic Kanban profile
+- quieter UI typography with Geist Sans/Mono at 400–500 weight
+- Tailwind removed from active Config UI runtime
+
+## [v0.3.30] - 2026-03-10
+
+### Fixed
+- Windows shortcut launcher: serialize `cargo build` with lock file to avoid contention
+- `install.ps1`: copy shortcut files to `Program Files` so `.lnk` works outside extracted ZIP
+
+### Added
+- Windows release ZIP now includes `install.ps1`, native `.lnk`, and WSL shortcuts
+
+## [v0.3.0] - 2026-02-27
+
+### Fixed
+- Migrated to new dual-instance sync mechanism via `ODOO_INSTANCES_JSON` env var
+
+## [v0.2.0] - 2026-02-05
+
+### Added
+- Initial public release
+- Config UI with React 18, Vite, Tailwind CSS
+- Odoo 19+ JSON-2 API support (API key auth)
+- Odoo <19 JSON-RPC support (username/password auth)
+- Multi-instance connection pooling
+- Guard-based tool access (write tools, cleanup tools)
+- Rust backend with MCP stdio, HTTP, and WebSocket transports
