@@ -463,18 +463,18 @@ jobs:
               PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
               
               cat <<EOF > latest.json
-{
-  "version": "$VERSION",
-  "notes": "Release $VERSION",
-  "pub_date": "$PUB_DATE",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "$SIGNATURE",
-      "url": "https://github.com/milzamsz/odoo-rust-mcp/releases/download/$VERSION/$ZIP_NAME"
-    }
-  }
-}
-EOF
+              {
+                "version": "$VERSION",
+                "notes": "Release $VERSION",
+                "pub_date": "$PUB_DATE",
+                "platforms": {
+                  "windows-x86_64": {
+                    "signature": "$SIGNATURE",
+                    "url": "https://github.com/milzamsz/odoo-rust-mcp/releases/download/$VERSION/$ZIP_NAME"
+                  }
+                }
+              }
+              EOF
               echo "✓ Generated latest.json successfully:"
               cat latest.json
             else
