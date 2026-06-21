@@ -8,7 +8,7 @@ class RustMcp < Formula
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-aarch64-apple-darwin.tar.gz"
-      sha256 "c148d31227f1302841546cbf3ba427832d462d2f216dcec655de81e4e5de2195"  # macos-arm64
+      sha256 "49032827582a088d9eaefa3bae35152e567f983c5a43a5b0015ecc31a5908a9d"  # macos-arm64
     end
 
     if Hardware::CPU.intel?
@@ -20,7 +20,7 @@ class RustMcp < Formula
   on_linux do
     if Hardware::CPU.intel?
       url "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "2baa9f30e1cf3acff7cb772ed02f6438a7c3fa0e505e8f9c9770a6742c99a470"  # linux-x64
+      sha256 "e1a34fac20c86c603910856faa061f20c7ed2aa824e20bc9a39e4b81eb54e4fd"  # linux-x64
     end
   end
 
