@@ -411,6 +411,14 @@ jobs:
           find release-assets -type f 2>/dev/null || echo "No artifacts found"
           ls -laR release-assets 2>/dev/null || true
 
+      - name: Flatten release assets
+        run: |
+          echo "=== Flattening release-assets ==="
+          find release-assets -type f -exec mv -t release-assets/ {} +
+          find release-assets -type d -empty -delete
+          echo "=== Flattened release-assets ==="
+          ls -la release-assets
+
       - name: Get tag name
         id: tag
         run: |
