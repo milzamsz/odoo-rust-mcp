@@ -462,19 +462,8 @@ jobs:
               VERSION="${{ steps.tag.outputs.tag }}"
               PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
               
-              cat <<EOF > latest.json
-              {
-                "version": "$VERSION",
-                "notes": "Release $VERSION",
-                "pub_date": "$PUB_DATE",
-                "platforms": {
-                  "windows-x86_64": {
-                    "signature": "$SIGNATURE",
-                    "url": "https://github.com/milzamsz/odoo-rust-mcp/releases/download/$VERSION/$ZIP_NAME"
-                  }
-                }
-              }
-              EOF
+              printf '{\n  "version": "%s",\n  "notes": "Release %s",\n  "pub_date": "%s",\n  "platforms": {\n    "windows-x86_64": {\n      "signature": "%s",\n      "url": "https://github.com/milzamsz/odoo-rust-mcp/releases/download/%s/%s"\n    }\n  }\n}\n' \
+                "$VERSION" "$VERSION" "$PUB_DATE" "$SIGNATURE" "$VERSION" "$ZIP_NAME" > latest.json
               echo "✓ Generated latest.json successfully:"
               cat latest.json
             else
