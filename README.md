@@ -9,7 +9,7 @@ Supports:
 - MCP over `stdio`, `http`, and `ws`
 - Config UI on `http://localhost:3008`
 
-Current version: `0.4.0`
+Current version: `0.4.2`
 
 ## Screenshots
 
