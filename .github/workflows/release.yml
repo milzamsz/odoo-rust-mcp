@@ -371,7 +371,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: desktop
-          includeRelease: false
+          includeRelease: true
           includeUpdaterJson: false
 
       - name: Upload Desktop artifacts
