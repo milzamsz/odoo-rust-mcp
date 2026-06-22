@@ -3,6 +3,12 @@
   "identifier": "default",
   "description": "Default capabilities for the desktop app",
   "windows": ["main"],
+  "remote": {
+    "urls": [
+      "http://localhost:3008",
+      "http://127.0.0.1:3008"
+    ]
+  },
   "permissions": [
     "core:default",
     "shell:allow-spawn",
