@@ -28,39 +28,39 @@ Current version: `0.5.0`
 
 ## Install on Windows
 
-1. Download the latest Windows ZIP from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases).
-2. Extract it to a normal folder such as `C:\Workspace\mcp\odoo-rust-mcp`.
-3. Open PowerShell as Administrator in that extracted folder.
-4. Run:
+Choose one of the following installation methods:
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\install.ps1
-```
+### Option A: Tauri Desktop Application (Recommended)
 
-What the installer does:
+1. Download the latest setup installer (`Odoo.Rust.MCP_0.5.0_x64-setup.exe` or `.msi`) from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases).
+2. Run the installer to install the premium desktop application shell.
+3. Launch **Odoo Rust MCP** from your Start menu or Desktop shortcut.
 
-- installs `rust-mcp.exe` to `C:\Program Files\odoo-rust-mcp`
-- installs config files to `C:\ProgramData\odoo-rust-mcp`
-- creates the desktop shortcut `Odoo MCP Server.lnk`
-- adds the install folder to the machine `Path`
+*Features of the Desktop App:*
+- Runs the Odoo Rust MCP server as a background sidecar.
+- Opens the Config UI in a dedicated, high-performance webview container.
+- Integrates a built-in auto-updater with cryptographic signature verification.
+- Intercepts documentation links to open them safely in your system default browser.
 
-## Start from the Shortcut
+### Option B: Advanced CLI / Windows Service
 
-After install, double-click `Odoo MCP Server.lnk`.
+1. Download the latest `rust-mcp-windows.zip` from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases).
+2. Extract it to a permanent folder (e.g., `C:\Workspace\mcp\odoo-rust-mcp`).
+3. Open PowerShell as Administrator in that folder and run:
+   ```powershell
+   Set-ExecutionPolicy -Scope Process Bypass
+   .\install.ps1
+   ```
 
-That shortcut:
+*What the script installer does:*
+- Copies `rust-mcp.exe` to `C:\Program Files\odoo-rust-mcp`.
+- Initializes configurations in `C:\ProgramData\odoo-rust-mcp`.
+- Registers a desktop shortcut `Odoo MCP Server.lnk`.
+- (Optional) Appending `-Service` installs the backend server as a persistent Windows Service.
 
-- starts the MCP server
-- waits for the Config UI to be ready
-- opens `http://localhost:3008`
+To start, double-click `Odoo MCP Server.lnk`. It will bootstrap the server and open the Config UI in your default browser at `http://localhost:3008`.
 
-If the page does not open, check these logs:
-
-- `.codex-run/shortcut-server.out.log`
-- `.codex-run/shortcut-server.err.log`
-- `.codex-run/shortcut-build.out.log`
-- `.codex-run/shortcut-build.err.log`
+If the web UI does not open, check the logs under `.codex-run/`.
 
 ## First Login
 
@@ -71,23 +71,21 @@ username: admin
 password: changeme
 ```
 
-After login:
-
-1. Open `Security`
-2. Change the Config UI password
-3. If you use HTTP transport, generate an MCP bearer token there too
+After logging in:
+1. Open the **Security** tab.
+2. Change the Config UI password.
+3. If using HTTP transport, generate your secure MCP Bearer token.
+4. On the **Overview** tab, you can click **Sync to env** to immediately export and back up your instances configuration into the local `.env` configuration.
 
 ## Add Your Odoo Instance
 
 Open `Instances`, then click `Add instance`.
 
 Use:
-
-- `API Key` for Odoo `19+`
-- `Username / Password` for Odoo `18-`
+- `API Key` for Odoo `19+` (using modern JSON-2 flow)
+- `Username / Password` for Odoo `18-` (using JSON-RPC flow)
 
 Typical fields:
-
 - `Name`: internal label used in MCP calls
 - `URL`: your Odoo base URL
 - `Database`: required for older Odoo and some multi-db setups
@@ -96,7 +94,8 @@ Typical fields:
 
 Then click `Test` to verify the connection.
 
-Use **Documentation** in the sidebar to open the bundled mdBook guide in a new tab.
+Use **Documentation** in the sidebar to open the bundled mdBook guide, or read it online at: **[https://milzamsz.github.io/odoo-rust-mcp/](https://milzamsz.github.io/odoo-rust-mcp/)**.
+
 
 ## AI Install Prompt
 
