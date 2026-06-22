@@ -94,6 +94,7 @@ function getRouteLabel(pathname: string) {
 }
 
 export function AppShellLayout() {
+  const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
   const desktop = useMediaQuery('(min-width: 48em)');
   const osColorScheme = useColorScheme('light', { getInitialValueInEffect: false });
   const [opened, { toggle, close }] = useDisclosure(false);
@@ -396,16 +397,15 @@ export function AppShellLayout() {
                       <NavLink
                         aria-label={item.href ? `${item.label} (opens in a new tab)` : item.label}
                         active={Boolean(item.path && location.pathname === item.path)}
-                        component={item.href ? 'a' : 'button'}
-                        href={item.href}
-                        target={item.href ? '_blank' : undefined}
-                        rel={item.href ? 'noopener noreferrer' : undefined}
+                        component={item.href && !isTauri ? 'a' : 'button'}
+                        href={item.href && !isTauri ? item.href : undefined}
+                        target={item.href && !isTauri ? '_blank' : undefined}
+                        rel={item.href && !isTauri ? 'noopener noreferrer' : undefined}
                         className={desktopCollapsed && desktop ? 'nav-link-collapsed' : undefined}
                         label={desktopCollapsed && desktop ? undefined : item.label}
                         leftSection={<item.icon size={18} />}
                         onClick={(event) => {
                           if (item.href) {
-                            const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
                             if (isTauri) {
                               event.preventDefault();
                               openUrlExternally(item.href);

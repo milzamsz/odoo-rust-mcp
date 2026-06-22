@@ -63,7 +63,7 @@ describe('AppShellLayout', () => {
     };
     renderLayout();
 
-    await user.click(screen.getByRole('link', { name: 'Documentation (opens in a new tab)' }));
+    await user.click(screen.getByRole('button', { name: 'Documentation (opens in a new tab)' }));
 
     expect(invokeSpy).toHaveBeenCalledWith('plugin:opener|open_url', {
       url: 'https://milzamsz.github.io/odoo-rust-mcp/',
