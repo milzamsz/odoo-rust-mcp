@@ -405,8 +405,11 @@ export function AppShellLayout() {
                         leftSection={<item.icon size={18} />}
                         onClick={(event) => {
                           if (item.href) {
-                            event.preventDefault();
-                            openUrlExternally(item.href);
+                            const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+                            if (isTauri) {
+                              event.preventDefault();
+                              openUrlExternally(item.href);
+                            }
                             return;
                           }
                           if (item.path) {
