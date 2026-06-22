@@ -5,6 +5,16 @@ All notable changes to the **Odoo Rust MCP Server** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.5.1] - 2026-06-22
+
+### Added
+- Best-practice Dependabot configuration (supporting GitHub Actions, Cargo, NPM, Docker, and Helm updates).
+- Support for remote localhost/127.0.0.1 origins (port 3008) in default.json capability to allow Tauri API access.
+
+### Fixed
+- Fixed unclickable documentation sidebar link by unconditionally intercepting external links and delegating them to the system default browser.
+- Fixed double-opening of external links in Tauri desktop app by rendering external navigation entries as plain buttons inside the webview.
+
 ## [v0.5.0] - 2026-06-21
 
 ### Added

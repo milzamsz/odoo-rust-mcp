@@ -9,7 +9,7 @@ Supports:
 - MCP over `stdio`, `http`, and `ws`
 - Config UI on `http://localhost:3008`
 
-Current version: `0.5.0`
+Current version: `0.5.1`
 
 ## Screenshots
 
@@ -32,7 +32,7 @@ Choose one of the following installation methods:
 
 ### Option A: Tauri Desktop Application (Recommended)
 
-1. Download the latest setup installer (`Odoo.Rust.MCP_0.5.0_x64-setup.exe` or `.msi`) from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases).
+1. Download the latest setup installer (`Odoo.Rust.MCP_0.5.1_x64-setup.exe` or `.msi`) from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases).
 2. Run the installer to install the premium desktop application shell.
 3. Launch **Odoo Rust MCP** from your Start menu or Desktop shortcut.
 
