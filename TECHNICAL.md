@@ -45,6 +45,8 @@ Implementation notes:
 - the Rust Hexagon app mark is the shared identity for the shell, login screen, favicon, mdBook,
   and Windows shortcuts; the vector source lives in `config-ui/public/app-icon.svg`
 - the Documentation sidebar action opens `/docs/` in a new tab
+- the Tools tab detects drift between the live runtime `tools.json` and packaged defaults, and can
+  append missing packaged tools without overwriting existing runtime tool definitions or guard edits
 
 ## Agentic Kanban in this repo
 
@@ -211,6 +213,14 @@ Windows Tauri rollout notes:
   updater metadata, signatures, checksums, and rollout validation
 - the first desktop GitHub rollout is intentionally Authenticode-unsigned; document SmartScreen
   expectations, but still require Tauri updater signing for update integrity
+- the desktop shell should keep the bundled splash page local, wait for `http://127.0.0.1:3008`
+  from Rust, and only then navigate the webview to the Config UI; packaged startup should not rely
+  on browser-side `window.location.replace(...)` from the splash page because a failed remote
+  navigation can present as a blank white window with no user-visible recovery state
+- Linux packaged desktop installs place the Config UI assets under `/usr/lib/Odoo Rust MCP/static/dist`
+  (and AppDir mirrors that under `AppDir/usr/lib/Odoo Rust MCP/static/dist`), so
+  `find_static_dir()` must probe those locations instead of assuming `static/dist` sits beside
+  `usr/bin/rust-mcp`
 
 If a user reports that `http://localhost:3008` cannot be reached from the shortcut, validate the launcher with:
 

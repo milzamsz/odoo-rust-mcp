@@ -1,51 +1,53 @@
-# Prompt - new task intake
+# Prompt — new task intake
 
-Turn a raw idea, feature request, or bug into a well-formed task in `backlog`.
+Turn a raw idea / feature request / bug into a well-formed task in `backlog`. Opinionated:
+state the outcome as observable behavior that must RUN, not a status/row write.
 
 ---
 
 ```markdown
 # NEW TASK INTAKE
 
-## Input
+## Input (paste the raw request)
 `<idea / feature request / bug report, as-is>`
 
 ## Steps
-1. Create the task with a concise imperative title.
+1. `@kanban /new "<concise imperative title>"` (e.g. "Add OAuth2 login", not "auth").
 2. Fill the task file:
-   - **Description**: 1-3 sentences describing the outcome, not the implementation.
-   - **Context**: affected area and useful code references such as `rust-mcp/src/main.rs` or `config-ui/src/types.ts`.
-   - **Bug details** when relevant: repro steps, expected behavior, actual behavior, environment.
-   - **Scope hints**: obvious in/out boundaries, known constraints, likely docs/tests impact.
-   - **Open questions** only when they are truly blocking.
-3. Add frontmatter for `priority`, `labels`, and `dependsOn` when another task must finish first.
-4. If the change is non-trivial, make it spec-driven:
-   - create or link `.agentkanban/specs/<capability>/spec.md`
-   - create `.agentkanban/changes/<task-slug>/proposal.md`, `design.md`, and `tasks.md`
-   - add `spec:` and `change:` frontmatter to the task file
-5. Leave the task in `backlog` until the implementation path is clear.
+   - **Description** — 1-3 sentences: the outcome, not the solution.
+   - **Context** — where it came from, affected area, code refs as `path:line`.
+   - **Bug?** repro steps, expected vs actual, environment.
+   - **Scope hints** — obvious in/out, known constraints.
+   - **Open questions** — anything needing user input before planning.
+3. Frontmatter: `priority` (critical/high/medium/low), `labels`, `dependsOn:[<slug>]` if it waits on
+   another task (+ a `blocked-by:<slug>` label for board visibility).
+4. **Spec-driven?** If it touches a capability with a spec, run `@kanban /spec <capability>` to scaffold
+   `changes/<slug>/{proposal,design,tasks}.md` + link the capability `spec`. Add `change:`/`spec:`
+   frontmatter to the task.
+5. Leave it in `backlog`. Do NOT plan or implement yet.
 
-## Repo-local hints
-
-- UI work usually lives in `config-ui/src/components/tabs/`, `config-ui/src/hooks/`, and `config-ui/src/__tests__/`
-- Rust server and config-manager work usually lives in `rust-mcp/src/`
-- checked-in config changes usually belong in `rust-mcp/config/`
-- docs changes usually touch `README.md`, `TECHNICAL.md`, and `docs/src/`
-- release and installer work often spans scripts, workflow files, docs, and version files, so default to spec-driven
-
-## Definition of ready
-
-- The outcome is concrete enough to test or verify.
-- The touched area is identified: Rust, Config UI, config JSON, docs, or a mix.
-- Any dependency task is called out with `dependsOn` and `blocked-by:<slug>`.
-- If the task is large or cross-cutting, the spec/change artifacts are present before work starts.
+## OCloud framing (apply at intake)
+- State the outcome as observable behavior that must RUN, not a status/row write (the Definition of
+  Done will hold the task to this).
+- Note org-scoping, audit, and secret-handling implications if the task mutates state.
+- Respect frozen routes + public interfaces — new work re-implements behind them.
 
 ## Discovered mid-work
+Spotted while doing another task -> create it here with label `discovered` +
+`Discovered-from: <originating-slug>`, leave in `backlog`, continue current work. Don't pull it in.
 
-If new work is discovered while implementing something else, create a separate backlog task with a
-note linking back to the originating task. Do not silently expand the current task.
+## Checklist
+- [ ] Title imperative + specific
+- [ ] Outcome stated as runnable behavior
+- [ ] **Gate awareness:** the `review -> done` gate runs the full production-readiness audit
+  ([production-readiness-audit.md](production-readiness-audit.md)). If this task touches queries,
+  mutations, secrets, agent commands, or billable resources, the audit will check org-scoping,
+  audit events, signed commands, and quota enforcement. Plan for them now.
+- [ ] Bug: repro + expected/actual + env
+- [ ] Frontmatter + spec link where useful; left in `backlog`
 
 ## Next
-
-Move to [stage-backlog-to-in-progress.md](stage-backlog-to-in-progress.md) when the task is ready to start.
+Standard profile: [stage-backlog-to-planning.md](stage-backlog-to-planning.md).
+Lite profile: [stage-backlog-to-inprogress.md](stage-backlog-to-inprogress.md).
+```
 ```

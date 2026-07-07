@@ -230,6 +230,11 @@ pub async fn start_config_server(
         )
         .route("/api/config/tools", get(get_tools))
         .route("/api/config/tools", post(update_tools))
+        .route("/api/config/tools/drift", get(get_tools_drift))
+        .route(
+            "/api/config/tools/import-missing",
+            post(import_missing_tools),
+        )
         .route("/api/config/prompts", get(get_prompts))
         .route("/api/config/prompts", post(update_prompts))
         .route("/api/config/server", get(get_server))
@@ -1320,6 +1325,37 @@ async fn update_tools(
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({ "error": format!("Unexpected error: {}", e) })),
+            )
+                .into_response()
+        }
+    }
+}
+
+async fn get_tools_drift(State(state): State<AppState>) -> impl IntoResponse {
+    match state.config_manager.tools_drift().await {
+        Ok(drift) => (StatusCode::OK, Json(json!(drift))).into_response(),
+        Err(e) => {
+            error!("Failed to compare tools catalog drift: {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    }
+}
+
+async fn import_missing_tools(State(state): State<AppState>) -> impl IntoResponse {
+    match state.config_manager.import_missing_tools().await {
+        Ok(result) => {
+            state.config_watcher.notify("tools.json");
+            (StatusCode::OK, Json(json!(result))).into_response()
+        }
+        Err(e) => {
+            error!("Failed to import missing tools: {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": e.to_string() })),
             )
                 .into_response()
         }

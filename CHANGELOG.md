@@ -5,6 +5,14 @@ All notable changes to the **Odoo Rust MCP Server** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.5.2] - 2026-07-08
+
+### Added
+- Runtime tool catalog drift import support for Config UI tool management.
+
+### Fixed
+- Improved Config UI handling for tool catalog updates and persisted tool metadata.
+
 ## [v0.5.1] - 2026-06-22
 
 ### Added

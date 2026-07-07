@@ -213,3 +213,37 @@ Implemented and executed a guarded Odoo stock inventory reversal cleanup capabil
 - [x] (agent) Remaining risky rows left blocked pending physical review.
 
 ### user
+
+continue the fixing after updating `odoo-rust-mcp`; apply the remaining blocked rows.
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_018_add_stock_inventory_reversal_cleanup_tool.md`.
+
+Continued the production cleanup after the MCP update and applied the remaining three wrong inventory adjustment reversals with `allowNegative=true`, as explicitly approved.
+
+**Additional execution completed:**
+
+- Dry-ran the 3 previously blocked rows with `allowNegative=true`.
+- Dry-run result: 3 ready rows, 0 blocked, total reversal quantity `290,046.2`.
+- Applied the three rows through `odoo_stock_inventory_reversal_cleanup`.
+- Applied quant IDs: `5012`, `5042`, `6250`.
+- Final negative-result evidence recorded in:
+  - `reports/stock_quant_repair_2026-07-07/inventory_reversal_negative_execution_result.csv`
+- Updated the audit note:
+  - `reports/stock_quant_repair_2026-07-07/WRONG_INVENTORY_ADJUSTMENT_REVERSAL.md`
+
+**Final totals:**
+
+- Safe reversal rows: 5 quant rows, total `1,660,311.5`.
+- Approved negative-result rows: 3 quant rows, total `290,046.2`.
+- Grand total reversed: `1,950,357.7`, matching the original wrong adjustment total.
+
+**Validation completed:**
+
+- Final live quantities were read back through the MCP cleanup dry-run path.
+- Combined CSV totals matched the original wrong adjustment total exactly.
+- `cargo test --manifest-path rust-mcp/Cargo.toml cleanup::stock_inventory --lib` passed.
+- `cargo check --manifest-path rust-mcp/Cargo.toml --all-features` passed.
+
+### user
