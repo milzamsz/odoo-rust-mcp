@@ -17,6 +17,7 @@ import {
   Tooltip,
   useMantineColorScheme,
 } from '@mantine/core';
+import packageJson from '../../package.json';
 import { useColorScheme, useDisclosure, useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import {
@@ -497,7 +498,7 @@ export function AppShellLayout() {
                 Hot reload
               </Badge>
               <Text size="sm" c="dimmed">
-                v0.5.1 — Changes are applied to the embedded config surface without restart.
+                v{packageJson.version} — Changes are applied to the embedded config surface without restart.
               </Text>
             </Group>
             <Group gap="xs" wrap="nowrap">

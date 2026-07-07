@@ -12,11 +12,11 @@ import {
   Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { ArrowClockwise, MagnifyingGlass } from '@phosphor-icons/react';
+import { ArrowClockwise, DownloadSimple, MagnifyingGlass } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ToolDetail } from '../ToolDetail';
-import { useConfig } from '../../hooks/useConfig';
-import type { ToolConfig } from '../../types';
+import { importMissingTools, loadToolCatalogDrift, useConfig } from '../../hooks/useConfig';
+import type { ToolCatalogDrift, ToolConfig } from '../../types';
 import { ALL_GROUPED_TOOL_NAMES, OTHER_TOOL_GROUP, TOOL_GROUPS } from '../../toolGroups';
 
 const AVAILABLE_GUARDS = [
@@ -35,8 +35,26 @@ const AVAILABLE_GUARDS = [
 export function ToolsTab() {
   const { load, save, loading } = useConfig('tools');
   const [editedTools, setEditedTools] = useState<ToolConfig[]>([]);
+  const [catalogDrift, setCatalogDrift] = useState<ToolCatalogDrift | null>(null);
+  const [driftLoading, setDriftLoading] = useState(false);
+  const [importingMissingTools, setImportingMissingTools] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'enabled' | 'disabled'>('all');
+
+  const refreshDrift = useCallback(async () => {
+    setDriftLoading(true);
+    try {
+      setCatalogDrift(await loadToolCatalogDrift());
+    } catch (error) {
+      notifications.show({
+        color: 'red',
+        title: 'Catalog check failed',
+        message: error instanceof Error ? error.message : 'Failed to compare packaged tools',
+      });
+    } finally {
+      setDriftLoading(false);
+    }
+  }, []);
 
   const loadTools = useCallback(async () => {
     try {
@@ -53,7 +71,8 @@ export function ToolsTab() {
 
   useEffect(() => {
     void loadTools();
-  }, [loadTools]);
+    void refreshDrift();
+  }, [loadTools, refreshDrift]);
 
   const isToolEnabled = useCallback((tool: ToolConfig) => !tool.guards?.requiresEnvTrue, []);
 
@@ -144,6 +163,31 @@ export function ToolsTab() {
     }
   };
 
+  const importMissingPackagedTools = async () => {
+    setImportingMissingTools(true);
+    try {
+      const result = await importMissingTools();
+      notifications.show({
+        color: result.imported_count > 0 ? 'green' : 'blue',
+        title: result.imported_count > 0 ? 'Tools imported' : 'Catalog already current',
+        message:
+          result.imported_count > 0
+            ? `${result.imported_count} packaged tool${result.imported_count === 1 ? '' : 's'} imported into the live catalog.`
+            : 'No missing packaged tools were found.',
+      });
+      setCatalogDrift(result.drift);
+      await loadTools();
+    } catch (error) {
+      notifications.show({
+        color: 'red',
+        title: 'Import failed',
+        message: error instanceof Error ? error.message : 'Failed to import missing tools',
+      });
+    } finally {
+      setImportingMissingTools(false);
+    }
+  };
+
   const filteredTools = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     return editedTools.filter((tool) => {
@@ -200,6 +244,47 @@ export function ToolsTab() {
           </Title>
         </Card>
       </SimpleGrid>
+
+      <Card p="lg" className="surface-panel">
+        <Group justify="space-between" align="flex-start" gap="lg" wrap="wrap">
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <Text className="page-eyebrow">Catalog drift</Text>
+            <Title order={3} mt={8}>
+              {catalogDrift?.missing_count ? `${catalogDrift.missing_count} packaged tool${catalogDrift.missing_count === 1 ? '' : 's'} missing` : 'Runtime catalog is current'}
+            </Title>
+            <Text size="sm" c="dimmed" mt={6}>
+              Live runtime catalog: {catalogDrift?.runtime_count ?? editedTools.length}. Packaged catalog: {catalogDrift?.packaged_count ?? 'checking'}.
+            </Text>
+            {catalogDrift?.missing_tools.length ? (
+              <Group gap="xs" mt="sm">
+                {catalogDrift.missing_tools.slice(0, 4).map((tool) => (
+                  <Badge key={tool.name} variant="light" color="orange">
+                    {tool.name}
+                  </Badge>
+                ))}
+                {catalogDrift.missing_tools.length > 4 ? (
+                  <Badge variant="light" color="gray">
+                    +{catalogDrift.missing_tools.length - 4} more
+                  </Badge>
+                ) : null}
+              </Group>
+            ) : null}
+          </div>
+          <Group>
+            <Button variant="default" leftSection={<ArrowClockwise size={16} />} loading={driftLoading} onClick={() => void refreshDrift()}>
+              Check catalog
+            </Button>
+            <Button
+              leftSection={<DownloadSimple size={16} />}
+              disabled={!catalogDrift?.missing_count}
+              loading={importingMissingTools}
+              onClick={() => void importMissingPackagedTools()}
+            >
+              Import missing tools
+            </Button>
+          </Group>
+        </Group>
+      </Card>
 
       <Card p="lg" className="surface-panel">
         <Group justify="space-between" align="flex-end" wrap="wrap">

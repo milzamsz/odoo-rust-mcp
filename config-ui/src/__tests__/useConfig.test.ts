@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { useConfig } from '../hooks/useConfig';
+import { importMissingTools, loadToolCatalogDrift, useConfig } from '../hooks/useConfig';
 import type { StatusMessage, InstanceConfig, ToolConfig } from '../types';
 
 // Mock fetch globally
@@ -218,6 +218,51 @@ describe('useConfig Hook', () => {
       const endpoint = '/api/config/prompts';
       expect(endpoint).toContain('/api/config');
       expect(endpoint).toContain('prompts');
+    });
+
+    it('should load tool catalog drift from the drift endpoint', async () => {
+      const drift = {
+        runtime_count: 22,
+        packaged_count: 23,
+        missing_count: 1,
+        missing_tools: [{ name: 'odoo_stock_inventory_reversal_cleanup' }],
+      };
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => drift,
+      });
+      globalThis.fetch = fetchMock;
+
+      await expect(loadToolCatalogDrift()).resolves.toEqual(drift);
+      expect(fetchMock).toHaveBeenCalledWith('/api/config/tools/drift', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    it('should post to import missing tools endpoint', async () => {
+      const result = {
+        imported_count: 1,
+        imported_tools: [{ name: 'odoo_stock_inventory_reversal_cleanup' }],
+        drift: {
+          runtime_count: 23,
+          packaged_count: 23,
+          missing_count: 0,
+          missing_tools: [],
+        },
+      };
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => result,
+      });
+      globalThis.fetch = fetchMock;
+
+      await expect(importMissingTools()).resolves.toEqual(result);
+      expect(fetchMock).toHaveBeenCalledWith('/api/config/tools/import-missing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
     });
   });
 

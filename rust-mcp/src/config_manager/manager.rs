@@ -1,3 +1,4 @@
+use serde::Serialize;
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -7,6 +8,30 @@ use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
 use crate::odoo::config::OdooInstanceConfig;
+
+const DEFAULT_TOOLS_JSON: &str = include_str!("../../config-defaults/tools.json");
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ToolCatalogToolSummary {
+    pub name: String,
+    pub description: Option<String>,
+    pub guards: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ToolCatalogDrift {
+    pub runtime_count: usize,
+    pub packaged_count: usize,
+    pub missing_count: usize,
+    pub missing_tools: Vec<ToolCatalogToolSummary>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ToolCatalogImportResult {
+    pub imported_count: usize,
+    pub imported_tools: Vec<ToolCatalogToolSummary>,
+    pub drift: ToolCatalogDrift,
+}
 
 /// Result type for config operations that may need to notify the UI
 #[derive(Debug, Clone)]
@@ -61,6 +86,50 @@ fn normalize_instance_tags(tags: &[String]) -> Vec<String> {
     }
 
     normalized
+}
+
+fn extract_tools_array(config: Value) -> anyhow::Result<Vec<Value>> {
+    if let Some(tools) = config.get("tools").and_then(|v| v.as_array()) {
+        Ok(tools.clone())
+    } else if let Some(tools) = config.as_array() {
+        Ok(tools.clone())
+    } else {
+        anyhow::bail!(
+            "Invalid tools.json format: expected object with 'tools' array or array directly"
+        )
+    }
+}
+
+fn tool_name(tool: &Value) -> anyhow::Result<String> {
+    tool.get("name")
+        .and_then(Value::as_str)
+        .filter(|name| !name.trim().is_empty())
+        .map(ToString::to_string)
+        .ok_or_else(|| anyhow::anyhow!("Tool entry is missing a non-empty string 'name' field"))
+}
+
+fn validate_unique_tool_names(tools: &[Value]) -> anyhow::Result<()> {
+    let mut seen = HashSet::new();
+
+    for tool in tools {
+        let name = tool_name(tool)?;
+        if !seen.insert(name.clone()) {
+            anyhow::bail!("Duplicate tool name in tools.json: {name}");
+        }
+    }
+
+    Ok(())
+}
+
+fn summarize_tool(tool: &Value) -> anyhow::Result<ToolCatalogToolSummary> {
+    Ok(ToolCatalogToolSummary {
+        name: tool_name(tool)?,
+        description: tool
+            .get("description")
+            .and_then(Value::as_str)
+            .map(ToString::to_string),
+        guards: tool.get("guards").cloned(),
+    })
 }
 
 #[derive(Clone)]
@@ -292,19 +361,99 @@ impl ConfigManager {
         let content = fs::read_to_string(&path)?;
         let config: Value = serde_json::from_str(&content)?;
 
-        // Extract tools array from {"tools": [...]} or return array directly
-        let tools = if let Some(tools_array) = config.get("tools").and_then(|v| v.as_array()) {
-            json!(tools_array)
-        } else if config.is_array() {
-            config
-        } else {
-            return Err(anyhow::anyhow!(
-                "Invalid tools.json format: expected object with 'tools' array or array directly"
-            ));
-        };
+        let tools = extract_tools_array(config)?;
+        validate_unique_tool_names(&tools)?;
 
         info!("Loaded tools config from {:?}", path);
+        Ok(json!(tools))
+    }
+
+    fn load_packaged_default_tools(&self) -> anyhow::Result<Vec<Value>> {
+        let config: Value = serde_json::from_str(DEFAULT_TOOLS_JSON)
+            .map_err(|e| anyhow::anyhow!("Invalid packaged default tools.json: {e}"))?;
+        let tools = extract_tools_array(config)?;
+        validate_unique_tool_names(&tools)?;
         Ok(tools)
+    }
+
+    async fn load_runtime_tools_vec(&self) -> anyhow::Result<Vec<Value>> {
+        let tools = self.load_tools().await?;
+        extract_tools_array(tools)
+    }
+
+    fn build_tool_catalog_drift(
+        &self,
+        runtime_tools: &[Value],
+        packaged_tools: &[Value],
+    ) -> anyhow::Result<ToolCatalogDrift> {
+        validate_unique_tool_names(runtime_tools)?;
+        validate_unique_tool_names(packaged_tools)?;
+
+        let runtime_names = runtime_tools
+            .iter()
+            .map(tool_name)
+            .collect::<anyhow::Result<HashSet<_>>>()?;
+
+        let mut missing_tools = Vec::new();
+        for tool in packaged_tools {
+            let name = tool_name(tool)?;
+            if !runtime_names.contains(&name) {
+                missing_tools.push(summarize_tool(tool)?);
+            }
+        }
+
+        Ok(ToolCatalogDrift {
+            runtime_count: runtime_tools.len(),
+            packaged_count: packaged_tools.len(),
+            missing_count: missing_tools.len(),
+            missing_tools,
+        })
+    }
+
+    pub async fn tools_drift(&self) -> anyhow::Result<ToolCatalogDrift> {
+        let runtime_tools = self.load_runtime_tools_vec().await?;
+        let packaged_tools = self.load_packaged_default_tools()?;
+        self.build_tool_catalog_drift(&runtime_tools, &packaged_tools)
+    }
+
+    pub async fn import_missing_tools(&self) -> anyhow::Result<ToolCatalogImportResult> {
+        let mut runtime_tools = self.load_runtime_tools_vec().await?;
+        let packaged_tools = self.load_packaged_default_tools()?;
+        let initial_drift = self.build_tool_catalog_drift(&runtime_tools, &packaged_tools)?;
+
+        if initial_drift.missing_tools.is_empty() {
+            return Ok(ToolCatalogImportResult {
+                imported_count: 0,
+                imported_tools: Vec::new(),
+                drift: initial_drift,
+            });
+        }
+
+        let runtime_names = runtime_tools
+            .iter()
+            .map(tool_name)
+            .collect::<anyhow::Result<HashSet<_>>>()?;
+
+        let mut imported_tools = Vec::new();
+        for tool in &packaged_tools {
+            let name = tool_name(tool)?;
+            if !runtime_names.contains(&name) {
+                imported_tools.push(summarize_tool(tool)?);
+                runtime_tools.push(tool.clone());
+            }
+        }
+
+        let save_result = self.save_tools(json!(runtime_tools)).await?;
+        if !save_result.success {
+            anyhow::bail!(save_result.message);
+        }
+
+        let drift = self.tools_drift().await?;
+        Ok(ToolCatalogImportResult {
+            imported_count: imported_tools.len(),
+            imported_tools,
+            drift,
+        })
     }
 
     /// Save tools config to file with backup and rollback support
@@ -312,14 +461,17 @@ impl ConfigManager {
         let path = self.config_dir.join("tools.json");
 
         // Accept either array directly or object with tools array
-        let tools_array = if config.is_array() {
-            config
-        } else if let Some(tools) = config.get("tools").and_then(|v| v.as_array()) {
-            json!(tools)
-        } else {
-            return Ok(ConfigResult::error(
-                "Tools config must be a JSON array or object with 'tools' array",
-            ));
+        let tools_array = match extract_tools_array(config) {
+            Ok(tools) => tools,
+            Err(_) => {
+                return Ok(ConfigResult::error(
+                    "Tools config must be a JSON array or object with 'tools' array",
+                ));
+            }
+        };
+
+        if let Err(e) = validate_unique_tool_names(&tools_array) {
+            return Ok(ConfigResult::error(e.to_string()));
         };
 
         // Create backup before modifying
