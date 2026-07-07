@@ -7,7 +7,7 @@
     "frontendDist": "../src",
     "devUrl": "http://127.0.0.1:3008",
     "beforeDevCommand": "",
-    "beforeBuildCommand": "echo 'Assets prepared manually'"
+    "beforeBuildCommand": "node scripts/prebuild.mjs"
   },
   "app": {
     "withGlobalTauri": true,
