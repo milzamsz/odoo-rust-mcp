@@ -16,6 +16,34 @@ evidence:
 
 ### user
 
+rebuid again
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_018_add_stock_inventory_reversal_cleanup_tool.md`.
+
+Rebuilt the Linux desktop artifacts again after the asset-sync fix.
+
+Commands completed successfully:
+- `cd config-ui && npm run build`
+- `cargo build --release --manifest-path rust-mcp/Cargo.toml`
+- copied `rust-mcp/target/release/rust-mcp` into `desktop/src-tauri/binaries/rust-mcp-x86_64-unknown-linux-gnu`
+- `cd desktop && npm run build -- --bundles appimage,deb`
+
+Generated artifacts:
+- `desktop/src-tauri/target/release/bundle/appimage/Odoo Rust MCP_0.5.1_amd64.AppImage`
+- `desktop/src-tauri/target/release/bundle/deb/Odoo Rust MCP_0.5.1_amd64.deb`
+
+Refreshed the user-local AppDir install from the rebuilt `.deb` because the app menu launches `~/.local/bin/odoo-rust-mcp-desktop`.
+
+Live verification after relaunch:
+- `curl http://127.0.0.1:3008/` serves `assets/index-y9mYti0s.js`.
+- `curl http://127.0.0.1:3008/assets/AppShellLayout-DA-u314N.js | grep -o 'v0\.5\.[01]'` returns `v0.5.1`.
+- Port `3008` is served by `/home/milzam/.local/opt/odoo-rust-mcp-desktop/AppDir/usr/bin/rust-mcp`.
+- Runtime catalog reports 23 tools and includes `odoo_stock_inventory_reversal_cleanup`.
+
+### user
+
 Start implementation. the app still v0.5.0 but tools is oke now
 
 ### agent
