@@ -5,40 +5,141 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Odoo Rust MCP</title>
     <style>
+      :root {
+        color-scheme: dark;
+        font-family: 'Geist Sans', 'Segoe UI', sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(61, 115, 230, 0.16), transparent 30%),
+          linear-gradient(180deg, #191920 0%, #121218 100%);
+        color: #e9e9ec;
+      }
+
       body {
         margin: 0;
-        padding: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #f5f5f0;
-        color: #1b1b1b;
+        min-height: 100vh;
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        min-height: 100vh;
+        background: transparent;
       }
-      .container { text-align: center; max-width: 480px; }
-      h1 { font-size: 1.5rem; font-weight: 500; margin-bottom: 0.5rem; }
-      p { color: #6b6b63; font-size: 0.9rem; line-height: 1.5; }
-      .loader { border: 3px solid #e0e0d8; border-top: 3px solid #228be6; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 2rem auto; }
-      @keyframes spin { to { transform: rotate(360deg); } }
-      .error { color: #e03131; display: none; }
+
+      .container {
+        width: min(30rem, calc(100vw - 3rem));
+        padding: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        background: rgba(24, 24, 31, 0.84);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+        backdrop-filter: blur(14px);
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0.25rem 0 0.75rem;
+        font-size: 1.4rem;
+        font-weight: 600;
+      }
+
+      p {
+        margin: 0;
+        color: #9a9aa2;
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+
+      .loader {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 1.5rem;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.12);
+        border-top-color: #6c9bff;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .status {
+        margin-top: 0.5rem;
+      }
+
+      .error {
+        display: none;
+        margin-top: 1rem;
+        color: #ff9b9b;
+      }
+
+      .actions {
+        display: none;
+        margin-top: 1.25rem;
+        justify-content: center;
+        gap: 0.75rem;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 0.7rem 1rem;
+        background: #2b64d8;
+        color: white;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="loader" id="loader"></div>
-      <h1>Starting Odoo MCP Server...</h1>
-      <p id="status">Waiting for the configuration server to become ready.</p>
-      <p class="error" id="error-msg">Could not connect to the configuration server. Please check that rust-mcp.exe is running.</p>
+      <h1>Starting Odoo Rust MCP</h1>
+      <p class="status" id="status">Preparing the local configuration server.</p>
+      <p class="error" id="error-msg">The desktop app could not open the local configuration UI yet.</p>
+      <div class="actions" id="actions">
+        <button id="open-ui" type="button">Open Config UI</button>
+        <button class="secondary" id="retry" type="button">Retry</button>
+      </div>
     </div>
     <script>
-      // When packaged, Tauri loads this HTML first.
-      // After a short delay, redirect to the Config UI.
-      // The sidecar should be launching the server in parallel.
-      setTimeout(function() {
-        window.location.replace('http://127.0.0.1:3008');
-      }, 3000);
+      const statusEl = document.getElementById('status');
+      const errorEl = document.getElementById('error-msg');
+      const loaderEl = document.getElementById('loader');
+      const actionsEl = document.getElementById('actions');
+      const openUiButton = document.getElementById('open-ui');
+      const retryButton = document.getElementById('retry');
+      const targetUrl = 'http://127.0.0.1:3008';
+
+      function setStatus(message) {
+        statusEl.textContent = message;
+      }
+
+      function showError(message) {
+        if (message) {
+          errorEl.textContent = message;
+        }
+        errorEl.style.display = 'block';
+        actionsEl.style.display = 'flex';
+        loaderEl.style.display = 'none';
+      }
+
+      window.__odooMcpDesktopSetStatus = setStatus;
+      window.__odooMcpDesktopShowError = showError;
+
+      openUiButton.addEventListener('click', () => {
+        window.location.href = targetUrl;
+      });
+
+      retryButton.addEventListener('click', () => {
+        errorEl.style.display = 'none';
+        actionsEl.style.display = 'none';
+        loaderEl.style.display = 'block';
+        setStatus('Retrying local configuration server startup...');
+        window.location.reload();
+      });
     </script>
   </body>
 </html>

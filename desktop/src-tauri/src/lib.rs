@@ -1,14 +1,25 @@
-use std::sync::Mutex;
+use std::{
+    io::{Read, Write},
+    net::{SocketAddr, TcpStream},
+    sync::Mutex,
+    time::Duration,
+};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager,
+    AppHandle, Manager, Url,
 };
 use tauri_plugin_shell::process::CommandChild;
 
 pub struct SidecarState {
     pub child: Mutex<Option<CommandChild>>,
 }
+
+const CONFIG_UI_URL: &str = "http://127.0.0.1:3008";
+const CONFIG_UI_HOST: &str = "127.0.0.1";
+const CONFIG_UI_PORT: u16 = 3008;
+const CONFIG_UI_STARTUP_ATTEMPTS: usize = 30;
+const CONFIG_UI_RETRY_DELAY: Duration = Duration::from_secs(1);
 
 /// Build a tray menu with actions.
 fn build_tray_menu(app: &AppHandle) -> tauri::menu::Menu<tauri::Wry> {
@@ -143,6 +154,8 @@ pub fn run() {
 async fn start_sidecar(app: &AppHandle) {
     use tauri_plugin_shell::ShellExt;
 
+    set_startup_status(app, "Starting the local Odoo Rust MCP server...");
+
     // Get sidecar state
     let state = app.state::<SidecarState>();
 
@@ -171,10 +184,112 @@ async fn start_sidecar(app: &AppHandle) {
         Ok((mut _rx, child)) => {
             let mut child_guard = state.child.lock().unwrap();
             *child_guard = Some(child);
+
+            if wait_for_config_ui(app) {
+                if let Some(window) = app.get_webview_window("main") {
+                    if let Ok(url) = Url::parse(CONFIG_UI_URL) {
+                        if let Err(error) = window.navigate(url) {
+                            show_startup_error(
+                                app,
+                                &format!(
+                                    "The local configuration server started, but the desktop window could not open it: {}",
+                                    error
+                                ),
+                            );
+                        }
+                    } else {
+                        show_startup_error(app, "The desktop app generated an invalid configuration UI URL.");
+                    }
+                }
+            } else {
+                show_startup_error(
+                    app,
+                    "The local configuration server did not become ready in time. The app is still installed, but the desktop window could not connect to http://127.0.0.1:3008.",
+                );
+            }
         }
         Err(e) => {
             eprintln!("failed to spawn sidecar: {}", e);
+            show_startup_error(
+                app,
+                &format!(
+                    "The desktop app could not start the bundled rust-mcp server: {}",
+                    e
+                ),
+            );
         }
+    }
+}
+
+fn wait_for_config_ui(app: &AppHandle) -> bool {
+    let address = SocketAddr::from(([127, 0, 0, 1], CONFIG_UI_PORT));
+
+    for attempt in 1..=CONFIG_UI_STARTUP_ATTEMPTS {
+        set_startup_status(
+            app,
+            &format!(
+                "Waiting for the local configuration server to become ready (attempt {} of {})...",
+                attempt, CONFIG_UI_STARTUP_ATTEMPTS
+            ),
+        );
+
+        if is_config_ui_ready(address) {
+            set_startup_status(app, "Configuration server is ready. Opening the desktop UI...");
+            return true;
+        }
+
+        std::thread::sleep(CONFIG_UI_RETRY_DELAY);
+    }
+
+    false
+}
+
+fn is_config_ui_ready(address: SocketAddr) -> bool {
+    let mut stream = match TcpStream::connect_timeout(&address, Duration::from_millis(750)) {
+        Ok(stream) => stream,
+        Err(_) => return false,
+    };
+
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(750)));
+    let _ = stream.set_write_timeout(Some(Duration::from_millis(750)));
+
+    let request = format!(
+        "GET / HTTP/1.1\r\nHost: {}:{}\r\nConnection: close\r\n\r\n",
+        CONFIG_UI_HOST, CONFIG_UI_PORT
+    );
+
+    if stream.write_all(request.as_bytes()).is_err() {
+        return false;
+    }
+
+    let mut response = String::new();
+    if stream.read_to_string(&mut response).is_err() {
+        return false;
+    }
+
+    response.starts_with("HTTP/1.1 200") || response.starts_with("HTTP/1.0 200")
+}
+
+fn set_startup_status(app: &AppHandle, status: &str) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    if let Err(error) = window.eval(format!("window.__odooMcpDesktopSetStatus?.({status:?});")) {
+        eprintln!("failed to update desktop startup status: {}", error);
+    }
+}
+
+fn show_startup_error(app: &AppHandle, message: &str) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    let script = format!(
+        "window.__odooMcpDesktopShowError?.({message:?}); window.__odooMcpDesktopSetStatus?.({message:?});"
+    );
+    if let Err(error) = window.eval(script) {
+        eprintln!("failed to show desktop startup error: {}", error);
     }
 }
 

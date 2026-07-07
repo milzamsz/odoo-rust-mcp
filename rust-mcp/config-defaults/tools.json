@@ -355,6 +355,49 @@
       }
     },
     {
+      "name": "odoo_stock_inventory_reversal_cleanup",
+      "description": "Plan or apply a guarded stock quant inventory reversal for wrong inventory adjustment move lines. Defaults to dryRun=true; mutation requires confirm=true and ODOO_ENABLE_CLEANUP_TOOLS.",
+      "guards": { "requiresEnvTrue": "ODOO_ENABLE_CLEANUP_TOOLS" },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": { "type": "integer" },
+                "locationId": { "type": "integer" },
+                "wrongAdjustmentQty": { "type": "number" },
+                "sourceStockMoveLineIds": { "type": "array", "items": { "type": "integer" } },
+                "note": { "type": "string" }
+              },
+              "required": ["productId", "locationId", "wrongAdjustmentQty"],
+              "additionalProperties": false
+            }
+          },
+          "reference": { "type": "string" },
+          "dryRun": { "type": "boolean", "description": "Defaults to true. When true, only returns the reversal plan." },
+          "confirm": { "type": "boolean", "description": "Must be true with dryRun=false to apply inventory quantities." },
+          "allowNegative": { "type": "boolean", "description": "Defaults to false. When false, blocks reversals that make/keep target stock negative." }
+        },
+        "required": ["instance", "lines"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "stock_inventory_reversal_cleanup",
+        "map": {
+          "instance": "/instance",
+          "lines": "/lines",
+          "reference": "/reference",
+          "dryRun": "/dryRun",
+          "confirm": "/confirm",
+          "allowNegative": "/allowNegative"
+        }
+      }
+    },
+    {
       "name": "odoo_read_group",
       "description": "Aggregate records with GROUP BY. Returns grouped data with sum, count, avg, etc.",
       "inputSchema": {

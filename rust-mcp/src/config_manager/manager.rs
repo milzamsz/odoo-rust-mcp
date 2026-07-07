@@ -173,6 +173,15 @@ impl ConfigManager {
             let mut instance = parsed_instances.get(name).cloned().ok_or_else(|| {
                 anyhow::anyhow!("Normalized instances config is missing '{name}'")
             })?;
+
+            if instance.auth_mode() == crate::odoo::config::OdooAuthMode::Password
+                && instance.username_looks_like_url()
+            {
+                anyhow::bail!(
+                    "Instance '{name}' has username/password auth, but the username looks like a URL. Enter the Odoo login name or email in the Username field instead of the instance URL."
+                );
+            }
+
             instance.tags = normalize_instance_tags(&instance.tags);
             normalized.insert(name.clone(), serde_json::to_value(instance)?);
         }
@@ -850,5 +859,27 @@ mod tests {
         assert!(loaded["erp-kdkmp"].get("aliases").is_none());
         assert_eq!(loaded["erp-kdkmp"]["tags"], json!(["prod", "KDKMP"]));
         assert_eq!(loaded["erp-kdkmp"]["url"], json!("https://erp.example.com"));
+    }
+
+    #[tokio::test]
+    async fn test_save_instances_rejects_password_username_that_looks_like_url() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let _instances_json = EnvGuard::set("ODOO_INSTANCES_JSON", None);
+        let temp_dir = TempDir::new().unwrap();
+        let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+
+        let config = json!({
+            "erp-ca-prod": {
+                "url": "https://erp.centralaroma.com/",
+                "db": "erp-ca",
+                "username": "https://erp.centralaroma.com/",
+                "password": "secret",
+                "version": "18"
+            }
+        });
+
+        let result = manager.save_instances(config).await.unwrap();
+        assert!(!result.success);
+        assert!(result.message.contains("username looks like a URL"));
     }
 }
