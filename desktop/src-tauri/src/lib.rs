@@ -15,7 +15,7 @@ pub struct SidecarState {
     pub child: Mutex<Option<CommandChild>>,
 }
 
-const CONFIG_UI_URL: &str = "http://127.0.0.1:3008";
+const CONFIG_UI_URL: &str = concat!("http://127.0.0.1:3008/?desktopVersion=", env!("CARGO_PKG_VERSION"));
 const CONFIG_UI_HOST: &str = "127.0.0.1";
 const CONFIG_UI_PORT: u16 = 3008;
 const CONFIG_UI_STARTUP_ATTEMPTS: usize = 30;

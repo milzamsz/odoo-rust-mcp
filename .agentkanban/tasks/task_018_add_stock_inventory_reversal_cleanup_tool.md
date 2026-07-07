@@ -22,6 +22,29 @@ still v0.5.0
 
 Confirmed task file: `.agentkanban/tasks/task_018_add_stock_inventory_reversal_cleanup_tool.md`.
 
+Added a desktop navigation cache-buster because the live server and installed assets were already corrected but the Tauri webview could still render a cached root page.
+
+Implementation:
+- Changed `desktop/src-tauri/src/lib.rs` so the desktop app opens `http://127.0.0.1:3008/?desktopVersion=0.5.1` using `env!("CARGO_PKG_VERSION")`.
+- Changed the fallback loader button in `desktop/src/index.html` to open the same versioned URL.
+- Rebuilt the Rust sidecar and Linux `.deb` package.
+- Updated the user-local AppDir install from the rebuilt package and cleared WebKit cache again.
+
+Verification:
+- The installed local desktop binary contains `http://127.0.0.1:3008/?desktopVersion=0.5.1`.
+- The versioned live URL serves `assets/index-y9mYti0s.js`.
+- The live `AppShellLayout-DA-u314N.js` chunk returns `v0.5.1`.
+- The active sidecar process is `/home/milzam/.local/opt/odoo-rust-mcp-desktop/AppDir/usr/bin/rust-mcp`.
+- `grep -R -l "v0.5.0" /home/milzam/.local/share/com.odoo-rust-mcp.desktop` returns no files.
+
+### user
+
+still v0.5.0
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_018_add_stock_inventory_reversal_cleanup_tool.md`.
+
 Resolved the remaining visible stale `v0.5.0` footer. The rebuilt app and live server were already serving `v0.5.1`; the stale text shown in the desktop window came from WebKit cache under `/home/milzam/.local/share/com.odoo-rust-mcp.desktop/WebKitCache`.
 
 Actions:
