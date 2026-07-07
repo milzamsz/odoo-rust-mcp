@@ -16,6 +16,27 @@ evidence:
 
 ### user
 
+still v0.5.0
+
+### agent
+
+Confirmed task file: `.agentkanban/tasks/task_018_add_stock_inventory_reversal_cleanup_tool.md`.
+
+Resolved the remaining visible stale `v0.5.0` footer. The rebuilt app and live server were already serving `v0.5.1`; the stale text shown in the desktop window came from WebKit cache under `/home/milzam/.local/share/com.odoo-rust-mcp.desktop/WebKitCache`.
+
+Actions:
+- Stopped `odoo-rust-mcp-desktop` and `rust-mcp`.
+- Cleared stale app webview cache directories under `/home/milzam/.local/share/com.odoo-rust-mcp.desktop`.
+- Relaunched `/home/milzam/.local/bin/odoo-rust-mcp-desktop`.
+
+Verification after relaunch:
+- `curl http://127.0.0.1:3008/` serves `assets/index-y9mYti0s.js`.
+- `curl http://127.0.0.1:3008/assets/AppShellLayout-DA-u314N.js | grep -o 'v0\.5\.[01]'` returns `v0.5.1`.
+- `grep -R -l "v0.5.0" /home/milzam/.local/share/com.odoo-rust-mcp.desktop` returns no files.
+- Runtime catalog still reports 23 tools and includes `odoo_stock_inventory_reversal_cleanup`.
+
+### user
+
 rebuid again
 
 ### agent
