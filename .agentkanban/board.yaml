@@ -11,6 +11,14 @@
 #   self-agent | independent-agent | independent-agent+human
 # worktreePolicy.requiredForImplementation: true | false
 # wipLimits.<lane>: <max tasks in that lane>  (e.g. in-progress: 1; omit/0 = no limit)
+# policies.transition.requireChecklistForInProgress: true | false
+# policies.transition.requireSpecForInProgress: true | false
+# policies.transition.requireDescriptionForReview: true | false
+# policies.transition.requireWorktreeForInProgress: true | false
+# policies.transition.requireDoneChecklistForDone: true | false  (review -> done also needs a full Definition of Done section)
+# policies.verification.testCommand: "npm test" (run on in-progress -> review)
+# policies.verification.lintCommand: "npm run lint" (run on in-progress -> review)
+# policies.verification.buildCommand: "npm run build" (run on in-progress -> review)
 # ===============================================================
 profile: lite
 profileVersion: 3
@@ -19,26 +27,6 @@ lanes:
   - in-progress
   - done
 users: []
-labels:
-  - workflow
-  - docs
-  - sdd
-  - config-ui
-  - instances
-  - ux
-  - mantine
-  - rewrite
-  - minimalist
-  - typography
-  - windows
-  - installer
-  - screenshots
-  - tauri
-  - desktop-app
-  - release
-  - github
-  - updater
-  - mcp
 enforcement:
   mode: warn
   overrides:
@@ -59,7 +47,7 @@ reviewPolicy:
     implementation: independent-agent
   critical:
     planning: independent-agent
-    implementation: independent-agent+human
+    implementation: independent-agent
 worktreePolicy:
   requiredForImplementation: false
 policies:
@@ -68,4 +56,45 @@ policies:
     requireSpecForInProgress: false
     requireDescriptionForReview: false
     requireWorktreeForInProgress: false
-  verification: {}
+    requireDoneChecklistForDone: false
+  verification:
+    testCommand: ""
+    lintCommand: ""
+    buildCommand: ""
+wipLimits:
+  in-progress: 5
+labels:
+  - workflow
+  - docs
+  - sdd
+  - config-ui
+  - instances
+  - ux
+  - mantine
+  - rewrite
+  - minimalist
+  - typography
+  - windows
+  - installer
+  - screenshots
+  - tauri
+  - desktop-app
+  - release
+  - github
+  - updater
+  - mcp
+  - rust
+  - ci
+  - dev-tools
+  - blocked-by:windows-tauri-desktop-foundation
+  - blocked-by:windows-tauri-sidecar-lifecycle
+  - blocked-by:windows-tauri-native-shell-controls
+  - blocked-by:windows-tauri-release-packaging
+  - blocked-by:windows-tauri-docs-validation
+  - blocked-by:deploy-windows-tauri-app-to-github
+  - blocked-by:desktop-app-mcp-client-connectivity
+  - cleanup
+  - odoo
+  - stock
+  - tools
+  - upgrade

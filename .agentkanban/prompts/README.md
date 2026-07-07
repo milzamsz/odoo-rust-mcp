@@ -1,64 +1,67 @@
 # Kanban prompts
 
-Lean prompt pack for developing `odoo-rust-mcp` under the active Lite board profile. These files
-should help contributors move real repo work forward without drifting into Standard-lane workflow
-or generic process text.
+Paste-ready stage drivers for AI-assisted development on this board. Opinionated, not stack-agnostic -
+tailor the `` / `` / `` / `` placeholders for your project and they
+become a repeatable delivery pipeline.
 
-Read first:
-
-- `AGENTS.md`
-- `TECHNICAL.md`
-- `.agentkanban/INSTRUCTION.md`
-- `.agentkanban/memory.md`
-- any referenced `.agentkanban/specs/<capability>/spec.md`
+Shared rules live in the repo: `AGENTS.md` (the managed Agentic Kanban block + your custom rules),
+`.agentkanban/INSTRUCTION.md` (workflow, lanes, action vocabulary, SDD), and per capability
+`.agentkanban/specs/<capability>/spec.md`.
 
 ## Flow
 
-This repo currently uses the Lite profile from `.agentkanban/board.yaml`:
+`in-progress` is **automatic** - not a human gate. Humans touch only at **plan approval**
+(`planning`) and **`review -> done`**. The default driver carries an approved plan straight to `review`.
 
-```text
-backlog -> in-progress -> done
+```
+intake -> backlog --[plan]-> planning ==[planning->review: AUTO]==> review --[audit]-> done
+                    [GATE:human]   |  in-progress (auto, no touch)       [GATE:human]
+                                   +-- blocker? -> label + park ----------+ (stays, resume later)
 ```
 
-Spec-driven development is still encouraged for non-trivial work, but it stays inside the Lite flow
-through `spec.md`, `proposal.md`, `design.md`, and `tasks.md`.
+## Default (autonomous)
 
-## Prompt set
+| Prompt | When |
+|---|---|
+| [stage-planning-to-review.md](stage-planning-to-review.md) | **one launch** - carry approved planning tasks through `in-progress` to `review`, hands-off; serial (WIP=1); blockers labeled + parked. Runs plan->implement->verify inline. |
 
-- [new-task-intake.md](new-task-intake.md): turn a raw request into a clean backlog task
-- [stage-backlog-to-in-progress.md](stage-backlog-to-in-progress.md): tighten scope, wire in spec-driven artifacts when needed, and start work the right way
-- [stage-in-progress-to-done.md](stage-in-progress-to-done.md): finish implementation, verify with real repo commands, update docs, and close cleanly
-- [stage-blocked-and-resume.md](stage-blocked-and-resume.md): record a real blocker or resume after it clears
-- [production-readiness-audit.md](production-readiness-audit.md): reusable audit before `done`, especially for risky or cross-cutting changes
+## Entry + gates + recovery
 
-Removed from the pack:
+| Prompt | When |
+|---|---|
+| [new-task-intake.md](new-task-intake.md) | raw idea/bug -> well-formed task in `backlog` |
+| [stage-backlog-to-planning.md](stage-backlog-to-planning.md) | clarify + plan all ready backlog tasks (spec-driven); ending in `planning` |
+| [stage-backlog-to-inprogress.md](stage-backlog-to-inprogress.md) | Lite sweep: clarify + lightly plan all ready backlog tasks, then start them in `in-progress` |
+| [stage-review-to-done.md](stage-review-to-done.md) | finalize approved tasks (human gate; runs the production-readiness audit) |
+| [stage-review-to-in-progress.md](stage-review-to-in-progress.md) | revise: send a rejected task back to implementation |
+| [stage-inprogress-to-done.md](stage-inprogress-to-done.md) | Lite sweep: review, verify, and close every task in `in-progress` |
+| [stage-blocked-and-resume.md](stage-blocked-and-resume.md) | block one / sweep blocked to resume cleared |
+| [production-readiness-audit.md](production-readiness-audit.md) | gate run by `review->done` (evidence the behavior RUNS, not a status write) |
+| [work-on-task.md](work-on-task.md) | single-task driver; used by `/work` (pick a not-done task, copy interpolated prompt to clipboard) |
+| [goal-decompose.md](goal-decompose.md) | goal decomposition driver; used by `/goal new` (copy to clipboard after epic + artifact are scaffolded) |
 
-- any `planning` or `review` lane prompt
-- any sweep-style prompt for processing many tasks at once
-- any generic policy text that does not match this Rust + Mantine + mdBook repo
+> The middle steps (`planning->in-progress`, `in-progress->review`) are not separate prompts -- the
+> autonomous driver does them inline. Use the granular flow only if you split it out later.
 
-## Repo validation gate
+## Project verify gate (every driver reuses)
 
-Use the smallest relevant subset for the touched area, and expand to the full gate for cross-cutting
-changes:
+Every implementation driver runs this gate before advancing. Paste **real output**, not assertions.
 
 ```bash
-cargo fmt --all --check --manifest-path rust-mcp/Cargo.toml
-cargo clippy --all-features --manifest-path rust-mcp/Cargo.toml -- -D warnings
-cargo test --all-features --manifest-path rust-mcp/Cargo.toml
-cd config-ui && npm run lint && npm run typecheck && npm test && npm run build
+   # e.g. go vet, eslint, ruff
+   # e.g. go test, npm test
+  # e.g. go build, tsc, vite build
+# plus any project-specific smoke checks
 ```
 
-If the change affects auth, transport, config-manager behavior, or embedded UI delivery, also run a
-local HTTP smoke test against `/health`, `/mcp`, and the Config UI.
+"Done" = behavior proven to RUN (test output / real run / workflow or job id), not a DB row. Respond
+IN the task file; explicit lane transitions only; record evidence; never claim pass without output.
 
-## Best practice for this app
+These files are bundled by the extension and (re)written by `@kanban /prompts`. Edit freely - your
+copies are preserved on init; `/prompts` overwrites to the latest bundled versions.
 
-- use spec-driven tasks for cross-cutting work touching `rust-mcp/`, `config-ui/`, release scripts, or docs
-- keep version changes synchronized between `rust-mcp/Cargo.toml` and `config-ui/package.json`
-- treat `rust-mcp/config/*` as checked-in runtime config and `rust-mcp/config-defaults/*` as bootstrap defaults
-- when UI behavior changes, prefer validating both `npm test` and `npm run build`
-- when auth, transport, or config-manager behavior changes, include a local smoke test against the embedded UI
-
-`done` means the changed behavior is supported by evidence, not by status alone. Keep the record in
-the task file and in the spec/change artifacts when the work is spec-driven.
+`@kanban /loop [lane]` emits the stage-driver prompt for the selected lane into chat. A **"Send prompt to chat"**
+button in the response injects it directly into the chat input (one click, press Enter to run). Clipboard copy
+included as fallback. Default lane is `backlog`. Lane-to-prompt mapping (Standard): `backlog` -> `stage-backlog-to-planning`,
+`planning`/`in-progress` -> `stage-planning-to-review`, `review` -> `stage-review-to-done`; (Lite): `backlog` ->
+`stage-backlog-to-inprogress`, `in-progress` -> `stage-inprogress-to-done`. Use `@kanban /prompts` to pick a prompt manually.

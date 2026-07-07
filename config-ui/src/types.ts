@@ -67,6 +67,25 @@ export interface ToolConfig {
   [key: string]: unknown;
 }
 
+export interface ToolCatalogToolSummary {
+  name: string;
+  description?: string | null;
+  guards?: Record<string, unknown> | null;
+}
+
+export interface ToolCatalogDrift {
+  runtime_count: number;
+  packaged_count: number;
+  missing_count: number;
+  missing_tools: ToolCatalogToolSummary[];
+}
+
+export interface ToolCatalogImportResult {
+  imported_count: number;
+  imported_tools: ToolCatalogToolSummary[];
+  drift: ToolCatalogDrift;
+}
+
 export interface ToolSchemaProperty {
   type?: string;
   items?: {

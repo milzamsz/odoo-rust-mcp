@@ -497,7 +497,7 @@ export function AppShellLayout() {
                 Hot reload
               </Badge>
               <Text size="sm" c="dimmed">
-                v0.5.0 — Changes are applied to the embedded config surface without restart.
+                v0.5.1 — Changes are applied to the embedded config surface without restart.
               </Text>
             </Group>
             <Group gap="xs" wrap="nowrap">

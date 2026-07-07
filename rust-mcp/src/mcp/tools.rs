@@ -181,6 +181,9 @@ pub async fn execute_op(
         "get_model_metadata" => op_get_model_metadata(pool, op, args).await,
         "database_cleanup" => op_database_cleanup(pool, op, args).await,
         "deep_cleanup" => op_deep_cleanup(pool, op, args).await,
+        "stock_inventory_reversal_cleanup" => {
+            op_stock_inventory_reversal_cleanup(pool, op, args).await
+        }
         "read_group" => op_read_group(pool, op, args).await,
         "name_search" => op_name_search(pool, op, args).await,
         "name_get" => op_name_get(pool, op, args).await,
@@ -739,6 +742,37 @@ async fn op_deep_cleanup(
             keep_user_accounts: opt_bool(&args, op, "keepUserAccounts")?,
             keep_menus: opt_bool(&args, op, "keepMenus")?,
             keep_groups: opt_bool(&args, op, "keepGroups")?,
+        },
+    )
+    .await?;
+    let v = serde_json::to_value(&report).unwrap_or_else(|_| json!({}));
+    Ok(ok_text(v))
+}
+
+async fn op_stock_inventory_reversal_cleanup(
+    pool: &OdooClientPool,
+    op: &OpSpec,
+    args: Value,
+) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let client = pool
+        .get(&instance)
+        .await
+        .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    let lines = req_value(&args, op, "lines")?;
+    let lines = serde_json::from_value(lines).map_err(|e| {
+        OdooError::InvalidResponse(format!(
+            "Argument 'lines' must be an array of stock inventory reversal lines: {e}"
+        ))
+    })?;
+    let report = cleanup::stock_inventory::execute_stock_inventory_reversal(
+        &client,
+        cleanup::stock_inventory::InventoryReversalOptions {
+            lines,
+            dry_run: Some(opt_bool(&args, op, "dryRun")?.unwrap_or(true)),
+            confirm: Some(opt_bool(&args, op, "confirm")?.unwrap_or(false)),
+            allow_negative: Some(opt_bool(&args, op, "allowNegative")?.unwrap_or(false)),
+            reference: opt_str(&args, op, "reference")?,
         },
     )
     .await?;

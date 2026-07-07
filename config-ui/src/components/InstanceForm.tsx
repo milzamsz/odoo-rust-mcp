@@ -40,6 +40,11 @@ interface InstanceFormProps {
 
 type AuthType = 'apiKey' | 'userPass';
 
+function looksLikeUrl(value: string) {
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.startsWith('http://') || trimmed.startsWith('https://');
+}
+
 function isEdited(existingName: string | null, name: string) {
   return Boolean(existingName && existingName === name);
 }
@@ -174,6 +179,8 @@ export function InstanceForm({
 
     if (authType === 'userPass' && !username.trim()) {
       nextErrors.username = 'Username is required';
+    } else if (authType === 'userPass' && looksLikeUrl(username)) {
+      nextErrors.username = 'Username must be your Odoo login, not the instance URL';
     }
 
     if (authType === 'userPass' && !password.trim()) {

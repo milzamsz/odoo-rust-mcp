@@ -43,3 +43,5 @@
 - Built mdBook output is a release dependency. Packages install it as `docs/book`, and the Config UI sidebar opens the canonical `/docs/` route in a new tab.
 - Windows Tauri rollout planning is split deliberately: `task_011_windows_tauri_release_packaging.md` owns artifact production, while `task_015_deploy_windows_tauri_app_to_github.md` owns GitHub Release publication, updater metadata, and the unsigned-first rollout contract.
 - For the first Windows desktop GitHub rollout, Authenticode signing is deferred, but Tauri updater signing remains mandatory and release notes should acknowledge possible SmartScreen prompts.
+- The desktop Tauri app should keep its splash page local and let Rust wait for the Config UI before navigating to `http://127.0.0.1:3008`; do not depend on splash-page JavaScript redirects alone for packaged startup.
+- Linux desktop package assets live under `/usr/lib/Odoo Rust MCP/static/dist` rather than beside `usr/bin/rust-mcp`, so packaged static-file discovery must probe that lib directory.

@@ -136,14 +136,11 @@ impl OdooLegacyClient {
                             });
                         }
 
-                        // Extract result
-                        if let Some(result) = v.get("result") {
-                            return Ok(result.clone());
-                        }
-
-                        return Err(OdooError::InvalidResponse(
-                            "JSON-RPC response missing 'result' field".to_string(),
-                        ));
+                        // Extract result. Some Odoo button/action methods return Python None
+                        // and can be serialized by older stacks as a response without a result
+                        // member. Treat that as JSON null so mutating actions that already
+                        // succeeded are not reported as transport failures.
+                        return Ok(v.get("result").cloned().unwrap_or(Value::Null));
                     }
 
                     let parsed_err: Option<OdooErrorBody> = serde_json::from_str(&text).ok();

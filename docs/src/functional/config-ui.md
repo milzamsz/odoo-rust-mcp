@@ -149,6 +149,11 @@ Connection tests run server-side, so they are not blocked by browser CORS restri
 
 Enable or disable MCP tools. Disabled tools disappear from AI clients entirely.
 
+The Tools tab also compares the live runtime catalog with the packaged default catalog. If an
+upgrade ships new tools that are missing from your existing `tools.json`, the catalog drift panel
+lists them and lets you import only those missing packaged tools. Existing runtime tool definitions
+and local guard edits are preserved.
+
 Tools are organized into three operation groups:
 
 | Group | Gate | Purpose |

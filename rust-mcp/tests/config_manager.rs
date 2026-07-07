@@ -495,3 +495,90 @@ async fn test_get_nonexistent_config() {
     assert!(data.is_array());
     assert!(data.as_array().unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn test_tools_drift_reports_missing_packaged_tools() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().to_path_buf();
+
+    std::fs::write(
+        config_dir.join("tools.json"),
+        r#"{"tools": [{"name": "runtime_only", "description": "Runtime tool"}]}"#,
+    )
+    .unwrap();
+
+    let manager = ConfigManager::new(config_dir);
+    let drift = manager.tools_drift().await.unwrap();
+
+    assert_eq!(drift.runtime_count, 1);
+    assert!(drift.packaged_count > 1);
+    assert_eq!(drift.missing_count, drift.packaged_count);
+    assert!(
+        drift
+            .missing_tools
+            .iter()
+            .any(|tool| tool.name == "odoo_search")
+    );
+}
+
+#[tokio::test]
+async fn test_import_missing_tools_preserves_existing_runtime_tool() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().to_path_buf();
+
+    std::fs::write(
+        config_dir.join("tools.json"),
+        r#"{"tools": [{"name": "odoo_search", "description": "Customized search", "custom": true}]}"#,
+    )
+    .unwrap();
+
+    let manager = ConfigManager::new(config_dir);
+    let result = manager.import_missing_tools().await.unwrap();
+
+    assert!(result.imported_count > 0);
+    assert_eq!(result.drift.missing_count, 0);
+
+    let tools = manager.load_tools().await.unwrap();
+    let tools = tools.as_array().unwrap();
+    let search = tools
+        .iter()
+        .find(|tool| tool.get("name").and_then(Value::as_str) == Some("odoo_search"))
+        .unwrap();
+    assert_eq!(
+        search.get("description").and_then(Value::as_str),
+        Some("Customized search")
+    );
+    assert_eq!(search.get("custom").and_then(Value::as_bool), Some(true));
+
+    let stock_cleanup = tools
+        .iter()
+        .find(|tool| {
+            tool.get("name").and_then(Value::as_str)
+                == Some("odoo_stock_inventory_reversal_cleanup")
+        })
+        .unwrap();
+    assert_eq!(
+        stock_cleanup
+            .get("guards")
+            .and_then(|guards| guards.get("requiresEnvTrue"))
+            .and_then(Value::as_str),
+        Some("ODOO_ENABLE_CLEANUP_TOOLS")
+    );
+}
+
+#[tokio::test]
+async fn test_tools_drift_rejects_duplicate_runtime_tool_names() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_dir = temp_dir.path().to_path_buf();
+
+    std::fs::write(
+        config_dir.join("tools.json"),
+        r#"{"tools": [{"name": "duplicate"}, {"name": "duplicate"}]}"#,
+    )
+    .unwrap();
+
+    let manager = ConfigManager::new(config_dir);
+    let error = manager.tools_drift().await.unwrap_err().to_string();
+
+    assert!(error.contains("Duplicate tool name"));
+}

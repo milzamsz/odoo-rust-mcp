@@ -1,5 +1,14 @@
 import { useState, useCallback } from 'react';
-import type { ConfigType, StatusMessage, InstanceConfig, ServerConfig, ToolConfig, PromptConfig } from '../types';
+import type {
+  ConfigType,
+  StatusMessage,
+  InstanceConfig,
+  ServerConfig,
+  ToolConfig,
+  PromptConfig,
+  ToolCatalogDrift,
+  ToolCatalogImportResult,
+} from '../types';
 
 type ConfigData = InstanceConfig | ServerConfig | ToolConfig[] | PromptConfig[];
 
@@ -124,4 +133,41 @@ export function useConfig(type: ConfigType) {
   }, [type]);
 
   return { load, save, status, loading };
+}
+
+export async function loadToolCatalogDrift(): Promise<ToolCatalogDrift> {
+  const response = await fetch('/api/config/tools/drift', {
+    headers: getAuthHeaders(),
+  });
+
+  if (response.status === 401) {
+    handleUnauthorized(response);
+    throw new Error('Session expired. Please log in again.');
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || 'Failed to load tool catalog drift');
+  }
+
+  return response.json();
+}
+
+export async function importMissingTools(): Promise<ToolCatalogImportResult> {
+  const response = await fetch('/api/config/tools/import-missing', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+
+  if (response.status === 401) {
+    handleUnauthorized(response);
+    throw new Error('Session expired. Please log in again.');
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || 'Failed to import missing tools');
+  }
+
+  return response.json();
 }

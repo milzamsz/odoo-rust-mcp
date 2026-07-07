@@ -14,7 +14,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tower_http::{cors::CorsLayer, services::ServeDir};
+use tower_http::{
+    cors::CorsLayer,
+    services::{ServeDir, ServeFile},
+};
 use tracing::{error, info, warn};
 
 use super::{ConfigManager, ConfigWatcher};
@@ -191,6 +194,7 @@ pub async fn start_config_server(
 
     // Serve static files from dist directory (React app)
     let static_dir_final = find_static_dir();
+    let static_index_final = static_dir_final.join("index.html");
 
     if static_dir_final.exists() && static_dir_final.is_dir() {
         info!("Serving static files from: {:?}", static_dir_final);
@@ -226,6 +230,11 @@ pub async fn start_config_server(
         )
         .route("/api/config/tools", get(get_tools))
         .route("/api/config/tools", post(update_tools))
+        .route("/api/config/tools/drift", get(get_tools_drift))
+        .route(
+            "/api/config/tools/import-missing",
+            post(import_missing_tools),
+        )
         .route("/api/config/prompts", get(get_prompts))
         .route("/api/config/prompts", post(update_prompts))
         .route("/api/config/server", get(get_server))
@@ -257,11 +266,17 @@ pub async fn start_config_server(
         app = app.nest_service("/docs", ServeDir::new(docs_path));
     }
 
-    let app = app
-        // Serve static files (React app) - use fallback_service for root path
-        .fallback_service(ServeDir::new(&static_dir_final))
-        .layer(CorsLayer::permissive())
-        .with_state(state);
+    let static_service = ServeDir::new(&static_dir_final);
+
+    let app = if static_index_final.exists() {
+        app.route_service("/", ServeFile::new(&static_index_final))
+            .fallback_service(static_service)
+    } else {
+        // Keep the existing asset fallback when the built index is missing so startup can still warn.
+        app.fallback_service(static_service)
+    }
+    .layer(CorsLayer::permissive())
+    .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     info!("Config server listening on http://0.0.0.0:{}", port);
@@ -304,8 +319,13 @@ fn find_static_dir() -> PathBuf {
         && let Ok(exe_path) = std::env::current_exe()
         && let Some(exe_dir) = exe_path.parent()
     {
-        for root in &[exe_dir.to_path_buf(), exe_dir.join("..")] {
-            let candidate = root.join("static/dist");
+        let candidates = [
+            exe_dir.join("static/dist"),
+            exe_dir.join("../static/dist"),
+            exe_dir.join("../lib/Odoo Rust MCP/static/dist"),
+            exe_dir.join("../../lib/Odoo Rust MCP/static/dist"),
+        ];
+        for candidate in candidates {
             if candidate.exists()
                 && candidate.is_dir()
                 && let Ok(canonical) = candidate.canonicalize()
@@ -319,6 +339,7 @@ fn find_static_dir() -> PathBuf {
     // Try 4: Homebrew/system share directory
     if static_dir_abs.is_none() {
         let candidates = [
+            "/usr/lib/Odoo Rust MCP/static/dist",
             "/opt/homebrew/share/odoo-rust-mcp/static/dist",
             "/usr/local/share/odoo-rust-mcp/static/dist",
             "/usr/share/rust-mcp/static/dist",
@@ -897,6 +918,19 @@ async fn test_instance_connection(
         }
     };
 
+    if cfg.auth_mode() == crate::odoo::config::OdooAuthMode::Password
+        && cfg.username_looks_like_url()
+    {
+        return (
+            StatusCode::OK,
+            Json(json!({
+                "ok": false,
+                "error": "The saved Username currently looks like the instance URL. For Odoo 18 and earlier, enter the Odoo login name or email in Username and keep the site address only in URL.",
+            })),
+        )
+            .into_response();
+    }
+
     let client = match OdooClient::new(&cfg) {
         Ok(c) => c,
         Err(e) => {
@@ -1291,6 +1325,37 @@ async fn update_tools(
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({ "error": format!("Unexpected error: {}", e) })),
+            )
+                .into_response()
+        }
+    }
+}
+
+async fn get_tools_drift(State(state): State<AppState>) -> impl IntoResponse {
+    match state.config_manager.tools_drift().await {
+        Ok(drift) => (StatusCode::OK, Json(json!(drift))).into_response(),
+        Err(e) => {
+            error!("Failed to compare tools catalog drift: {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    }
+}
+
+async fn import_missing_tools(State(state): State<AppState>) -> impl IntoResponse {
+    match state.config_manager.import_missing_tools().await {
+        Ok(result) => {
+            state.config_watcher.notify("tools.json");
+            (StatusCode::OK, Json(json!(result))).into_response()
+        }
+        Err(e) => {
+            error!("Failed to import missing tools: {}", e);
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": e.to_string() })),
             )
                 .into_response()
         }

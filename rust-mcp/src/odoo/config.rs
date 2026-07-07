@@ -131,6 +131,23 @@ impl OdooInstanceConfig {
         }
         OdooAuthMode::ApiKey
     }
+
+    pub fn username_looks_like_url(&self) -> bool {
+        let Some(username) = self.username.as_deref() else {
+            return false;
+        };
+
+        let username = username.trim();
+        if username.is_empty() {
+            return false;
+        }
+
+        if username.eq_ignore_ascii_case(self.url.trim()) {
+            return true;
+        }
+
+        username.starts_with("http://") || username.starts_with("https://")
+    }
 }
 
 #[derive(Debug, Clone)]
