@@ -1,0 +1,250 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2481,
+      "sha256": "ab864cea4626dadd86e0afbb78f243b4c5438ec92ab64e6cb99fe99f08068411"
+    },
+    {
+      "path": "SUMMARY-snippet.md",
+      "bytes": 2061,
+      "sha256": "6bd4f4444462c829fc27c7810427fd48ea7d2140a8c3823783d609b534f5ff45"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/acceptance-criteria.md",
+      "bytes": 3281,
+      "sha256": "b0d6bfe415c1c0aa0bd6b52e8e09adcb406d20dee7b49f60e598e0f17962aa61"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/adr/001-domain-packs-over-tool-count.md",
+      "bytes": 514,
+      "sha256": "099ca82d59217b6983ea66c877cd23cb612483fd4d49f065641070d034d0683e"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/adr/002-instance-scoped-production.md",
+      "bytes": 565,
+      "sha256": "11dca1f2d183720ee393e047fc575d781caf297ba44da5a71129deee39f85916"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/adr/003-signed-confirmation-tokens.md",
+      "bytes": 490,
+      "sha256": "6aa34fa9b1540cc9d59bf407ba8d0048201ab697a5f6fa41d432fca021e3cf47"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/adr/004-no-embedded-llm.md",
+      "bytes": 461,
+      "sha256": "d2f28a91177b56881506aa363da8c890cb6e21eb51b7021c9e2376265165290d"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/adr/005-spreadsheet-adapter-boundary.md",
+      "bytes": 497,
+      "sha256": "676c59db4fefa1539e4f1966442898745715d3f2f1d550fcf6a48b6d03dafca8"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/agents.md",
+      "bytes": 2129,
+      "sha256": "e956417f3971f03cc6ef52e1de9f1affd3d08783fef8bcd55563e9f5455b5acf"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/api-contracts.md",
+      "bytes": 2509,
+      "sha256": "2b43ea7de5cbe1eda6cf2820efc0fda6310a9a7433cde3209002a57bc7a8152e"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/architecture.md",
+      "bytes": 5957,
+      "sha256": "e204ea1e36bd40d0e9c04344a82c47bc48dd3bfadcb48f05473c6dd51f999b36"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/capability-engine.md",
+      "bytes": 3857,
+      "sha256": "4f9658525fe038393ed0fa888a6fba3993df1f8e987bd48ff00fe6eb2a0cfc1a"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/configuration.md",
+      "bytes": 2823,
+      "sha256": "80604abf751e2aa8d47d058b40cca040d369e4fcc6b9aa789740216ea24f0018"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/domain-model.md",
+      "bytes": 4413,
+      "sha256": "7562f62aa72d274caebbf079c2f49dfd9931cbd996b695e35c86336d2777cd37"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/examples/exposure-profiles.yaml",
+      "bytes": 801,
+      "sha256": "cbbd0d28c257eb9b786e4e731597ba1da533f507e2a3461a0127b6e1ea14a561"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/examples/pack-manifest.yaml",
+      "bytes": 273,
+      "sha256": "0605dd55b10f325c138105c6c843c2810c603e6bce5bbf9239b3b5f9e02fbadd"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/examples/policy-bundle.yaml",
+      "bytes": 581,
+      "sha256": "59150b52bbbb3438747afcc6a497c9c4d4b315d20df150d1e7592f6114b48a85"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/implementation-plan.md",
+      "bytes": 3343,
+      "sha256": "6e2e393da7ac467ba37e5e3f286533ad3d29fbc4dc6905d5e4809f0269c3d114"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/index.md",
+      "bytes": 2324,
+      "sha256": "b289182ca07b4da72e5e3693bbaa55a2f8ffc9a6282132dc13de8d89294b11ec"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/migration-plan.md",
+      "bytes": 2678,
+      "sha256": "055503096f51ad768d62db6662c2c7c8d60d3d9cce038d762102b664dec067b2"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/observability.md",
+      "bytes": 2533,
+      "sha256": "a43b41413d443450043750e5308731f298751ea98bf3908e55ab37c89339fad1"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/accounting.md",
+      "bytes": 1108,
+      "sha256": "7b95480ee13ea5d156d8243ee3ab9238ec773c61978cf9a08f7ba2a579b71dc6"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/core.md",
+      "bytes": 1247,
+      "sha256": "67f35b8d85ac1f43c7c466de90cde3cb285708b167716e012028c5ea39fa741a"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/crm.md",
+      "bytes": 880,
+      "sha256": "b6295bc994dc5b4514e9ba1883d0a5c5f26b02b78564aebc2b66f85c428b286c"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/employee.md",
+      "bytes": 5026,
+      "sha256": "516e392e0461fb8a5a77f057abe49669232383b1b5263a6cd189121f8390a6d0"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/inventory.md",
+      "bytes": 1022,
+      "sha256": "79787ed6532f14015c91efbebaaf0914f2d92f01bbd6de82236bdc4efc2b5fc6"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/manufacturing.md",
+      "bytes": 5874,
+      "sha256": "f09bec3913aa94aa49eb791d2631d7fbc9f06fd40717d66b6261dda5a2f1955e"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/pos.md",
+      "bytes": 4655,
+      "sha256": "61b2fb12c40be256e4112cade8b4c8619a7baa9f5fcb8862a216e3f2b6fdf372"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/project.md",
+      "bytes": 835,
+      "sha256": "1d93abfdb2d98948360789839c9599bd2cd1c0bd4d3f620f132f8347f8387cd1"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/purchase.md",
+      "bytes": 872,
+      "sha256": "79a95c6f0181d0868c817d53dd7b5a3d3872c4bcccf888b5eafacdb62b92a06f"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/sales.md",
+      "bytes": 942,
+      "sha256": "6549b122df48cb6b21410b14ccbc0f24d5c20e12336b424fc7d95bbc47ed9c5f"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/spreadsheet-dashboard.md",
+      "bytes": 4897,
+      "sha256": "c98b408ddd0fbfc2e4dc31fdb09205a68b74dc67d4e4a1e5f186ca00eddba846"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/packs/website.md",
+      "bytes": 4313,
+      "sha256": "bb7ced3676aad48e0b2678b5370f221a66b38d7a0891ca2ea8b4ec97ec13ab17"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/policy-security.md",
+      "bytes": 5356,
+      "sha256": "7be2414d99fd4c5eec59b06102beb0e18429c4cb620805f42e561671f18fb28b"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/product-scope.md",
+      "bytes": 4249,
+      "sha256": "d614a375d55882c0161e8f02a9a421d8c7133f11a554cbc30cbe00acd496facc"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/prompts/phase-00-repository-audit.md",
+      "bytes": 543,
+      "sha256": "96bd7fd4dc8bfff05848f543dc7d6787a9665ecf31d60db311aa88bdf337c1ea"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/prompts/phase-01-registry-policy.md",
+      "bytes": 423,
+      "sha256": "2dae508d975c0404a02a4c158c1a73f7f2d8d0870ac414531e5dbeb72245d4fa"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/prompts/phase-02-capability-engine.md",
+      "bytes": 444,
+      "sha256": "c0cc584a0b18c5cefe1849e34316fc6d1c47d4f8f7cb7d56fbc1bed5eebf9c58"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/prompts/phase-03-manufacturing-pack.md",
+      "bytes": 540,
+      "sha256": "27f2a6396111f30758c20af8dc22baa92cce7690456f8614fcebc05e36826b80"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/prompts/phase-04-content-analytics-packs.md",
+      "bytes": 455,
+      "sha256": "e81d6a587c2816dc8c2bc40f8294793ff706291a41e23628e1d8316db7e7ecd0"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/prompts/phase-05-pos-employee-packs.md",
+      "bytes": 421,
+      "sha256": "5b044e32cd5f3832cf5817e466fe268fe56f8d79f06261ba8c5d41c382ea536a"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/prompts/phase-06-controlled-commands.md",
+      "bytes": 516,
+      "sha256": "beeec83129937540defe4237994f5fb986a06ad88a95247a9f3f484ae3ded20d"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/prompts/phase-07-workflow-runtime.md",
+      "bytes": 350,
+      "sha256": "cf5fcf1c893658db2166f1c249a144e7dc7e6a3acdbec753ae596a2f70a99f98"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/technical-design.md",
+      "bytes": 5839,
+      "sha256": "cb9ec0fc08798dd190a75167a5203e17e1366ee26b55969ccb89b3d4036c3a6c"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/testing-strategy.md",
+      "bytes": 3642,
+      "sha256": "ed8e633358b7b2263868c36dc269909dc23badf62124ebc1cd12f9ec06c0329f"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/tool-pack-framework.md",
+      "bytes": 4391,
+      "sha256": "dc5ab1e7ffbdf45389ff3ced54bbec3002e8521af37c1f419efdbe24cc2b7f09"
+    },
+    {
+      "path": "docs/src/developer/enterprise-packs/workflow-runtime.md",
+      "bytes": 3808,
+      "sha256": "38adbb1254d153774bdff0ade7f234a7631da760aa22d5bc1bb764ebb0c45d13"
+    },
+    {
+      "path": "repo-overlay/AGENTS-ENTERPRISE-PACKS.md",
+      "bytes": 761,
+      "sha256": "a4656540403f30d3c2d04f23a64ac8026f6d49364564de1c3671b56b9b5570b0"
+    },
+    {
+      "path": "repo-overlay/ENTERPRISE-PACKS-PLAN.md",
+      "bytes": 608,
+      "sha256": "f8cabadaef5b2782e9953b0117cc8e84cf2fd75ea3d4882e4be3422deced5f55"
+    }
+  ],
+  "file_count": 49
+}

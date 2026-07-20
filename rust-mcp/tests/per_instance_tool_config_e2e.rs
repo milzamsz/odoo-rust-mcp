@@ -410,8 +410,16 @@ async fn test_per_instance_tool_config_hot_reloads_end_to_end() {
     assert_eq!(success_payload["count"], json!(3));
 
     let received_requests = mock_odoo.server.received_requests().await.unwrap();
-    assert_eq!(received_requests.len(), 1);
-    let request_body: Value = received_requests[0].body_json().unwrap();
+    let tool_requests: Vec<_> = received_requests
+        .iter()
+        .filter(|request| {
+            request
+                .body_json::<Value>()
+                .is_ok_and(|body| body.get("limit") == Some(&json!(20)))
+        })
+        .collect();
+    assert_eq!(tool_requests.len(), 1);
+    let request_body: Value = tool_requests[0].body_json().unwrap();
     assert_eq!(request_body["limit"], json!(20));
     assert_eq!(request_body["fields"], json!(["name"]));
     assert_eq!(request_body["context"]["allowed_company_ids"], json!([1]));

@@ -26,6 +26,12 @@ pub struct InstanceToolConfig {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub disabled_tools: Vec<String>,
+    #[serde(
+        default,
+        rename = "disabledPacks",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub disabled_packs: Vec<String>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub defaults: HashMap<String, Value>,
     #[serde(
@@ -54,6 +60,7 @@ impl InstanceToolConfig {
 
     pub fn is_empty(&self) -> bool {
         self.disabled_tools.is_empty()
+            && self.disabled_packs.is_empty()
             && self.defaults.is_empty()
             && self.execute_allowlist.is_empty()
     }

@@ -29,3 +29,7 @@ static/
 .codex-run/
 test-run.log
 
+
+# Python bytecode (Odoo addons)
+__pycache__/
+*.pyc

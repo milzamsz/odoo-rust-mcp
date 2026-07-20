@@ -40,11 +40,15 @@ if (-not (Test-Path $TargetExePath)) {
 
 # Resolve WSL distribution and Linux path dynamically from $RepoRoot
 $Distro = "Ubuntu"
-$LinuxPath = "/home/milzam/workspace/tools/mcp/odoo-rust-mcp" # Fallback
+$LinuxPath = $env:ODOO_MCP_LINUX_PATH
 
 if ($RepoRoot -match '^\\\\wsl(?:\.localhost)?\\([^\\]+)\\(.*)$') {
     $Distro = $Matches[1]
     $LinuxPath = "/" + $Matches[2].Replace('\', '/')
+}
+
+if ([string]::IsNullOrWhiteSpace($LinuxPath)) {
+    throw "Set ODOO_MCP_LINUX_PATH when the repository is not opened through a WSL UNC path."
 }
 
 # Resolve Windows User profile to construct correct /mnt path for instances.json

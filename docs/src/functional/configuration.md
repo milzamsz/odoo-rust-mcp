@@ -93,9 +93,14 @@ ODOO_API_KEY=your-key
 |----------|---------|-------------|
 | `ODOO_ENABLE_WRITE_TOOLS` | `false` | Enable create, update, delete, workflow, copy tools |
 | `ODOO_ENABLE_EXECUTE_TOOL` | `false` | Enable `odoo_execute` (still requires a non-empty per-instance `executeAllowlist`) |
-| `ODOO_ENABLE_CLEANUP_TOOLS` | `false` | Enable cleanup tools |
+| `ODOO_ENABLE_CLEANUP_TOOLS` | `false` | Enable cleanup tools only when `ODOO_ENABLE_WRITE_TOOLS` is also true; cleanup defaults to dry-run |
+| `ODOO_CAPABILITY_CONTROLLED_MODE` | `false` | Hide/reject generic mutations and expose only `odoo_execute_capability` |
+| `ODOO_CAPABILITY_REGISTRY` | — | Required in controlled mode: normalized `odoo-agent` registry JSON |
+| `ODOO_CAPABILITY_APPROVAL_HMAC_KEY` | — | Required in controlled mode: approval-envelope HMAC key of at least 32 bytes |
+| `ODOO_CAPABILITY_STATE_DIR` | — | Required in controlled mode: persistent 0700 idempotency-state directory |
 | `ODOO_TIMEOUT_MS` | `30000` | Request timeout in milliseconds |
 | `ODOO_MAX_RETRIES` | `2` | Retry attempts |
+| `ODOO_MODULE_SNAPSHOT_TTL_SECS` | `300` | Installed-module snapshot TTL; `0` refreshes every instance-scoped list |
 
 ### MCP Configuration
 

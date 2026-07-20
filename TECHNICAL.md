@@ -230,6 +230,17 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Start-MCP-Server.ps1
 curl.exe -I http://127.0.0.1:3008
 ```
 
+## Module capability filtering
+
+- `mcp/module_snapshot.rs` persists per-instance installed-module snapshots beside the active
+  `tools.json`; failed refreshes retain the last successful module list and mark it stale.
+- Tool definitions may carry `pack` and `requiredModules`. Instance `toolConfig.disabledPacks`,
+  missing required modules, environment guards, read-only mode, and controlled mode all route
+  through metadata-only policy decision logging.
+- Instance-scoped `tools/list` and `tools/call` enforce the same capability decision. Standard
+  unscoped lists expose gated tools only when every configured instance allows them. The
+  `odoo_refresh_capabilities` tool forces a scan of installed `ir.module.module` records.
+
 ## Documentation maintenance
 
 When workflow rules or implementation conventions change, update:

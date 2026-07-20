@@ -560,9 +560,16 @@ async fn test_import_missing_tools_preserves_existing_runtime_tool() {
     assert_eq!(
         stock_cleanup
             .get("guards")
-            .and_then(|guards| guards.get("requiresEnvTrue"))
-            .and_then(Value::as_str),
-        Some("ODOO_ENABLE_CLEANUP_TOOLS")
+            .and_then(|guards| guards.get("requiresEnvTrueAll")),
+        Some(&json!([
+            "ODOO_ENABLE_WRITE_TOOLS",
+            "ODOO_ENABLE_CLEANUP_TOOLS"
+        ]))
+    );
+    assert_eq!(stock_cleanup.get("pack"), Some(&json!("inventory")));
+    assert_eq!(
+        stock_cleanup.get("requiredModules"),
+        Some(&json!(["stock"]))
     );
 }
 
@@ -581,4 +588,27 @@ async fn test_tools_drift_rejects_duplicate_runtime_tool_names() {
     let error = manager.tools_drift().await.unwrap_err().to_string();
 
     assert!(error.contains("Duplicate tool name"));
+}
+
+#[tokio::test]
+async fn test_tool_pack_metadata_round_trips() {
+    let temp_dir = TempDir::new().unwrap();
+    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let tool = json!({
+        "name": "stock_tool",
+        "description": "Stock",
+        "pack": "inventory",
+        "requiredModules": ["stock"],
+        "inputSchema": {"type": "object"},
+        "op": {"type": "search"}
+    });
+
+    assert!(
+        manager
+            .save_tools(json!([tool.clone()]))
+            .await
+            .unwrap()
+            .success
+    );
+    assert_eq!(manager.load_tools().await.unwrap(), json!([tool]));
 }

@@ -32,17 +32,22 @@ mod tests {
 
     #[test]
     fn test_read_only_and_execute_allowlist_deserialize() {
-        let config: OdooInstanceConfig = serde_json::from_str(r#"{
+        let config: OdooInstanceConfig = serde_json::from_str(
+            r#"{
             "url": "https://example.odoo.com",
             "readOnly": true,
-            "toolConfig": {"executeAllowlist": [{"model": "sale.order", "methods": ["action_confirm"]}]}
-        }"#).unwrap();
+            "toolConfig": {
+                "disabledPacks": ["inventory"],
+                "executeAllowlist": [{"model": "sale.order", "methods": ["action_confirm"]}]
+            }
+        }"#,
+        )
+        .unwrap();
 
         assert!(config.read_only);
-        assert_eq!(
-            config.tool_config.unwrap().execute_allowlist[0].model,
-            "sale.order"
-        );
+        let tool_config = config.tool_config.unwrap();
+        assert_eq!(tool_config.disabled_packs, ["inventory"]);
+        assert_eq!(tool_config.execute_allowlist[0].model, "sale.order");
     }
 
     #[test]

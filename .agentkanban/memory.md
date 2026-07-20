@@ -41,6 +41,7 @@
 - Public README screenshots should show authenticated main pages only, force dark mode, and write the final PNGs to `docs/src/images/config-ui/`.
 - The Rust Hexagon app mark is the shared product identity across the Config UI, favicon, mdBook, and Windows shortcuts. Keep `config-ui/public/app-icon.svg`, `docs/src/images/brand/app-icon.svg`, and `assets/odoo-rust-mcp.ico` visually aligned; regenerate the ICO with `scripts/New-AppIcon.ps1`.
 - Built mdBook output is a release dependency. Packages install it as `docs/book`, and the Config UI sidebar opens the canonical `/docs/` route in a new tab.
+- Per-instance module capability snapshots live beside runtime `tools.json`; tool definitions use optional `pack` and `requiredModules`, while per-instance pack suppression stays in `toolConfig.disabledPacks` without a separate pack resolver.
 - Windows Tauri rollout planning is split deliberately: `task_011_windows_tauri_release_packaging.md` owns artifact production, while `task_015_deploy_windows_tauri_app_to_github.md` owns GitHub Release publication, updater metadata, and the unsigned-first rollout contract.
 - For the first Windows desktop GitHub rollout, Authenticode signing is deferred, but Tauri updater signing remains mandatory and release notes should acknowledge possible SmartScreen prompts.
 - The desktop Tauri app should keep its splash page local and let Rust wait for the Config UI before navigating to `http://127.0.0.1:3008`; do not depend on splash-page JavaScript redirects alone for packaged startup.

@@ -232,13 +232,17 @@ export function InstanceForm({
 
     delete data.aliases;
 
-    // Preserve JSON-managed fields the form does not edit (allowlist, defaults).
+    // Preserve JSON-managed fields the form does not edit (packs, allowlist, defaults).
     const sanitizedDisabledTools = filterKnownDisabledTools(availableTools, disabledTools);
     const existingDefaults = instanceData?.toolConfig?.defaults;
     const existingAllowlist = instanceData?.toolConfig?.executeAllowlist;
+    const existingDisabledPacks = instanceData?.toolConfig?.disabledPacks;
     const nextToolConfig: NonNullable<InstanceDetails['toolConfig']> = {};
     if (sanitizedDisabledTools.length > 0) {
       nextToolConfig.disabledTools = sanitizedDisabledTools;
+    }
+    if (existingDisabledPacks && existingDisabledPacks.length > 0) {
+      nextToolConfig.disabledPacks = existingDisabledPacks;
     }
     if (existingDefaults && Object.keys(existingDefaults).length > 0) {
       nextToolConfig.defaults = existingDefaults;

@@ -10,6 +10,8 @@ mod tests {
         let tool = ToolDef {
             name: "search_partners".to_string(),
             description: "Search for partners in Odoo".to_string(),
+            pack: None,
+            required_modules: Vec::new(),
             op: OpSpec {
                 op_type: "search".to_string(),
                 map: Default::default(),
@@ -85,6 +87,8 @@ mod tests {
         let tool = ToolDef {
             name: "admin_tool".to_string(),
             description: "Admin-only tool".to_string(),
+            pack: None,
+            required_modules: Vec::new(),
             op: OpSpec {
                 op_type: "admin_action".to_string(),
                 map: Default::default(),
@@ -92,6 +96,7 @@ mod tests {
             input_schema: json!({"type": "object"}),
             guards: Some(ToolGuards {
                 requires_env_true: Some("ADMIN_MODE".to_string()),
+                requires_env_true_all: Vec::new(),
             }),
         };
 

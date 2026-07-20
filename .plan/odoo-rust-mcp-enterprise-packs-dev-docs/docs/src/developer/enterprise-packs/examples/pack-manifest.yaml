@@ -1,0 +1,16 @@
+id: manufacturing
+version: 0.1.0
+title: Manufacturing
+required_modules:
+  all_of:
+    - mrp
+optional_modules:
+  - quality
+  - maintenance
+supported_odoo_versions:
+  min: 16
+  max: 19
+required_features:
+  - manufacturing_orders
+default_profile: mrp-planner
+risk_class: high

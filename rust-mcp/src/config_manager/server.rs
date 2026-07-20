@@ -1469,6 +1469,7 @@ async fn update_server(
 }
 
 #[cfg(test)]
+#[allow(clippy::await_holding_lock)] // The process environment requires serialized tests.
 mod tests {
     use super::{
         AppState, AuthConfig, DynamicAuthConfig, InstanceEnvSyncState, build_instances_sync_status,

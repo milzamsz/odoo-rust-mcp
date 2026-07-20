@@ -5,6 +5,22 @@ All notable changes to the **Odoo Rust MCP Server** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+## [v0.6.0] - 2026-07-20
+
+### Added
+- Add cached per-instance installed-module snapshots with TTL, explicit refresh, and stale-on-failure preservation.
+- Add optional tool `pack` and `requiredModules` metadata, per-instance `disabledPacks`, module-aware discovery/call filtering, and metadata-only denial audit events.
+- Add an ignored live Odoo module-gating smoke test and a short developer scope ADR.
+
+### Security
+- Add `odoo_execute_capability`, a closed HMAC-signed mutation envelope with exact registry/target binding, schema validation, crash-safe idempotency, runtime receipts, and post-write verification.
+- Add the version-neutral `oc_mcp_mutation` Odoo helper for row-locked, ACL-aware allowed-field draft updates with stale-write rejection; correct quotation tax/UoM mappings for Odoo 17/18 versus 19.
+- Hide and reject generic mutation and cleanup tools when `ODOO_CAPABILITY_CONTROLLED_MODE=true`.
+- Require both write and cleanup flags for cleanup tools, and default every cleanup path to dry-run.
+- Propagate legacy JSON-RPC context and never retry transport-uncertain mutations on either Odoo protocol.
+
 ## [v0.5.3] - 2026-07-20
 
 ### Security

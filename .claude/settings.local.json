@@ -11,7 +11,9 @@
       "mcp__odoo__odoo_read",
       "mcp__odoo__odoo_get_model_metadata",
       "Bash(python3 -c ':*)",
-      "Bash(python -c ':*)"
+      "Bash(python -c ':*)",
+      "Bash(rtk ls *)",
+      "Bash(rtk read *)"
     ]
   }
 }
