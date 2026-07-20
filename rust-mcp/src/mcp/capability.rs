@@ -794,6 +794,7 @@ fn persist_completed(path: &Path, envelope: &Envelope, output: &Value) -> OdooRe
     }
     fs::rename(&tmp, path).map_err(|e| invalid(format!("cannot commit final state: {e}")))?;
     if let Some(parent) = path.parent() {
+        #[cfg(not(windows))]
         OpenOptions::new()
             .read(true)
             .open(parent)
