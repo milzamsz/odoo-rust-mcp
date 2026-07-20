@@ -314,6 +314,24 @@ fn setup_user_config() {
 }
 
 /// Load environment variables from a file (simple key=value format)
+fn env_value_for_log<'a>(key: &str, value: &'a str) -> &'a str {
+    if [
+        "PASSWORD",
+        "API_KEY",
+        "TOKEN",
+        "SECRET",
+        "CREDENTIAL",
+        "INSTANCES",
+    ]
+    .iter()
+    .any(|marker| key.contains(marker))
+    {
+        "***"
+    } else {
+        value
+    }
+}
+
 fn load_env_file(path: &PathBuf) {
     let Ok(file) = fs::File::open(path) else {
         warn!("Could not open env file: {:?}", path);
@@ -343,14 +361,11 @@ fn load_env_file(path: &PathBuf) {
                     std::env::set_var(key, value);
                 }
                 // Mask sensitive values in logs
-                let display_value =
-                    if key.contains("PASSWORD") || key.contains("API_KEY") || key.contains("TOKEN")
-                    {
-                        "***"
-                    } else {
-                        value
-                    };
-                info!("  Set {}={}", key, display_value);
+                info!(
+                    key,
+                    value = env_value_for_log(key, value),
+                    "environment variable set"
+                );
             }
         }
     }
@@ -659,8 +674,24 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize tracing - for stdio mode, we must use stderr only
     // because stdout is reserved for JSON-RPC messages
-    match cli.transport {
-        TransportMode::Stdio => {
+    let json_logs = std::env::var("ODOO_LOG_FORMAT").is_ok_and(|value| value == "json");
+    let stdio = matches!(&cli.transport, TransportMode::Stdio);
+    match (stdio, json_logs) {
+        (true, true) => {
+            tracing_subscriber::fmt()
+                .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+                .with_writer(std::io::stderr)
+                .with_ansi(false)
+                .json()
+                .init();
+        }
+        (false, true) => {
+            tracing_subscriber::fmt()
+                .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+                .json()
+                .init();
+        }
+        (true, false) => {
             // Stdio mode: log to stderr only, no ANSI colors to avoid issues
             tracing_subscriber::fmt()
                 .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
@@ -668,7 +699,7 @@ async fn main() -> anyhow::Result<()> {
                 .with_ansi(false)
                 .init();
         }
-        _ => {
+        (false, false) => {
             // HTTP/WS modes: normal logging to stdout with colors
             tracing_subscriber::fmt()
                 .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
@@ -854,7 +885,7 @@ async fn run_http_with_auth(
 
 #[cfg(test)]
 mod tests {
-    use super::should_auto_set_instances_json;
+    use super::{env_value_for_log, should_auto_set_instances_json};
     use std::sync::Mutex;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -924,5 +955,21 @@ mod tests {
         let _instances = EnvGuard::set("ODOO_INSTANCES", None);
 
         assert!(!should_auto_set_instances_json(true));
+    }
+
+    #[test]
+    fn credential_bearing_environment_values_are_never_logged() {
+        for key in [
+            "ODOO_PASSWORD",
+            "ODOO_API_KEY",
+            "MCP_AUTH_TOKEN",
+            "ODOO_CLIENT_SECRET",
+            "ODOO_CREDENTIAL_FILE",
+            "ODOO_INSTANCES",
+            "ODOO_INSTANCES_JSON",
+        ] {
+            assert_eq!(env_value_for_log(key, "sensitive"), "***");
+        }
+        assert_eq!(env_value_for_log("MCP_AUTH_ENABLED", "false"), "false");
     }
 }
