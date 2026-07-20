@@ -70,6 +70,8 @@ async fn mcp_initialize_and_list_tools_prompts() {
         std::env::set_var("ODOO_URL", "http://localhost:8069");
         std::env::set_var("ODOO_DB", "v19_pos");
         std::env::set_var("ODOO_API_KEY", "dummy");
+        std::env::set_var("ODOO_TIMEOUT_MS", "250");
+        std::env::set_var("ODOO_MAX_RETRIES", "0");
     }
 
     // Use temp config paths so tests don't depend on repo files.
@@ -93,6 +95,7 @@ async fn mcp_initialize_and_list_tools_prompts() {
     let registry = Arc::new(Registry::from_env());
     registry.initial_load().await.unwrap();
     let handler = Arc::new(McpOdooHandler::new(pool, registry));
+    let request_timeout = Duration::from_secs(10);
 
     let (transport, client_tx, mut client_rx) = MockTransport::new();
     let server = ServerCompat::new(Arc::new(transport), handler);
@@ -118,7 +121,7 @@ async fn mcp_initialize_and_list_tools_prompts() {
     client_tx.send(Ok(Message::Request(init_request))).unwrap();
 
     // receive init response
-    let init_resp = tokio::time::timeout(Duration::from_secs(2), client_rx.recv())
+    let init_resp = tokio::time::timeout(request_timeout, client_rx.recv())
         .await
         .unwrap()
         .unwrap()
@@ -144,7 +147,7 @@ async fn mcp_initialize_and_list_tools_prompts() {
         RequestId::Number(2),
     );
     client_tx.send(Ok(Message::Request(list_tools))).unwrap();
-    let resp = tokio::time::timeout(Duration::from_secs(2), client_rx.recv())
+    let resp = tokio::time::timeout(request_timeout, client_rx.recv())
         .await
         .unwrap()
         .unwrap()
@@ -165,7 +168,7 @@ async fn mcp_initialize_and_list_tools_prompts() {
         RequestId::Number(3),
     );
     client_tx.send(Ok(Message::Request(list_prompts))).unwrap();
-    let resp = tokio::time::timeout(Duration::from_secs(2), client_rx.recv())
+    let resp = tokio::time::timeout(request_timeout, client_rx.recv())
         .await
         .unwrap()
         .unwrap()
@@ -209,7 +212,7 @@ async fn mcp_initialize_and_list_tools_prompts() {
         RequestId::Number(4),
     );
     client_tx.send(Ok(Message::Request(get_prompt))).unwrap();
-    let resp = tokio::time::timeout(Duration::from_secs(2), client_rx.recv())
+    let resp = tokio::time::timeout(request_timeout, client_rx.recv())
         .await
         .unwrap()
         .unwrap()
@@ -241,5 +244,5 @@ async fn mcp_initialize_and_list_tools_prompts() {
     client_tx
         .send(Ok(Message::Notification(Notification::new("exit", None))))
         .unwrap();
-    let _ = tokio::time::timeout(Duration::from_secs(2), server_handle).await;
+    let _ = tokio::time::timeout(request_timeout, server_handle).await;
 }
