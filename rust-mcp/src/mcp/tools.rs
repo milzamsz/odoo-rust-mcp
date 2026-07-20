@@ -13,6 +13,33 @@ use crate::odoo::config::{OdooEnvConfig, load_odoo_env};
 use crate::odoo::types::OdooError;
 use crate::odoo::unified_client::OdooClient;
 
+const DEFAULT_MAX_REPORT_BYTES: usize = 10 * 1024 * 1024;
+const ABSOLUTE_MAX_REPORT_BYTES: usize = 50 * 1024 * 1024;
+
+fn max_report_bytes() -> Result<usize, OdooError> {
+    let value = std::env::var("ODOO_MAX_REPORT_BYTES")
+        .ok()
+        .map(|raw| raw.parse::<usize>())
+        .transpose()
+        .map_err(|_| OdooError::InvalidResponse("ODOO_MAX_REPORT_BYTES must be an integer".into()))?
+        .unwrap_or(DEFAULT_MAX_REPORT_BYTES);
+    if !(1..=ABSOLUTE_MAX_REPORT_BYTES).contains(&value) {
+        return Err(OdooError::InvalidResponse(format!(
+            "ODOO_MAX_REPORT_BYTES must be between 1 and {ABSOLUTE_MAX_REPORT_BYTES}"
+        )));
+    }
+    Ok(value)
+}
+
+fn enforce_report_size(size: usize, limit: usize) -> Result<(), OdooError> {
+    if size > limit {
+        return Err(OdooError::InvalidResponse(format!(
+            "Report response exceeds the configured {limit}-byte limit"
+        )));
+    }
+    Ok(())
+}
+
 /// Shared state: parsed env + instantiated clients per instance.
 /// Supports both Odoo 19+ (JSON-2 API) and Odoo < 19 (JSON-RPC).
 /// The env is wrapped in RwLock to support hot-reload when instances.json changes.
@@ -622,6 +649,7 @@ async fn op_generate_report(
         .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
 
     let pdf_bytes = client.download_report_pdf(&report_name, &ids).await?;
+    enforce_report_size(pdf_bytes.len(), max_report_bytes()?)?;
     let pdf_base64 = base64::engine::general_purpose::STANDARD.encode(pdf_bytes);
     Ok(ok_text(json!({
         "pdf_base64": pdf_base64,
@@ -1065,6 +1093,12 @@ mod tests {
             clients: Arc::new(Mutex::new(HashMap::new())),
             metadata_cache: MetadataCache::new(),
         }
+    }
+
+    #[test]
+    fn report_size_limit_rejects_oversized_response() {
+        assert!(enforce_report_size(10, 10).is_ok());
+        assert!(enforce_report_size(11, 10).is_err());
     }
 
     fn make_op(map: HashMap<String, String>) -> OpSpec {
