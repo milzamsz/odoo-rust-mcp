@@ -4,6 +4,8 @@ The v0.6 scope deliberately adds only the part of enterprise packs that the curr
 
 Snapshots are stored as `module-snapshots.json` beside the active `tools.json`. `ODOO_MODULE_SNAPSHOT_TTL_SECS` controls the refresh interval and defaults to 300 seconds. `odoo_refresh_capabilities` forces a refresh. A failed refresh marks the snapshot stale and records the error while preserving the last successful module list.
 
+The Config UI reads the same snapshot through `GET /api/config/instances/{name}/capabilities` (add `?refresh=true` to force a live re-scan). Each instance card shows module count, edition, staleness, and last refresh, and `disabledPacks` is editable per instance from the instance form. Tool cards surface each tool's `pack` and `requiredModules`.
+
 Per-instance pack suppression reuses `toolConfig`:
 
 ```json

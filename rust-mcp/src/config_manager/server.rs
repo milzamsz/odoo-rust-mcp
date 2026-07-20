@@ -1,6 +1,6 @@
 use axum::{
     Json, Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -223,6 +223,10 @@ pub async fn start_config_server(
         .route(
             "/api/config/instances/sync-env",
             post(sync_instances_to_env),
+        )
+        .route(
+            "/api/config/instances/{name}/capabilities",
+            get(get_instance_capabilities),
         )
         .route(
             "/api/config/instances/{name}/test",
@@ -879,6 +883,46 @@ async fn sync_instances_to_env(State(state): State<AppState>) -> impl IntoRespon
 // =============================================================================
 // Instance Connection Test
 // =============================================================================
+
+/// Return the installed-module capability snapshot for an instance.
+/// `?refresh=true` forces a live re-scan; otherwise the cached snapshot is
+/// returned (refreshed lazily only when stale).
+async fn get_instance_capabilities(
+    State(state): State<AppState>,
+    Path(name): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+) -> impl IntoResponse {
+    let Some(pool) = state.pool.as_ref() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({ "error": "MCP client pool is not available" })),
+        )
+            .into_response();
+    };
+
+    if pool.resolve_instance_name(&name).is_err() {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": format!("Instance '{name}' not found") })),
+        )
+            .into_response();
+    }
+
+    let refresh = params
+        .get("refresh")
+        .is_some_and(|v| matches!(v.as_str(), "1" | "true" | "yes"));
+
+    let snapshot = if refresh {
+        match pool.refresh_module_snapshot(&name).await {
+            Ok(snapshot) => snapshot,
+            Err(_) => pool.module_snapshot(&name).await,
+        }
+    } else {
+        pool.module_snapshot(&name).await
+    };
+
+    (StatusCode::OK, Json(json!(snapshot))).into_response()
+}
 
 async fn test_instance_connection(
     State(state): State<AppState>,

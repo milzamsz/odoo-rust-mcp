@@ -36,6 +36,21 @@ export function ToolDetail({
           <Switch checked={enabled} onChange={(event) => void onToggle(event.currentTarget.checked)} />
         </Group>
 
+        {(tool.pack || (tool.requiredModules?.length ?? 0) > 0) && (
+          <Group gap="xs">
+            {tool.pack && (
+              <Badge variant="outline" color="grape" size="sm">
+                pack: {tool.pack}
+              </Badge>
+            )}
+            {tool.requiredModules?.map((mod) => (
+              <Badge key={`${tool.name}-mod-${mod}`} variant="outline" color="teal" size="sm">
+                needs: {mod}
+              </Badge>
+            ))}
+          </Group>
+        )}
+
         <Group gap="xs">
           {availableGuards.map((guard) => (
             <Badge
