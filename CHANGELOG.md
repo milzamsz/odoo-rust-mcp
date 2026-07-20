@@ -5,6 +5,12 @@ All notable changes to the **Odoo Rust MCP Server** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.5.3] - 2026-07-20
+
+### Security
+- Gate `odoo_execute` separately with `ODOO_ENABLE_EXECUTE_TOOL`, require a per-instance allowlist, and honor instance `readOnly` for mutating tools.
+- Log only model and record-id count alongside existing metadata; never tool arguments or results.
+
 ## [v0.5.2] - 2026-07-08
 
 ### Added

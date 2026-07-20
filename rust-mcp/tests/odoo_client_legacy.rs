@@ -22,6 +22,7 @@ fn create_legacy_config(url: &str) -> OdooInstanceConfig {
         timeout_ms: Some(5000),
         max_retries: Some(0), // No retries for faster tests
         tool_config: None,
+        read_only: false,
         tags: Vec::new(),
         aliases: Vec::new(),
         extra: HashMap::new(),
@@ -439,6 +440,7 @@ async fn test_legacy_network_error() {
         timeout_ms: Some(1000),
         max_retries: Some(0), // No retries to speed up test
         tool_config: None,
+        read_only: false,
         tags: Vec::new(),
         aliases: Vec::new(),
         extra: HashMap::new(),

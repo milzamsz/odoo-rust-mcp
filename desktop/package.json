@@ -1,6 +1,6 @@
 {
   "name": "odoo-rust-mcp-desktop",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Native Windows desktop app for Odoo Rust MCP",
   "private": true,
   "scripts": {

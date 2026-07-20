@@ -203,11 +203,12 @@ impl Registry {
             .unwrap_or_else(|| "2025-11-05".to_string())
     }
 
-    pub async fn list_tools(&self) -> Vec<Value> {
+    pub async fn list_tools(&self, read_only: bool) -> Vec<Value> {
         let st = self.state.read().await;
         st.tools
             .iter()
             .filter(|t| guards_allow(t.guards.as_ref()))
+            .filter(|t| !read_only || !is_mutating_op(&t.op.op_type))
             .map(|t| {
                 serde_json::json!({
                     "name": t.name,
@@ -293,6 +294,22 @@ impl Registry {
         ensure_file_exists_with_seed(&self.server_path, DEFAULT_SERVER_JSON)?;
         Ok(())
     }
+}
+
+fn is_mutating_op(op_type: &str) -> bool {
+    matches!(
+        op_type,
+        "create"
+            | "write"
+            | "unlink"
+            | "workflow_action"
+            | "execute"
+            | "database_cleanup"
+            | "deep_cleanup"
+            | "stock_inventory_reversal_cleanup"
+            | "copy"
+            | "create_batch"
+    )
 }
 
 fn guards_allow(guards: Option<&ToolGuards>) -> bool {

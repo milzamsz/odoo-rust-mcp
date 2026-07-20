@@ -1,6 +1,13 @@
+export interface ExecuteAllowlistEntry {
+  model: string;
+  methods: string[];
+}
+
 export interface InstanceToolConfig {
   disabledTools?: string[];
   defaults?: Record<string, Record<string, unknown>>;
+  /** Reviewed model/method pairs for odoo_execute. Empty/absent denies execute. */
+  executeAllowlist?: ExecuteAllowlistEntry[];
 }
 
 export interface InstanceDetails {
@@ -11,6 +18,8 @@ export interface InstanceDetails {
   password?: string;
   version?: number | string;
   tags?: string[];
+  /** When true, mutating tools are denied for this instance even if write env is set. */
+  readOnly?: boolean;
   toolConfig?: InstanceToolConfig;
   [key: string]: unknown;
 }

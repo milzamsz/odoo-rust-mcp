@@ -17,6 +17,7 @@ mod tests {
             timeout_ms: Some(30_000),
             max_retries: Some(3),
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -27,6 +28,21 @@ mod tests {
         assert_eq!(config.api_key, Some("test_key".to_string()));
         assert_eq!(config.timeout_ms, Some(30_000));
         assert_eq!(config.max_retries, Some(3));
+    }
+
+    #[test]
+    fn test_read_only_and_execute_allowlist_deserialize() {
+        let config: OdooInstanceConfig = serde_json::from_str(r#"{
+            "url": "https://example.odoo.com",
+            "readOnly": true,
+            "toolConfig": {"executeAllowlist": [{"model": "sale.order", "methods": ["action_confirm"]}]}
+        }"#).unwrap();
+
+        assert!(config.read_only);
+        assert_eq!(
+            config.tool_config.unwrap().execute_allowlist[0].model,
+            "sale.order"
+        );
     }
 
     #[test]
@@ -42,6 +58,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -69,6 +86,7 @@ mod tests {
                 timeout_ms: Some(30_000),
                 max_retries: Some(5),
                 tool_config: None,
+                read_only: false,
                 tags: Vec::new(),
                 aliases: Vec::new(),
                 extra: HashMap::new(),
@@ -99,6 +117,7 @@ mod tests {
                 timeout_ms: Some(20_000),
                 max_retries: Some(2),
                 tool_config: None,
+                read_only: false,
                 tags: Vec::new(),
                 aliases: Vec::new(),
                 extra: HashMap::new(),
@@ -118,6 +137,7 @@ mod tests {
                 timeout_ms: Some(25_000),
                 max_retries: Some(3),
                 tool_config: None,
+                read_only: false,
                 tags: Vec::new(),
                 aliases: Vec::new(),
                 extra: HashMap::new(),
@@ -143,6 +163,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -164,6 +185,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),

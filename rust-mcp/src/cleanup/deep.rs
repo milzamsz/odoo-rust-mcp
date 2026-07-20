@@ -73,7 +73,7 @@ pub async fn execute_deep_cleanup(
     client: &OdooClient,
     options: DeepCleanupOptions,
 ) -> OdooResult<DeepCleanupReport> {
-    let dry_run = options.dry_run.unwrap_or(false);
+    let dry_run = options.dry_run.unwrap_or(true);
     let keep_defaults = options.keep_company_defaults.unwrap_or(true);
     let keep_users = options.keep_user_accounts.unwrap_or(true);
 

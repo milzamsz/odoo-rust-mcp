@@ -43,6 +43,9 @@ Create `instances.json`:
 | `password` | Odoo 18 and earlier | - | Password for JSON-RPC auth |
 | `protocol` | No | `auto` | `auto`, `jsonrpc`, or `json2` |
 | `tags` | No | `[]` | Manual labels used by the Config UI |
+| `readOnly` | No | `false` | When `true`, deny mutating/cleanup/execute tools for this instance even if write env is set. Edit via JSON; Config UI preserves the field on save. |
+| `toolConfig.disabledTools` | No | `[]` | Per-instance tool denylist |
+| `toolConfig.executeAllowlist` | No | `[]` | Required for `odoo_execute`: `[{ "model": "...", "methods": ["..."] }]`. Empty denies all execute calls. |
 | `timeout_ms` | No | `30000` | Request timeout in milliseconds |
 | `max_retries` | No | `2` | Maximum retry attempts |
 
@@ -88,7 +91,8 @@ ODOO_API_KEY=your-key
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ODOO_ENABLE_WRITE_TOOLS` | `false` | Enable create, update, delete, execute tools |
+| `ODOO_ENABLE_WRITE_TOOLS` | `false` | Enable create, update, delete, workflow, copy tools |
+| `ODOO_ENABLE_EXECUTE_TOOL` | `false` | Enable `odoo_execute` (still requires a non-empty per-instance `executeAllowlist`) |
 | `ODOO_ENABLE_CLEANUP_TOOLS` | `false` | Enable cleanup tools |
 | `ODOO_TIMEOUT_MS` | `30000` | Request timeout in milliseconds |
 | `ODOO_MAX_RETRIES` | `2` | Retry attempts |
