@@ -159,8 +159,11 @@ Tools are organized into three operation groups:
 | Group | Gate | Purpose |
 |-------|------|---------|
 | **Read Operations** | None | Always-available read and discovery tools |
-| **Write Operations** | `ODOO_ENABLE_WRITE_TOOLS=true` | Create, update, delete, execute, workflow |
+| **Write Operations** | `ODOO_ENABLE_WRITE_TOOLS=true` | Create, update, delete, workflow, copy |
+| **Execute** | `ODOO_ENABLE_EXECUTE_TOOL=true` plus non-empty `toolConfig.executeAllowlist` | `odoo_execute` only |
 | **Cleanup Operations** | `ODOO_ENABLE_CLEANUP_TOOLS=true` | Cleanup and deep-cleanup tools |
+
+Instance `readOnly` and `executeAllowlist` are JSON-managed. Saving an instance in the Config UI preserves those fields; it does not provide editors for them in this release.
 
 Each group exposes bulk enable and disable controls, plus individual toggles.
 

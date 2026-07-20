@@ -360,6 +360,7 @@ Current guard env vars in code and checked-in tool config are:
 
 - `ODOO_ENABLE_WRITE_TOOLS`
 - `ODOO_ENABLE_CLEANUP_TOOLS`
+- `ODOO_ENABLE_EXECUTE_TOOL`
 
 Do not introduce or propagate stale names such as `ODOO_ENABLE_WRITE_OPERATIONS`.
 
@@ -385,6 +386,7 @@ Feature gates:
 
 - `ODOO_ENABLE_WRITE_TOOLS`
 - `ODOO_ENABLE_CLEANUP_TOOLS`
+- `ODOO_ENABLE_EXECUTE_TOOL`
 
 Config UI auth:
 

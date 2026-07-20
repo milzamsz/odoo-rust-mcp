@@ -71,11 +71,15 @@ MCP_AUTH_ENABLED=false
 # =============================================================================
 # OPTIONAL SETTINGS
 # =============================================================================
-# Enable write tools (create, update, delete, execute)
+# Enable write tools (create, update, delete)
 # ODOO_ENABLE_WRITE_TOOLS=true
 
 # Enable destructive cleanup tools (database cleanup, deep cleanup)
 # ODOO_ENABLE_CLEANUP_TOOLS=true
+
+# Enable odoo_execute only with a reviewed per-instance toolConfig.executeAllowlist.
+# Unset denies it even when ODOO_ENABLE_WRITE_TOOLS=true.
+# ODOO_ENABLE_EXECUTE_TOOL=true
 
 # Request timeout in milliseconds
 # ODOO_TIMEOUT_MS=30000

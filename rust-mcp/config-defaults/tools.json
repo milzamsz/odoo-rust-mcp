@@ -168,8 +168,8 @@
     },
     {
       "name": "odoo_execute",
-      "description": "Execute arbitrary method on Odoo model. For advanced operations and custom methods.",
-      "guards": { "requiresEnvTrue": "ODOO_ENABLE_WRITE_TOOLS" },
+      "description": "Execute an allowlisted Odoo model method. Disabled unless ODOO_ENABLE_EXECUTE_TOOL is true and the instance allowlists the model/method.",
+      "guards": { "requiresEnvTrue": "ODOO_ENABLE_EXECUTE_TOOL" },
       "inputSchema": {
         "type": "object",
         "properties": {

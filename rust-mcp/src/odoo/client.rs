@@ -7,6 +7,12 @@ use url::Url;
 use super::config::OdooInstanceConfig;
 use super::types::{OdooError, OdooErrorBody, OdooResult};
 
+#[derive(Clone, Copy)]
+enum RetryMode {
+    Safe,
+    Never,
+}
+
 #[derive(Clone)]
 pub struct OdooHttpClient {
     base_url: Url, // e.g. https://mycompany.example.com
@@ -116,7 +122,13 @@ impl OdooHttpClient {
         message
     }
 
-    async fn post_json2_raw(&self, model: &str, method: &str, body: Value) -> OdooResult<Value> {
+    async fn post_json2_raw(
+        &self,
+        model: &str,
+        method: &str,
+        body: Value,
+        retry_mode: RetryMode,
+    ) -> OdooResult<Value> {
         let url = self
             .endpoint(model, method)
             .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
@@ -126,7 +138,11 @@ impl OdooHttpClient {
 
         let mut last_err: Option<OdooError> = None;
 
-        for attempt in 0..=self.max_retries {
+        let max_retries = match retry_mode {
+            RetryMode::Safe => self.max_retries,
+            RetryMode::Never => 0,
+        };
+        for attempt in 0..=max_retries {
             let resp = self
                 .http
                 .post(url.clone())
@@ -163,7 +179,7 @@ impl OdooHttpClient {
                 }
             }
 
-            if attempt < self.max_retries {
+            if attempt < max_retries {
                 // Exponential backoff: 250ms, 500ms, 1s, 2s...
                 let backoff_ms = 250u64.saturating_mul(2u64.saturating_pow(attempt as u32));
                 tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
@@ -265,7 +281,9 @@ impl OdooHttpClient {
             body["order"] = json!(v);
         }
 
-        let v = self.post_json2_raw(model, "search", body).await?;
+        let v = self
+            .post_json2_raw(model, "search", body, RetryMode::Safe)
+            .await?;
         serde_json::from_value(v).map_err(|e| {
             OdooError::InvalidResponse(format!("Expected array of ids from search: {e}"))
         })
@@ -301,7 +319,8 @@ impl OdooHttpClient {
             body["order"] = json!(v);
         }
 
-        self.post_json2_raw(model, "search_read", body).await
+        self.post_json2_raw(model, "search_read", body, RetryMode::Safe)
+            .await
     }
 
     pub async fn read(
@@ -319,7 +338,8 @@ impl OdooHttpClient {
             body["fields"] = json!(v);
         }
 
-        self.post_json2_raw(model, "read", body).await
+        self.post_json2_raw(model, "read", body, RetryMode::Safe)
+            .await
     }
 
     pub async fn create(
@@ -339,7 +359,9 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        let v = self.post_json2_raw(model, "create", body).await?;
+        let v = self
+            .post_json2_raw(model, "create", body, RetryMode::Never)
+            .await?;
 
         // Odoo v19 /json/2/ create returns an array of IDs, e.g. [42]
         // We handle both array and single integer for compatibility
@@ -376,7 +398,9 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        let v = self.post_json2_raw(model, "write", body).await?;
+        let v = self
+            .post_json2_raw(model, "write", body, RetryMode::Never)
+            .await?;
         serde_json::from_value(v)
             .map_err(|e| OdooError::InvalidResponse(format!("Expected boolean from write: {e}")))
     }
@@ -391,7 +415,9 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        let v = self.post_json2_raw(model, "unlink", body).await?;
+        let v = self
+            .post_json2_raw(model, "unlink", body, RetryMode::Never)
+            .await?;
         serde_json::from_value(v)
             .map_err(|e| OdooError::InvalidResponse(format!("Expected boolean from unlink: {e}")))
     }
@@ -409,7 +435,9 @@ impl OdooHttpClient {
         if let Some(d) = domain {
             body["domain"] = d;
         }
-        let v = self.post_json2_raw(model, "search_count", body).await?;
+        let v = self
+            .post_json2_raw(model, "search_count", body, RetryMode::Safe)
+            .await?;
         serde_json::from_value(v).map_err(|e| {
             OdooError::InvalidResponse(format!("Expected count (number) from search_count: {e}"))
         })
@@ -421,7 +449,8 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        self.post_json2_raw(model, "fields_get", body).await
+        self.post_json2_raw(model, "fields_get", body, RetryMode::Safe)
+            .await
     }
 
     pub async fn call_named(
@@ -439,7 +468,8 @@ impl OdooHttpClient {
         if let Some(ids) = ids {
             body["ids"] = json!(ids);
         }
-        self.post_json2_raw(model, method, body).await
+        self.post_json2_raw(model, method, body, RetryMode::Never)
+            .await
     }
 
     /// read_group - Aggregate records with GROUP BY
@@ -477,7 +507,8 @@ impl OdooHttpClient {
         if let Some(v) = lazy {
             body["lazy"] = json!(v);
         }
-        self.post_json2_raw(model, "read_group", body).await
+        self.post_json2_raw(model, "read_group", body, RetryMode::Safe)
+            .await
     }
 
     /// name_search - Search by name with autocomplete-style matching
@@ -506,7 +537,8 @@ impl OdooHttpClient {
         if let Some(l) = limit {
             body["limit"] = json!(l);
         }
-        self.post_json2_raw(model, "name_search", body).await
+        self.post_json2_raw(model, "name_search", body, RetryMode::Safe)
+            .await
     }
 
     /// name_get - Get display names for records
@@ -520,7 +552,8 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        self.post_json2_raw(model, "name_get", body).await
+        self.post_json2_raw(model, "name_get", body, RetryMode::Safe)
+            .await
     }
 
     /// default_get - Get default values for new records
@@ -534,7 +567,8 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        self.post_json2_raw(model, "default_get", body).await
+        self.post_json2_raw(model, "default_get", body, RetryMode::Safe)
+            .await
     }
 
     /// copy - Duplicate a record
@@ -552,7 +586,9 @@ impl OdooHttpClient {
         if let Some(d) = default {
             body["default"] = d;
         }
-        let v = self.post_json2_raw(model, "copy", body).await?;
+        let v = self
+            .post_json2_raw(model, "copy", body, RetryMode::Never)
+            .await?;
 
         // Handle both array and single integer response
         if let Some(arr) = v.as_array() {
@@ -592,7 +628,8 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        self.post_json2_raw(model, "onchange", body).await
+        self.post_json2_raw(model, "onchange", body, RetryMode::Safe)
+            .await
     }
 
     pub async fn health_probe(&self) -> OdooResult<()> {
@@ -625,6 +662,7 @@ mod tests {
             timeout_ms: Some(5000),
             max_retries: Some(2),
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -682,6 +720,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -710,6 +749,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -789,6 +829,7 @@ mod tests {
             timeout_ms: Some(5000),
             max_retries: Some(2),
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),

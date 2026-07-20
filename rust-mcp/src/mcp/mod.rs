@@ -14,6 +14,8 @@ use mcp_rust_sdk::types::{ClientCapabilities, Implementation, ServerCapabilities
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
+use tracing::{info, warn};
 
 use crate::mcp::prompts::{get_prompt_result, list_prompts_result};
 use crate::mcp::registry::Registry;
@@ -81,10 +83,17 @@ impl ServerHandler for McpOdooHandler {
             "tools/list" => {
                 // Fully declarative: tools are served from tools.json (registry).
                 // Note: cleanup gating is handled by tool guards (e.g. requiresEnvTrue).
-                let tools = self.registry.list_tools().await;
+                let read_only = params
+                    .as_ref()
+                    .and_then(|params| params.get("instance"))
+                    .and_then(Value::as_str)
+                    .map(|instance| self.pool.instance_is_read_only(instance))
+                    .unwrap_or_else(|| self.pool.all_instances_read_only());
+                let tools = self.registry.list_tools(read_only).await;
                 Ok(json!({ "tools": tools }))
             }
             "tools/call" => {
+                let started = Instant::now();
                 let params = params.ok_or_else(|| protocol_err("Missing params for tools/call"))?;
                 let name = params
                     .get("name")
@@ -98,8 +107,27 @@ impl ServerHandler for McpOdooHandler {
                     .get("instance")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string());
+                let model = args
+                    .get("model")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_owned);
+                let record_id_count = args
+                    .get("ids")
+                    .and_then(Value::as_array)
+                    .map(Vec::len)
+                    .or_else(|| args.get("id").map(|_| 1));
 
                 let Some(tool) = self.registry.get_tool(name).await else {
+                    warn!(
+                        service = "odoo-rust-mcp",
+                        tool = name,
+                        instance = instance_name.as_deref().unwrap_or("unknown"),
+                        model = model.as_deref().unwrap_or("unknown"),
+                        record_id_count = record_id_count.unwrap_or(0),
+                        outcome = "unknown_tool",
+                        duration_ms = started.elapsed().as_millis(),
+                        "MCP tool call completed"
+                    );
                     return Ok(json!({
                         "content": [{
                             "type": "text",
@@ -113,8 +141,30 @@ impl ServerHandler for McpOdooHandler {
                 };
 
                 match call_tool(&self.pool, &tool, args).await {
-                    Ok(v) => Ok(v),
+                    Ok(v) => {
+                        info!(
+                            service = "odoo-rust-mcp",
+                            tool = name,
+                            instance = instance_name.as_deref().unwrap_or("unknown"),
+                            model = model.as_deref().unwrap_or("unknown"),
+                            record_id_count = record_id_count.unwrap_or(0),
+                            outcome = "success",
+                            duration_ms = started.elapsed().as_millis(),
+                            "MCP tool call completed"
+                        );
+                        Ok(v)
+                    }
                     Err(e) => {
+                        warn!(
+                            service = "odoo-rust-mcp",
+                            tool = name,
+                            instance = instance_name.as_deref().unwrap_or("unknown"),
+                            model = model.as_deref().unwrap_or("unknown"),
+                            record_id_count = record_id_count.unwrap_or(0),
+                            outcome = "error",
+                            duration_ms = started.elapsed().as_millis(),
+                            "MCP tool call completed"
+                        );
                         let mut error_payload = json!({
                             "error": e.to_string(),
                             "tool": name,

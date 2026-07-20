@@ -9,6 +9,12 @@ use url::Url;
 use super::config::OdooInstanceConfig;
 use super::types::{OdooError, OdooErrorBody, OdooResult};
 
+#[derive(Clone, Copy)]
+enum RetryMode {
+    Safe,
+    Never,
+}
+
 /// Odoo Legacy JSON-RPC client for Odoo < 19.
 /// Uses /jsonrpc endpoint with username/password authentication.
 #[derive(Clone)]
@@ -91,14 +97,24 @@ impl OdooLegacyClient {
     }
 
     /// Send a JSON-RPC request and extract the result
-    async fn jsonrpc_call(&self, service: &str, method: &str, args: Value) -> OdooResult<Value> {
+    async fn jsonrpc_call(
+        &self,
+        service: &str,
+        method: &str,
+        args: Value,
+        retry_mode: RetryMode,
+    ) -> OdooResult<Value> {
         let url = self.jsonrpc_endpoint();
         let headers = self.headers();
         let body = self.build_jsonrpc_request(service, method, args);
 
         let mut last_err: Option<OdooError> = None;
 
-        for attempt in 0..=self.max_retries {
+        let max_retries = match retry_mode {
+            RetryMode::Safe => self.max_retries,
+            RetryMode::Never => 0,
+        };
+        for attempt in 0..=max_retries {
             let resp = self
                 .http
                 .post(url.clone())
@@ -165,7 +181,7 @@ impl OdooLegacyClient {
                 }
             }
 
-            if attempt < self.max_retries {
+            if attempt < max_retries {
                 let backoff_ms = 250u64.saturating_mul(2u64.saturating_pow(attempt as u32));
                 tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
             }
@@ -188,7 +204,9 @@ impl OdooLegacyClient {
 
         // Authenticate via common service
         let args = json!([self.db, self.username, self.password, {}]);
-        let result = self.jsonrpc_call("common", "authenticate", args).await?;
+        let result = self
+            .jsonrpc_call("common", "authenticate", args, RetryMode::Safe)
+            .await?;
 
         let uid = result.as_i64().ok_or_else(|| OdooError::Api {
             status: 401,
@@ -226,6 +244,7 @@ impl OdooLegacyClient {
         method: &str,
         args: Value,
         kwargs: Option<Value>,
+        retry_mode: RetryMode,
     ) -> OdooResult<Value> {
         let uid = self.authenticate().await?;
 
@@ -241,8 +260,16 @@ impl OdooLegacyClient {
             kwargs.unwrap_or_else(|| json!({})),
         ];
 
-        self.jsonrpc_call("object", "execute_kw", json!(call_args))
+        self.jsonrpc_call("object", "execute_kw", json!(call_args), retry_mode)
             .await
+    }
+
+    fn kwargs_with_context(kwargs: Option<Value>, context: Option<Value>) -> Option<Value> {
+        let mut kwargs = kwargs.unwrap_or_else(|| json!({}));
+        if let Some(context) = context {
+            kwargs["context"] = context;
+        }
+        Some(kwargs)
     }
 
     pub async fn search(
@@ -252,7 +279,7 @@ impl OdooLegacyClient {
         limit: Option<i64>,
         offset: Option<i64>,
         order: Option<String>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<Vec<i64>> {
         let domain = domain.unwrap_or(json!([]));
         let mut kwargs = serde_json::Map::new();
@@ -267,7 +294,13 @@ impl OdooLegacyClient {
         }
 
         let result = self
-            .execute_kw(model, "search", json!([domain]), Some(json!(kwargs)))
+            .execute_kw(
+                model,
+                "search",
+                json!([domain]),
+                Self::kwargs_with_context(Some(json!(kwargs)), context),
+                RetryMode::Safe,
+            )
             .await?;
 
         serde_json::from_value(result).map_err(|e| {
@@ -283,7 +316,7 @@ impl OdooLegacyClient {
         limit: Option<i64>,
         offset: Option<i64>,
         order: Option<String>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<Value> {
         let domain = domain.unwrap_or(json!([]));
         let mut kwargs = serde_json::Map::new();
@@ -300,8 +333,14 @@ impl OdooLegacyClient {
             kwargs.insert("order".to_string(), json!(v));
         }
 
-        self.execute_kw(model, "search_read", json!([domain]), Some(json!(kwargs)))
-            .await
+        self.execute_kw(
+            model,
+            "search_read",
+            json!([domain]),
+            Self::kwargs_with_context(Some(json!(kwargs)), context),
+            RetryMode::Safe,
+        )
+        .await
     }
 
     pub async fn read(
@@ -309,25 +348,37 @@ impl OdooLegacyClient {
         model: &str,
         ids: Vec<i64>,
         fields: Option<Vec<String>>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<Value> {
         let mut kwargs = serde_json::Map::new();
         if let Some(v) = fields {
             kwargs.insert("fields".to_string(), json!(v));
         }
 
-        self.execute_kw(model, "read", json!([ids]), Some(json!(kwargs)))
-            .await
+        self.execute_kw(
+            model,
+            "read",
+            json!([ids]),
+            Self::kwargs_with_context(Some(json!(kwargs)), context),
+            RetryMode::Safe,
+        )
+        .await
     }
 
     pub async fn create(
         &self,
         model: &str,
         values: Value,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<i64> {
         let result = self
-            .execute_kw(model, "create", json!([values]), None)
+            .execute_kw(
+                model,
+                "create",
+                json!([values]),
+                Self::kwargs_with_context(None, context),
+                RetryMode::Never,
+            )
             .await?;
         serde_json::from_value(result).map_err(|e| {
             OdooError::InvalidResponse(format!("Expected created id (number) from create: {e}"))
@@ -339,10 +390,16 @@ impl OdooLegacyClient {
         model: &str,
         ids: Vec<i64>,
         values: Value,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<bool> {
         let result = self
-            .execute_kw(model, "write", json!([ids, values]), None)
+            .execute_kw(
+                model,
+                "write",
+                json!([ids, values]),
+                Self::kwargs_with_context(None, context),
+                RetryMode::Never,
+            )
             .await?;
         serde_json::from_value(result)
             .map_err(|e| OdooError::InvalidResponse(format!("Expected boolean from write: {e}")))
@@ -352,9 +409,17 @@ impl OdooLegacyClient {
         &self,
         model: &str,
         ids: Vec<i64>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<bool> {
-        let result = self.execute_kw(model, "unlink", json!([ids]), None).await?;
+        let result = self
+            .execute_kw(
+                model,
+                "unlink",
+                json!([ids]),
+                Self::kwargs_with_context(None, context),
+                RetryMode::Never,
+            )
+            .await?;
         serde_json::from_value(result)
             .map_err(|e| OdooError::InvalidResponse(format!("Expected boolean from unlink: {e}")))
     }
@@ -363,19 +428,25 @@ impl OdooLegacyClient {
         &self,
         model: &str,
         domain: Option<Value>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<i64> {
         let domain = domain.unwrap_or(json!([]));
         let result = self
-            .execute_kw(model, "search_count", json!([domain]), None)
+            .execute_kw(
+                model,
+                "search_count",
+                json!([domain]),
+                Self::kwargs_with_context(None, context),
+                RetryMode::Safe,
+            )
             .await?;
         serde_json::from_value(result).map_err(|e| {
             OdooError::InvalidResponse(format!("Expected count (number) from search_count: {e}"))
         })
     }
 
-    pub async fn fields_get(&self, model: &str, _context: Option<Value>) -> OdooResult<Value> {
-        self.execute_kw(model, "fields_get", json!([]), Some(json!({"attributes": ["string", "type", "help", "required", "readonly", "relation", "selection"]})))
+    pub async fn fields_get(&self, model: &str, context: Option<Value>) -> OdooResult<Value> {
+        self.execute_kw(model, "fields_get", json!([]), Self::kwargs_with_context(Some(json!({"attributes": ["string", "type", "help", "required", "readonly", "relation", "selection"]})), context), RetryMode::Safe)
             .await
     }
 
@@ -385,7 +456,7 @@ impl OdooLegacyClient {
         method: &str,
         ids: Option<Vec<i64>>,
         params: serde_json::Map<String, Value>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<Value> {
         let args = if let Some(ids) = ids {
             json!([ids])
@@ -399,7 +470,14 @@ impl OdooLegacyClient {
             Some(json!(params))
         };
 
-        self.execute_kw(model, method, args, kwargs).await
+        self.execute_kw(
+            model,
+            method,
+            args,
+            Self::kwargs_with_context(kwargs, context),
+            RetryMode::Never,
+        )
+        .await
     }
 
     pub async fn download_report_pdf(&self, report_name: &str, ids: &[i64]) -> OdooResult<Vec<u8>> {
@@ -503,7 +581,7 @@ impl OdooLegacyClient {
         limit: Option<i64>,
         orderby: Option<String>,
         lazy: Option<bool>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<Value> {
         let domain = domain.unwrap_or(json!([]));
         let mut kwargs = json!({});
@@ -523,7 +601,8 @@ impl OdooLegacyClient {
             model,
             "read_group",
             json!([domain, fields, groupby]),
-            Some(kwargs),
+            Self::kwargs_with_context(Some(kwargs), context),
+            RetryMode::Safe,
         )
         .await
     }
@@ -536,7 +615,7 @@ impl OdooLegacyClient {
         args: Option<Value>,
         operator: Option<String>,
         limit: Option<i64>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<Value> {
         let name = name.unwrap_or_default();
         let args = args.unwrap_or(json!([]));
@@ -546,7 +625,8 @@ impl OdooLegacyClient {
             model,
             "name_search",
             json!([name, args, operator, limit]),
-            None,
+            Self::kwargs_with_context(None, context),
+            RetryMode::Safe,
         )
         .await
     }
@@ -556,9 +636,16 @@ impl OdooLegacyClient {
         &self,
         model: &str,
         ids: Vec<i64>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<Value> {
-        self.execute_kw(model, "name_get", json!([ids]), None).await
+        self.execute_kw(
+            model,
+            "name_get",
+            json!([ids]),
+            Self::kwargs_with_context(None, context),
+            RetryMode::Safe,
+        )
+        .await
     }
 
     /// default_get - Get default values for new records
@@ -566,10 +653,16 @@ impl OdooLegacyClient {
         &self,
         model: &str,
         fields_list: Vec<String>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<Value> {
-        self.execute_kw(model, "default_get", json!([fields_list]), None)
-            .await
+        self.execute_kw(
+            model,
+            "default_get",
+            json!([fields_list]),
+            Self::kwargs_with_context(None, context),
+            RetryMode::Safe,
+        )
+        .await
     }
 
     /// copy - Duplicate a record
@@ -578,10 +671,18 @@ impl OdooLegacyClient {
         model: &str,
         id: i64,
         default: Option<Value>,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<i64> {
         let kwargs = default.map(|d| json!({ "default": d }));
-        let result = self.execute_kw(model, "copy", json!([id]), kwargs).await?;
+        let result = self
+            .execute_kw(
+                model,
+                "copy",
+                json!([id]),
+                Self::kwargs_with_context(kwargs, context),
+                RetryMode::Never,
+            )
+            .await?;
         serde_json::from_value(result)
             .map_err(|e| OdooError::InvalidResponse(format!("Expected id from copy: {e}")))
     }
@@ -594,13 +695,14 @@ impl OdooLegacyClient {
         values: Value,
         field_name: Vec<String>,
         field_onchange: Value,
-        _context: Option<Value>,
+        context: Option<Value>,
     ) -> OdooResult<Value> {
         self.execute_kw(
             model,
             "onchange",
             json!([ids, values, field_name, field_onchange]),
-            None,
+            Self::kwargs_with_context(None, context),
+            RetryMode::Safe,
         )
         .await
     }
@@ -640,6 +742,7 @@ mod tests {
             timeout_ms: Some(5000),
             max_retries: Some(2),
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -727,6 +830,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),

@@ -4,6 +4,10 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+fn is_false(value: &bool) -> bool {
+    !value
+}
+
 /// Authentication mode for Odoo instances.
 /// - `ApiKey`: Odoo 19+ JSON-2 API with bearer token
 /// - `Password`: Odoo < 19 JSON-RPC with username/password
@@ -24,6 +28,19 @@ pub struct InstanceToolConfig {
     pub disabled_tools: Vec<String>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub defaults: HashMap<String, Value>,
+    #[serde(
+        default,
+        rename = "executeAllowlist",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub execute_allowlist: Vec<ExecuteAllowlistEntry>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteAllowlistEntry {
+    pub model: String,
+    #[serde(default)]
+    pub methods: Vec<String>,
 }
 
 impl InstanceToolConfig {
@@ -36,7 +53,9 @@ impl InstanceToolConfig {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.disabled_tools.is_empty() && self.defaults.is_empty()
+        self.disabled_tools.is_empty()
+            && self.defaults.is_empty()
+            && self.execute_allowlist.is_empty()
     }
 }
 
@@ -88,6 +107,9 @@ pub struct OdooInstanceConfig {
         skip_serializing_if = "Option::is_none"
     )]
     pub tool_config: Option<InstanceToolConfig>,
+    /// Deny mutating, cleanup, and arbitrary execute tools for this instance.
+    #[serde(default, rename = "readOnly", skip_serializing_if = "is_false")]
+    pub read_only: bool,
     /// Manual labels used by Config UI search and grouping.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
@@ -333,6 +355,7 @@ pub fn load_odoo_env() -> anyhow::Result<OdooEnvConfig> {
                         .ok()
                         .and_then(|v| v.parse().ok()),
                     tool_config: None,
+                    read_only: false,
                     tags: Vec::new(),
                     aliases: Vec::new(),
                     extra: HashMap::new(),
@@ -508,6 +531,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -528,6 +552,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -548,6 +573,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -568,6 +594,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -658,6 +685,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -678,6 +706,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: Vec::new(),
             aliases: Vec::new(),
             extra: HashMap::new(),
@@ -737,6 +766,7 @@ mod tests {
             timeout_ms: None,
             max_retries: None,
             tool_config: None,
+            read_only: false,
             tags: vec!["prod".to_string()],
             aliases: vec!["legacy-alias".to_string()],
             extra: HashMap::new(),

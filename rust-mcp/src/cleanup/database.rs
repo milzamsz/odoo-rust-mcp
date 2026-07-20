@@ -53,7 +53,7 @@ pub async fn execute_full_cleanup(
     client: &OdooClient,
     options: CleanupOptions,
 ) -> OdooResult<CleanupReport> {
-    let dry_run = options.dry_run.unwrap_or(false);
+    let dry_run = options.dry_run.unwrap_or(true);
     let days = options.days_threshold.unwrap_or(180);
     let mut report = CleanupReport {
         success: true,
