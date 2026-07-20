@@ -5,6 +5,8 @@ export interface ExecuteAllowlistEntry {
 
 export interface InstanceToolConfig {
   disabledTools?: string[];
+  /** Pack names disabled for this instance; edited in JSON until a UI is warranted. */
+  disabledPacks?: string[];
   defaults?: Record<string, Record<string, unknown>>;
   /** Reviewed model/method pairs for odoo_execute. Empty/absent denies execute. */
   executeAllowlist?: ExecuteAllowlistEntry[];
@@ -59,9 +61,12 @@ export interface SyncInstancesEnvResponse extends InstancesSyncStatusResponse {
 export interface ToolConfig {
   name: string;
   description?: string;
+  pack?: string;
+  requiredModules?: string[];
   guards?: {
     requiresEnvTrue?: string;
-    [key: string]: string | undefined;
+    requiresEnvTrueAll?: string[];
+    [key: string]: string | string[] | undefined;
   };
   inputSchema?: {
     properties?: Record<string, ToolSchemaProperty>;

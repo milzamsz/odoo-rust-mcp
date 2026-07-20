@@ -1,0 +1,43 @@
+profiles:
+  - id: analyst
+    packs:
+      include:
+        - core
+        - crm
+        - sales
+        - purchase
+        - inventory
+        - accounting
+        - project
+        - manufacturing
+        - spreadsheet_dashboard
+    operations:
+      allow:
+        - read
+        - aggregate
+        - snapshot
+
+  - id: pos-operator
+    packs:
+      include:
+        - core
+        - pos
+    tools:
+      include_patterns:
+        - "pos_*"
+        - "odoo_instance_get"
+    tools_exclude:
+      - "pos_session_close"
+      - "pos_refund_create"
+
+  - id: hr-directory
+    packs:
+      include:
+        - core
+        - employee
+    tools:
+      include:
+        - employee_directory_search
+        - employee_profile_get_public
+        - employee_department_search
+        - employee_org_chart_get

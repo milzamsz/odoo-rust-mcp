@@ -64,6 +64,20 @@ type ConnStatus =
   | { status: 'ok'; latency: number }
   | { status: 'error'; error: string };
 
+interface ModuleSnapshot {
+  edition: string;
+  modules: string[];
+  refreshedAt: string;
+  stale: boolean;
+  lastError?: string;
+}
+
+type CapStatus =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ready'; snapshot: ModuleSnapshot }
+  | { status: 'error'; error: string };
+
 type ImportMode = 'merge' | 'replace';
 type InstanceViewMode = 'card' | 'table';
 
@@ -164,6 +178,7 @@ export function InstancesTab() {
   const [config, setConfig] = useState<InstanceConfig>({});
   const [availableTools, setAvailableTools] = useState<ToolConfig[]>([]);
   const [connStatuses, setConnStatuses] = useState<Record<string, ConnStatus>>({});
+  const [capStatuses, setCapStatuses] = useState<Record<string, CapStatus>>({});
   const [showForm, setShowForm] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
@@ -339,6 +354,22 @@ export function InstancesTab() {
   const testAll = useCallback(async () => {
     await Promise.all(Object.keys(config).map((name) => testConnection(name)));
   }, [config, testConnection]);
+
+  const refreshCapabilities = useCallback(async (name: string) => {
+    setCapStatuses((current) => ({ ...current, [name]: { status: 'loading' } }));
+    try {
+      const snapshot = await fetchJson<ModuleSnapshot>(
+        `/api/config/instances/${encodeURIComponent(name)}/capabilities?refresh=true`,
+        { headers: getAuthHeaders() }
+      );
+      setCapStatuses((current) => ({ ...current, [name]: { status: 'ready', snapshot } }));
+    } catch (error) {
+      setCapStatuses((current) => ({
+        ...current,
+        [name]: { status: 'error', error: error instanceof Error ? error.message : 'Network error' },
+      }));
+    }
+  }, []);
 
   const handleEdit = useCallback((name: string) => {
     setEditingName(name);
@@ -929,6 +960,20 @@ export function InstancesTab() {
                         </Group>
                       </>
                     ) : null}
+
+                    <Divider />
+                    <Group justify="space-between" align="center">
+                      <CapabilitySummary status={capStatuses[row.original.name] ?? { status: 'idle' }} />
+                      <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        leftSection={<ArrowClockwise size={12} />}
+                        loading={capStatuses[row.original.name]?.status === 'loading'}
+                        onClick={() => void refreshCapabilities(row.original.name)}
+                      >
+                        Capabilities
+                      </Button>
+                    </Group>
                   </Stack>
                 </Card>
               ))}
@@ -972,6 +1017,52 @@ function MetaBlock({ label, value }: { label: string; value: string }) {
       </Text>
       <Text mt={6}>{value}</Text>
     </Card>
+  );
+}
+
+function CapabilitySummary({ status }: { status: CapStatus }) {
+  if (status.status === 'idle') {
+    return (
+      <Text size="xs" c="dimmed">
+        Capability snapshot not loaded
+      </Text>
+    );
+  }
+  if (status.status === 'loading') {
+    return (
+      <Text size="xs" c="dimmed">
+        Scanning installed modules…
+      </Text>
+    );
+  }
+  if (status.status === 'error') {
+    return (
+      <Text size="xs" c="red">
+        {status.error}
+      </Text>
+    );
+  }
+
+  const { snapshot } = status;
+  const refreshed = new Date(snapshot.refreshedAt);
+  const refreshedLabel = Number.isNaN(refreshed.getTime()) ? 'unknown' : refreshed.toLocaleString();
+  return (
+    <Group gap="xs">
+      <Badge variant="light" color="teal" size="sm">
+        {snapshot.modules.length} modules
+      </Badge>
+      <Badge variant="light" color="grape" size="sm">
+        {snapshot.edition}
+      </Badge>
+      {snapshot.stale ? (
+        <Badge variant="light" color="orange" size="sm">
+          stale
+        </Badge>
+      ) : null}
+      <Text size="xs" c="dimmed">
+        {snapshot.lastError ? snapshot.lastError : `refreshed ${refreshedLabel}`}
+      </Text>
+    </Group>
   );
 }
 

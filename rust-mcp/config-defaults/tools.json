@@ -90,6 +90,35 @@
       }
     },
     {
+      "name": "odoo_execute_capability",
+      "description": "Execute one approval-bound named Odoo mutation capability. Requires an exact registry target, HMAC signature, and durable idempotency state.",
+      "pack": "controlled-mutations",
+      "guards": { "requiresEnvTrue": "ODOO_CAPABILITY_CONTROLLED_MODE" },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" },
+          "capability": { "type": "string", "enum": ["create_crm_lead_draft.v1", "create_quotation_draft.v1", "prepare_vendor_bill_draft.v1", "update_allowed_draft_fields.v1", "import_bank_transaction_draft.v1"] },
+          "target": { "type": "object" },
+          "actor_ref": { "type": "string" },
+          "reviewer_ref": { "type": "string" },
+          "approval_ref": { "type": "string" },
+          "approval_decided_at": { "type": "string" },
+          "approval_expires_at": { "type": "string" },
+          "idempotency_key": { "type": "string" },
+          "payload_digest": { "type": "string" },
+          "correlation_id": { "type": "string" },
+          "audit_id": { "type": "string" },
+          "registry_revision": { "type": "string" },
+          "input": { "type": "object" },
+          "signature": { "type": "string" }
+        },
+        "required": ["instance", "capability", "target", "actor_ref", "reviewer_ref", "approval_ref", "approval_decided_at", "approval_expires_at", "idempotency_key", "payload_digest", "correlation_id", "audit_id", "registry_revision", "input", "signature"],
+        "additionalProperties": false
+      },
+      "op": { "type": "execute_capability", "map": {} }
+    },
+    {
       "name": "odoo_create",
       "description": "Create a new Odoo record. Returns the ID of the created record.",
       "guards": { "requiresEnvTrue": "ODOO_ENABLE_WRITE_TOOLS" },
@@ -295,7 +324,7 @@
     {
       "name": "odoo_database_cleanup",
       "description": "Comprehensive database cleanup for production readiness. IMPORTANT: Use dryRun=true to preview changes first!",
-      "guards": { "requiresEnvTrue": "ODOO_ENABLE_CLEANUP_TOOLS" },
+      "guards": { "requiresEnvTrueAll": ["ODOO_ENABLE_WRITE_TOOLS", "ODOO_ENABLE_CLEANUP_TOOLS"] },
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -328,7 +357,7 @@
     {
       "name": "odoo_deep_cleanup",
       "description": "DESTRUCTIVE: Remove ALL non-essential data. ALWAYS use dryRun=true first!",
-      "guards": { "requiresEnvTrue": "ODOO_ENABLE_CLEANUP_TOOLS" },
+      "guards": { "requiresEnvTrueAll": ["ODOO_ENABLE_WRITE_TOOLS", "ODOO_ENABLE_CLEANUP_TOOLS"] },
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -357,7 +386,9 @@
     {
       "name": "odoo_stock_inventory_reversal_cleanup",
       "description": "Plan or apply a guarded stock quant inventory reversal for wrong inventory adjustment move lines. Defaults to dryRun=true; mutation requires confirm=true and ODOO_ENABLE_CLEANUP_TOOLS.",
-      "guards": { "requiresEnvTrue": "ODOO_ENABLE_CLEANUP_TOOLS" },
+      "pack": "inventory",
+      "requiredModules": ["stock"],
+      "guards": { "requiresEnvTrueAll": ["ODOO_ENABLE_WRITE_TOOLS", "ODOO_ENABLE_CLEANUP_TOOLS"] },
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -395,6 +426,22 @@
           "confirm": "/confirm",
           "allowNegative": "/allowNegative"
         }
+      }
+    },
+    {
+      "name": "odoo_refresh_capabilities",
+      "description": "Refresh the installed-module capability snapshot for an Odoo instance.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": { "type": "string" }
+        },
+        "required": ["instance"],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "refresh_capabilities",
+        "map": { "instance": "/instance" }
       }
     },
     {

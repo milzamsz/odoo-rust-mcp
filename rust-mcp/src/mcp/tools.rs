@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, RwLock};
 
 use base64::Engine;
@@ -8,7 +8,9 @@ use tracing::{info, warn};
 
 use crate::cleanup;
 use crate::mcp::cache::MetadataCache;
-use crate::mcp::registry::{OpSpec, ToolDef};
+use crate::mcp::capability;
+use crate::mcp::module_snapshot::{ModuleSnapshot, ModuleSnapshotStore};
+use crate::mcp::registry::{OpSpec, ToolDef, audit_tool_denial, capability_denial};
 use crate::odoo::config::{OdooEnvConfig, load_odoo_env};
 use crate::odoo::types::OdooError;
 use crate::odoo::unified_client::OdooClient;
@@ -48,6 +50,7 @@ pub struct OdooClientPool {
     env: Arc<RwLock<OdooEnvConfig>>,
     clients: Arc<Mutex<HashMap<String, OdooClient>>>,
     pub metadata_cache: MetadataCache,
+    module_snapshots: ModuleSnapshotStore,
 }
 
 impl OdooClientPool {
@@ -57,7 +60,18 @@ impl OdooClientPool {
             env: Arc::new(RwLock::new(env)),
             clients: Arc::new(Mutex::new(HashMap::new())),
             metadata_cache: MetadataCache::new(),
+            module_snapshots: ModuleSnapshotStore::from_env(),
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn from_config(env: OdooEnvConfig) -> Self {
+        Self {
+            env: Arc::new(RwLock::new(env)),
+            clients: Arc::new(Mutex::new(HashMap::new())),
+            metadata_cache: MetadataCache::new(),
+            module_snapshots: ModuleSnapshotStore::memory(),
+        }
     }
 
     pub async fn get(&self, instance: &str) -> anyhow::Result<OdooClient> {
@@ -114,6 +128,22 @@ impl OdooClientPool {
             .unwrap_or(false)
     }
 
+    pub(crate) fn instance_config(
+        &self,
+        instance: &str,
+    ) -> Result<crate::odoo::config::OdooInstanceConfig, OdooError> {
+        let name = self
+            .resolve_instance_name(instance)
+            .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+        self.env
+            .read()
+            .map_err(|e| OdooError::InvalidResponse(format!("Instance config lock poisoned: {e}")))?
+            .instances
+            .get(&name)
+            .cloned()
+            .ok_or_else(|| OdooError::InvalidResponse(format!("Unknown Odoo instance '{name}'")))
+    }
+
     pub fn resolve_instance_name(&self, requested: &str) -> anyhow::Result<String> {
         let env = self
             .env
@@ -125,8 +155,7 @@ impl OdooClientPool {
     fn apply_instance_tool_config(
         &self,
         instance: &str,
-        tool_name: &str,
-        op_type: &str,
+        tool: &ToolDef,
         args: Value,
     ) -> Result<Value, OdooError> {
         let instance_config = self
@@ -137,10 +166,12 @@ impl OdooClientPool {
 
         if instance_config
             .as_ref()
-            .is_some_and(|cfg| cfg.read_only && is_mutating_op(op_type))
+            .is_some_and(|cfg| cfg.read_only && is_mutating_op(&tool.op.op_type))
         {
+            audit_tool_denial(instance, tool, "read_only", "");
             return Err(OdooError::InvalidResponse(format!(
-                "Tool '{tool_name}' is disabled for read-only instance '{instance}'"
+                "Tool '{}' is disabled for read-only instance '{instance}'",
+                tool.name
             )));
         }
 
@@ -150,19 +181,22 @@ impl OdooClientPool {
             return Ok(args);
         };
 
-        if tool_config.is_tool_disabled(tool_name) {
+        if tool_config.is_tool_disabled(&tool.name) {
+            audit_tool_denial(instance, tool, "tool_disabled", "");
             return Err(OdooError::InvalidResponse(format!(
-                "Tool '{tool_name}' is disabled for instance '{instance}'"
+                "Tool '{}' is disabled for instance '{instance}'",
+                tool.name
             )));
         }
 
-        let Some(defaults) = tool_config.tool_defaults(tool_name) else {
+        let Some(defaults) = tool_config.tool_defaults(&tool.name) else {
             return Ok(args);
         };
 
         if !defaults.is_object() {
             return Err(OdooError::InvalidResponse(format!(
-                "Tool '{tool_name}' defaults for instance '{instance}' must be a JSON object"
+                "Tool '{}' defaults for instance '{instance}' must be a JSON object",
+                tool.name
             )));
         }
 
@@ -186,6 +220,120 @@ impl OdooClientPool {
             })
     }
 
+    pub fn disabled_packs(&self, instance: &str) -> Vec<String> {
+        self.resolve_instance_name(instance)
+            .ok()
+            .and_then(|name| {
+                self.env
+                    .read()
+                    .ok()
+                    .and_then(|env| env.instances.get(&name).cloned())
+            })
+            .and_then(|config| config.tool_config)
+            .map(|config| config.disabled_packs)
+            .unwrap_or_default()
+    }
+
+    pub async fn module_snapshot(&self, instance: &str) -> ModuleSnapshot {
+        let canonical = match self.resolve_instance_name(instance) {
+            Ok(canonical) => canonical,
+            Err(error) => {
+                return self
+                    .module_snapshots
+                    .failure(instance, &error.to_string())
+                    .await;
+            }
+        };
+        if let Some(snapshot) = self.module_snapshots.fresh(&canonical).await {
+            return snapshot;
+        }
+        if let Ok(snapshot) = self.refresh_module_snapshot(&canonical).await {
+            return snapshot;
+        }
+        self.module_snapshots
+            .get(&canonical)
+            .await
+            .expect("failed module refresh always records a stale snapshot")
+    }
+
+    pub async fn refresh_module_snapshot(
+        &self,
+        instance: &str,
+    ) -> Result<ModuleSnapshot, OdooError> {
+        let canonical = self
+            .resolve_instance_name(instance)
+            .map_err(|error| OdooError::InvalidResponse(error.to_string()))?;
+        let config = self.instance_config(&canonical)?;
+        let result = async {
+            let client = self
+                .get(&canonical)
+                .await
+                .map_err(|error| OdooError::InvalidResponse(error.to_string()))?;
+            client
+                .search_read(
+                    "ir.module.module",
+                    Some(json!([["state", "=", "installed"]])),
+                    Some(vec!["name".to_string()]),
+                    None,
+                    None,
+                    Some("name asc".to_string()),
+                    None,
+                )
+                .await
+        }
+        .await;
+
+        match result {
+            Ok(value) => {
+                let modules: Result<BTreeSet<String>, OdooError> = value
+                    .as_array()
+                    .ok_or_else(|| {
+                        OdooError::InvalidResponse(
+                            "Expected installed modules to be an array".to_string(),
+                        )
+                    })
+                    .map(|records| {
+                        records
+                            .iter()
+                            .filter_map(|record| record.get("name").and_then(Value::as_str))
+                            .map(str::to_string)
+                            .collect()
+                    });
+                let modules = match modules {
+                    Ok(modules) => modules,
+                    Err(error) => {
+                        self.module_snapshots
+                            .failure(&canonical, &error.to_string())
+                            .await;
+                        return Err(error);
+                    }
+                };
+                let edition = config
+                    .extra
+                    .get("edition")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                    .unwrap_or_else(|| {
+                        if modules.contains("web_enterprise") {
+                            "enterprise".to_string()
+                        } else {
+                            "community".to_string()
+                        }
+                    });
+                Ok(self
+                    .module_snapshots
+                    .success(&canonical, config.version, edition, modules)
+                    .await)
+            }
+            Err(error) => {
+                self.module_snapshots
+                    .failure(&canonical, &error.to_string())
+                    .await;
+                Err(error)
+            }
+        }
+    }
+
     /// Hot-reload instances from ODOO_INSTANCES_JSON.
     /// Called by the config server when instances.json is saved via the Config UI.
     /// Clears cached clients so next call creates fresh ones with the new config.
@@ -207,6 +355,7 @@ impl OdooClientPool {
                 if write_ok {
                     // Lock is released before this .await
                     self.clients.lock().await.clear();
+                    self.module_snapshots.mark_all_stale().await;
                     info!("OdooClientPool: hot-reloaded {} instance(s)", count);
                 }
             }
@@ -225,11 +374,40 @@ pub async fn call_tool(
     tool: &ToolDef,
     args: Value,
 ) -> Result<Value, OdooError> {
-    let args = if let Some(instance) = instance_from_args(&args, &tool.op) {
+    let requested_instance = instance_from_args(&args, &tool.op);
+    if controlled_mode()
+        && is_mutating_op(&tool.op.op_type)
+        && tool.op.op_type != "execute_capability"
+    {
+        audit_tool_denial(
+            requested_instance.as_deref().unwrap_or("unknown"),
+            tool,
+            "controlled_mode",
+            "",
+        );
+        return Err(OdooError::InvalidResponse(
+            "generic mutation tools are disabled in controlled capability mode".into(),
+        ));
+    }
+    let args = if let Some(instance) = requested_instance {
         let canonical_instance = pool
             .resolve_instance_name(&instance)
             .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
-        pool.apply_instance_tool_config(&canonical_instance, &tool.name, &tool.op.op_type, args)?
+        let disabled_packs = pool.disabled_packs(&canonical_instance);
+        let snapshot = if tool.required_modules.is_empty() {
+            None
+        } else {
+            Some(pool.module_snapshot(&canonical_instance).await)
+        };
+        if let Some((reason, detail)) = capability_denial(tool, snapshot.as_ref(), &disabled_packs)
+        {
+            audit_tool_denial(&canonical_instance, tool, reason, &detail);
+            return Err(OdooError::InvalidResponse(format!(
+                "Tool '{}' is unavailable for instance '{}': {} ({})",
+                tool.name, canonical_instance, reason, detail
+            )));
+        }
+        pool.apply_instance_tool_config(&canonical_instance, tool, args)?
     } else {
         args
     };
@@ -268,10 +446,33 @@ pub async fn execute_op(
         "list_models" => op_list_models(pool, op, args).await,
         "check_access" => op_check_access(pool, op, args).await,
         "create_batch" => op_create_batch(pool, op, args).await,
+        "execute_capability" => capability::execute(pool, args).await.map(ok_text),
+        "refresh_capabilities" => op_refresh_capabilities(pool, op, args).await,
         other => Err(OdooError::InvalidResponse(format!(
             "Unknown op.type: {other}"
         ))),
     }
+}
+
+async fn op_refresh_capabilities(
+    pool: &OdooClientPool,
+    op: &OpSpec,
+    args: Value,
+) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let snapshot = pool.refresh_module_snapshot(&instance).await?;
+    Ok(ok_text(serde_json::to_value(snapshot).map_err(
+        |error| OdooError::InvalidResponse(error.to_string()),
+    )?))
+}
+
+fn controlled_mode() -> bool {
+    std::env::var("ODOO_CAPABILITY_CONTROLLED_MODE").is_ok_and(|value| {
+        matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "y" | "on"
+        )
+    })
 }
 
 fn ptr<'a>(args: &'a Value, op: &'a OpSpec, key: &str) -> Option<&'a Value> {
@@ -701,6 +902,7 @@ fn is_mutating_op(op_type: &str) -> bool {
             | "stock_inventory_reversal_cleanup"
             | "copy"
             | "create_batch"
+            | "execute_capability"
     )
 }
 
@@ -1162,6 +1364,22 @@ mod tests {
             env: Arc::new(RwLock::new(OdooEnvConfig { instances })),
             clients: Arc::new(Mutex::new(HashMap::new())),
             metadata_cache: MetadataCache::new(),
+            module_snapshots: ModuleSnapshotStore::memory(),
+        }
+    }
+
+    fn make_tool(name: &str, op_type: &str) -> ToolDef {
+        ToolDef {
+            name: name.to_string(),
+            description: String::new(),
+            pack: None,
+            required_modules: Vec::new(),
+            input_schema: json!({"type": "object"}),
+            op: OpSpec {
+                op_type: op_type.to_string(),
+                map: HashMap::new(),
+            },
+            guards: None,
         }
     }
 
@@ -1811,6 +2029,7 @@ mod tests {
     fn test_apply_instance_tool_config_rejects_disabled_tool() {
         let pool = make_pool(Some(InstanceToolConfig {
             disabled_tools: vec!["odoo_create".to_string()],
+            disabled_packs: Vec::new(),
             defaults: HashMap::new(),
             execute_allowlist: Vec::new(),
         }));
@@ -1818,8 +2037,7 @@ mod tests {
         let error = pool
             .apply_instance_tool_config(
                 "school-prod",
-                "odoo_create",
-                "create",
+                &make_tool("odoo_create", "create"),
                 json!({ "instance": "school-prod" }),
             )
             .unwrap_err();
@@ -1848,6 +2066,7 @@ mod tests {
 
         let pool = make_pool(Some(InstanceToolConfig {
             disabled_tools: Vec::new(),
+            disabled_packs: Vec::new(),
             defaults,
             execute_allowlist: Vec::new(),
         }));
@@ -1855,8 +2074,7 @@ mod tests {
         let merged = pool
             .apply_instance_tool_config(
                 "school-prod",
-                "odoo_search_read",
-                "search_read",
+                &make_tool("odoo_search_read", "search_read"),
                 json!({
                     "instance": "school-prod",
                     "context": {
@@ -1888,7 +2106,11 @@ mod tests {
             .read_only = true;
 
         let error = pool
-            .apply_instance_tool_config("school-prod", "odoo_create", "create", json!({}))
+            .apply_instance_tool_config(
+                "school-prod",
+                &make_tool("odoo_create", "create"),
+                json!({}),
+            )
             .unwrap_err();
 
         assert!(error.to_string().contains("read-only instance"));
@@ -1900,6 +2122,7 @@ mod tests {
     fn execute_is_denied_unless_model_and_method_are_allowlisted() {
         let pool = make_pool(Some(InstanceToolConfig {
             disabled_tools: Vec::new(),
+            disabled_packs: Vec::new(),
             defaults: HashMap::new(),
             execute_allowlist: vec![crate::odoo::config::ExecuteAllowlistEntry {
                 model: "sale.order".to_string(),
@@ -1923,9 +2146,36 @@ mod tests {
 
         let empty_allowlist = make_pool(Some(InstanceToolConfig {
             disabled_tools: Vec::new(),
+            disabled_packs: Vec::new(),
             defaults: HashMap::new(),
             execute_allowlist: Vec::new(),
         }));
         assert!(!empty_allowlist.execute_allowed("school-prod", "sale.order", "action_confirm"));
+    }
+
+    #[tokio::test]
+    async fn direct_call_denies_tool_with_missing_module() {
+        let pool = make_pool(None);
+        pool.module_snapshots
+            .success(
+                "school-prod",
+                Some("19".into()),
+                "community".into(),
+                BTreeSet::from(["base".into()]),
+            )
+            .await;
+        let mut tool = make_tool("stock_tool", "search");
+        tool.required_modules = vec!["stock".into()];
+        tool.op.map.insert("instance".into(), "/instance".into());
+
+        let error = call_tool(
+            &pool,
+            &tool,
+            json!({"instance": "school-prod", "model": "stock.quant"}),
+        )
+        .await
+        .unwrap_err();
+
+        assert!(error.to_string().contains("missing_modules (stock)"));
     }
 }

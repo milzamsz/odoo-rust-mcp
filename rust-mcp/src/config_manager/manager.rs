@@ -775,6 +775,7 @@ fn extract_tool_names(tools: &Value) -> Result<HashSet<String>, String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::await_holding_lock)] // The process environment requires serialized tests.
 mod tests {
     use super::*;
     use crate::TEST_ENV_MUTEX;
@@ -1021,10 +1022,10 @@ mod tests {
         let manager = ConfigManager::new(temp_dir.path().to_path_buf());
 
         let config = json!({
-            "erp-ca-prod": {
-                "url": "https://erp.centralaroma.com/",
-                "db": "erp-ca",
-                "username": "https://erp.centralaroma.com/",
+            "production-example": {
+                "url": "https://erp.example.invalid/",
+                "db": "production-example",
+                "username": "https://erp.example.invalid/",
                 "password": "secret",
                 "version": "18"
             }

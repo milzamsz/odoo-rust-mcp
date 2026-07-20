@@ -73,14 +73,20 @@ describe('Type Definitions', () => {
       const tool: ToolConfig = {
         name: 'search_partners',
         description: 'Search for partners',
+        pack: 'crm',
+        requiredModules: ['crm'],
         guards: {
           requiresEnvTrue: 'ENABLE_PARTNER_SEARCH',
+          requiresEnvTrueAll: ['ENABLE_READ', 'ENABLE_PARTNERS'],
         },
       };
 
       expect(tool.name).toBe('search_partners');
       expect(tool.description).toBe('Search for partners');
+      expect(tool.pack).toBe('crm');
+      expect(tool.requiredModules).toEqual(['crm']);
       expect(tool.guards?.requiresEnvTrue).toBe('ENABLE_PARTNER_SEARCH');
+      expect(tool.guards?.requiresEnvTrueAll).toEqual(['ENABLE_READ', 'ENABLE_PARTNERS']);
     });
 
     it('should allow additional properties in tool config', () => {

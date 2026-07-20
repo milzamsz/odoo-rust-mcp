@@ -8,6 +8,7 @@ use serde_json::Value;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
+use crate::mcp::module_snapshot::ModuleSnapshot;
 use crate::mcp::prompts::Prompt;
 
 // Embedded seed defaults (used when target files are missing).
@@ -38,6 +39,10 @@ struct ServerConfigFile {
 pub struct ToolDef {
     pub name: String,
     pub description: String,
+    #[serde(default)]
+    pub pack: Option<String>,
+    #[serde(default, rename = "requiredModules")]
+    pub required_modules: Vec<String>,
     #[serde(rename = "inputSchema")]
     pub input_schema: Value,
     pub op: OpSpec,
@@ -58,6 +63,14 @@ pub struct ToolGuards {
     /// If set, tool is only listed/callable when env var exists and is truthy.
     #[serde(rename = "requiresEnvTrue")]
     pub requires_env_true: Option<String>,
+    #[serde(default, rename = "requiresEnvTrueAll")]
+    pub requires_env_true_all: Vec<String>,
+}
+
+pub struct ToolCapabilityContext {
+    pub instance: String,
+    pub snapshot: ModuleSnapshot,
+    pub disabled_packs: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -203,12 +216,58 @@ impl Registry {
             .unwrap_or_else(|| "2025-11-05".to_string())
     }
 
-    pub async fn list_tools(&self, read_only: bool) -> Vec<Value> {
+    pub async fn list_tools(
+        &self,
+        read_only: bool,
+        capabilities: &[ToolCapabilityContext],
+    ) -> Vec<Value> {
         let st = self.state.read().await;
         st.tools
             .iter()
-            .filter(|t| guards_allow(t.guards.as_ref()))
-            .filter(|t| !read_only || !is_mutating_op(&t.op.op_type))
+            .filter(|tool| {
+                let mut denial_instance = if capabilities.len() == 1 {
+                    capabilities[0].instance.as_str()
+                } else {
+                    "all"
+                };
+                let mut denial = guard_denial(tool.guards.as_ref())
+                    .map(|detail| ("env_guard", detail))
+                    .or_else(|| {
+                        (controlled_mode()
+                            && is_mutating_op(&tool.op.op_type)
+                            && tool.op.op_type != "execute_capability")
+                            .then(|| ("controlled_mode", String::new()))
+                    })
+                    .or_else(|| {
+                        (read_only && is_mutating_op(&tool.op.op_type))
+                            .then(|| ("read_only", String::new()))
+                    });
+                // Unscoped list (many instances): hide the tool if ANY instance
+                // denies it. This is deliberately conservative — an unscoped
+                // tools/call skips per-instance capability checks and runs against
+                // the default instance, so only listing tools available everywhere
+                // keeps that default-instance call safe. Scoped lists pass a single
+                // capability and gate on just that instance.
+                if denial.is_none() {
+                    for capability in capabilities {
+                        if let Some(reason) = capability_denial(
+                            tool,
+                            Some(&capability.snapshot),
+                            &capability.disabled_packs,
+                        ) {
+                            denial_instance = &capability.instance;
+                            denial = Some(reason);
+                            break;
+                        }
+                    }
+                }
+                if let Some((reason, detail)) = denial {
+                    audit_tool_denial(denial_instance, tool, reason, &detail);
+                    false
+                } else {
+                    true
+                }
+            })
             .map(|t| {
                 serde_json::json!({
                     "name": t.name,
@@ -219,10 +278,15 @@ impl Registry {
             .collect()
     }
 
-    pub async fn get_tool(&self, name: &str) -> Option<ToolDef> {
+    pub async fn get_tool(&self, name: &str, instance: Option<&str>) -> Option<ToolDef> {
         let st = self.state.read().await;
         let t = st.tool_by_name.get(name)?.clone();
-        guards_allow(t.guards.as_ref()).then_some(t)
+        if let Some(detail) = guard_denial(t.guards.as_ref()) {
+            audit_tool_denial(instance.unwrap_or("unknown"), &t, "env_guard", &detail);
+            None
+        } else {
+            Some(t)
+        }
     }
 
     pub async fn list_prompts(&self) -> Vec<(String, String)> {
@@ -309,15 +373,59 @@ fn is_mutating_op(op_type: &str) -> bool {
             | "stock_inventory_reversal_cleanup"
             | "copy"
             | "create_batch"
+            | "execute_capability"
     )
 }
 
-fn guards_allow(guards: Option<&ToolGuards>) -> bool {
-    let Some(g) = guards else { return true };
-    if let Some(var) = &g.requires_env_true {
-        return env_truthy(var);
+fn guard_denial(guards: Option<&ToolGuards>) -> Option<String> {
+    let g = guards?;
+    if let Some(var) = &g.requires_env_true
+        && !env_truthy(var)
+    {
+        return Some(var.clone());
     }
-    true
+    let missing: Vec<_> = g
+        .requires_env_true_all
+        .iter()
+        .filter(|var| !env_truthy(var))
+        .cloned()
+        .collect();
+    (!missing.is_empty()).then(|| missing.join(","))
+}
+
+pub(crate) fn capability_denial(
+    tool: &ToolDef,
+    snapshot: Option<&ModuleSnapshot>,
+    disabled_packs: &[String],
+) -> Option<(&'static str, String)> {
+    if let Some(pack) = tool.pack.as_ref()
+        && disabled_packs.iter().any(|disabled| disabled == pack)
+    {
+        return Some(("pack_disabled", pack.clone()));
+    }
+    if tool.required_modules.is_empty() {
+        return None;
+    }
+    let missing: Vec<_> = tool
+        .required_modules
+        .iter()
+        .filter(|module| snapshot.is_none_or(|snapshot| !snapshot.modules.contains(*module)))
+        .cloned()
+        .collect();
+    (!missing.is_empty()).then(|| ("missing_modules", missing.join(",")))
+}
+
+pub(crate) fn audit_tool_denial(instance: &str, tool: &ToolDef, reason_code: &str, detail: &str) {
+    info!(
+        audit_event = "tool_policy_decision",
+        decision = "deny",
+        instance,
+        tool = tool.name,
+        pack = tool.pack.as_deref().unwrap_or("none"),
+        reason_code,
+        detail,
+        "MCP tool policy decision"
+    );
 }
 
 fn env_truthy(var: &str) -> bool {
@@ -328,6 +436,10 @@ fn env_truthy(var: &str) -> bool {
         }
         Err(_) => false,
     }
+}
+
+fn controlled_mode() -> bool {
+    env_truthy("ODOO_CAPABILITY_CONTROLLED_MODE")
 }
 
 fn parent_dir_or_current(path: &Path) -> PathBuf {
@@ -406,7 +518,9 @@ fn validate_cursor_schema(schema: &Value) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
     use serde_json::json;
+    use std::collections::BTreeSet;
 
     #[test]
     fn test_validate_cursor_schema_valid() {
@@ -419,6 +533,90 @@ mod tests {
             "required": ["name"]
         });
         assert!(validate_cursor_schema(&schema).is_ok());
+    }
+
+    #[test]
+    fn tool_capability_metadata_round_trips_and_filters() {
+        let tool: ToolDef = serde_json::from_value(json!({
+            "name": "stock_tool",
+            "description": "Stock",
+            "pack": "inventory",
+            "requiredModules": ["stock"],
+            "inputSchema": {"type": "object"},
+            "op": {"type": "search"}
+        }))
+        .unwrap();
+        let snapshot = ModuleSnapshot {
+            instance: "dev".into(),
+            version: Some("18".into()),
+            edition: "community".into(),
+            modules: BTreeSet::from(["base".into()]),
+            refreshed_at: Utc::now(),
+            checked_at: Utc::now(),
+            stale: false,
+            last_error: None,
+        };
+
+        assert_eq!(tool.pack.as_deref(), Some("inventory"));
+        assert_eq!(tool.required_modules, ["stock"]);
+        assert_eq!(
+            capability_denial(&tool, Some(&snapshot), &[]),
+            Some(("missing_modules", "stock".into()))
+        );
+
+        let mut installed = snapshot;
+        installed.modules.insert("stock".into());
+        assert_eq!(capability_denial(&tool, Some(&installed), &[]), None);
+        assert_eq!(
+            capability_denial(&tool, Some(&installed), &["inventory".into()]),
+            Some(("pack_disabled", "inventory".into()))
+        );
+    }
+
+    #[tokio::test]
+    async fn list_filters_modules_only_for_a_selected_instance() {
+        let tool: ToolDef = serde_json::from_value(json!({
+            "name": "stock_tool",
+            "description": "Stock",
+            "requiredModules": ["stock"],
+            "inputSchema": {"type": "object"},
+            "op": {"type": "search"}
+        }))
+        .unwrap();
+        let mut state = RegistryState::empty();
+        state.tools.push(tool);
+        let registry = Registry {
+            tools_path: "tools.json".into(),
+            prompts_path: "prompts.json".into(),
+            server_path: "server.json".into(),
+            state: RwLock::new(state),
+            watchers: Mutex::new(None),
+        };
+        let missing = ModuleSnapshot {
+            instance: "dev".into(),
+            version: None,
+            edition: "unknown".into(),
+            modules: BTreeSet::new(),
+            refreshed_at: Utc::now(),
+            checked_at: Utc::now(),
+            stale: false,
+            last_error: None,
+        };
+
+        assert_eq!(registry.list_tools(false, &[]).await.len(), 1);
+        assert!(
+            registry
+                .list_tools(
+                    false,
+                    &[ToolCapabilityContext {
+                        instance: "dev".into(),
+                        snapshot: missing,
+                        disabled_packs: Vec::new(),
+                    }],
+                )
+                .await
+                .is_empty()
+        );
     }
 
     #[test]
@@ -519,15 +717,16 @@ mod tests {
 
     #[test]
     fn test_guards_allow_none() {
-        assert!(guards_allow(None));
+        assert!(guard_denial(None).is_none());
     }
 
     #[test]
     fn test_guards_allow_with_missing_env() {
         let guards = ToolGuards {
             requires_env_true: Some("MISSING_ENV_VAR_12345".to_string()),
+            requires_env_true_all: Vec::new(),
         };
-        assert!(!guards_allow(Some(&guards)));
+        assert!(guard_denial(Some(&guards)).is_some());
     }
 
     #[test]

@@ -1,0 +1,29 @@
+id: production-standard
+version: 1
+defaults:
+  unknown_write_capability: deny
+  confirmation_ttl_seconds: 300
+  maximum_records_per_write: 100
+
+rules:
+  - id: publish-confirm
+    match:
+      operation: website.page.publish
+    effect: require_confirmation
+
+  - id: pos-close-confirm
+    match:
+      operation: pos.session.close
+    effect: require_confirmation
+
+  - id: employee-private-deny
+    match:
+      data_classification:
+        any_of:
+          - personal
+          - sensitive_personal
+    effect: deny
+    unless:
+      profile:
+        any_of:
+          - hr-admin

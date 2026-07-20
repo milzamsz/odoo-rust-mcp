@@ -74,8 +74,16 @@ MCP_AUTH_ENABLED=false
 # Enable write tools (create, update, delete)
 # ODOO_ENABLE_WRITE_TOOLS=true
 
-# Enable destructive cleanup tools (database cleanup, deep cleanup)
+# Enable destructive cleanup tools. Both this and ODOO_ENABLE_WRITE_TOOLS are required.
 # ODOO_ENABLE_CLEANUP_TOOLS=true
+
+# Controlled named-capability mode. This hides/rejects generic mutation tools and
+# exposes only odoo_execute_capability. The registry must be normalized JSON from
+# odoo-agent; the key must contain at least 32 bytes; state must be persistent.
+# ODOO_CAPABILITY_CONTROLLED_MODE=true
+# ODOO_CAPABILITY_REGISTRY=/config/odoo-agent-config.json
+# ODOO_CAPABILITY_APPROVAL_HMAC_KEY=replace-with-at-least-32-random-bytes
+# ODOO_CAPABILITY_STATE_DIR=/var/lib/rust-mcp/capability-state
 
 # Enable odoo_execute only with a reviewed per-instance toolConfig.executeAllowlist.
 # Unset denies it even when ODOO_ENABLE_WRITE_TOOLS=true.
@@ -86,6 +94,9 @@ MCP_AUTH_ENABLED=false
 
 # Maximum retry attempts for failed requests
 # ODOO_MAX_RETRIES=2
+
+# Installed-module snapshot TTL in seconds. Set 0 to refresh on every instance-scoped list.
+# ODOO_MODULE_SNAPSHOT_TTL_SECS=300
 
 # =============================================================================
 # EXAMPLES FOR DIFFERENT DEPLOYMENTS

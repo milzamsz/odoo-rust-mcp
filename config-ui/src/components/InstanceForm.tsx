@@ -9,6 +9,7 @@ import {
   Radio,
   Stack,
   Switch,
+  TagsInput,
   Text,
   TextInput,
   Textarea,
@@ -69,6 +70,7 @@ export function InstanceForm({
   const [version, setVersion] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
+  const [disabledPacks, setDisabledPacks] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export function InstanceForm({
       setUsername(instanceData.username || '');
       setPassword(instanceData.password || '');
       setDisabledTools(filterKnownDisabledTools(availableTools, instanceData.toolConfig?.disabledTools || []));
+      setDisabledPacks(instanceData.toolConfig?.disabledPacks || []);
     } else {
       setName('');
       setUrl('');
@@ -94,6 +97,7 @@ export function InstanceForm({
       setUsername('');
       setPassword('');
       setDisabledTools([]);
+      setDisabledPacks([]);
     }
     setErrors({});
   }, [availableTools, instanceData, instanceName]);
@@ -111,6 +115,7 @@ export function InstanceForm({
         version: instanceData?.version ? String(instanceData.version) : '',
         tagsInput: instanceData ? getInstanceTags(instanceData).join(', ') : '',
         disabledTools: filterKnownDisabledTools(availableTools, instanceData?.toolConfig?.disabledTools || []),
+        disabledPacks: instanceData?.toolConfig?.disabledPacks || [],
       }),
     [availableTools, instanceData, instanceName]
   );
@@ -126,6 +131,7 @@ export function InstanceForm({
     version,
     tagsInput,
     disabledTools,
+    disabledPacks,
   });
 
   const dirty = currentFingerprint !== initialFingerprint;
@@ -234,11 +240,15 @@ export function InstanceForm({
 
     // Preserve JSON-managed fields the form does not edit (allowlist, defaults).
     const sanitizedDisabledTools = filterKnownDisabledTools(availableTools, disabledTools);
+    const sanitizedDisabledPacks = disabledPacks.map((pack) => pack.trim()).filter(Boolean);
     const existingDefaults = instanceData?.toolConfig?.defaults;
     const existingAllowlist = instanceData?.toolConfig?.executeAllowlist;
     const nextToolConfig: NonNullable<InstanceDetails['toolConfig']> = {};
     if (sanitizedDisabledTools.length > 0) {
       nextToolConfig.disabledTools = sanitizedDisabledTools;
+    }
+    if (sanitizedDisabledPacks.length > 0) {
+      nextToolConfig.disabledPacks = sanitizedDisabledPacks;
     }
     if (existingDefaults && Object.keys(existingDefaults).length > 0) {
       nextToolConfig.defaults = existingDefaults;
@@ -393,6 +403,15 @@ export function InstanceForm({
         </Grid>
 
         <SectionTitle order={4} title="Per-instance tool access" subtitle="Trim the shared tool catalog without touching the global config." />
+
+        <TagsInput
+          label="Disabled packs"
+          description="Hide every tool tagged with these packs on this instance (e.g. inventory, crm)."
+          placeholder="Add a pack name"
+          value={disabledPacks}
+          onChange={setDisabledPacks}
+          clearable
+        />
 
         <Accordion variant="separated" radius="xl" multiple defaultValue={TOOL_GROUPS.slice(0, 2).map((group) => group.id)}>
           {groupedSections.map((group) =>

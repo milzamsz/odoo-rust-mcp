@@ -18,3 +18,4 @@
     - [Testing](developer/testing.md)
     - [Contributing](developer/contributing.md)
     - [Agentic Kanban Workflow](developer/agentic-kanban.md)
+    - [Enterprise Pack Metadata](developer/enterprise-packs-diet.md)

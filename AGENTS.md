@@ -43,7 +43,7 @@ If this file and another doc disagree, **prefer implementation and checked-in co
   - Windsurf
   - ChatGPT Desktop / OpenAI Codex
 - **License**: AGPL-3.0-only
-- **Current version**: `0.5.0`
+- **Current version**: `0.6.0`
 
 ### Version Sync Rule
 
