@@ -200,4 +200,47 @@ mod tests {
         assert_eq!(loaded.modules, BTreeSet::from(["base".into()]));
         assert!(!loaded.stale);
     }
+
+    #[tokio::test]
+    async fn failed_refresh_stays_fresh_for_one_ttl_window() {
+        let store = ModuleSnapshotStore::memory();
+        store
+            .success(
+                "dev",
+                None,
+                "community".into(),
+                BTreeSet::from(["base".into()]),
+            )
+            .await;
+        store.failure("dev", "offline").await;
+
+        // checked_at was advanced by the failure, so the stale snapshot is still
+        // within the default TTL window and refresh backs off instead of retrying.
+        let fresh = store.fresh("dev").await.expect("stale snapshot within TTL");
+        assert!(fresh.stale);
+        assert_eq!(fresh.modules, BTreeSet::from(["base".into()]));
+    }
+
+    #[tokio::test]
+    async fn mark_all_stale_forces_refresh() {
+        let store = ModuleSnapshotStore::memory();
+        store
+            .success(
+                "dev",
+                None,
+                "community".into(),
+                BTreeSet::from(["base".into()]),
+            )
+            .await;
+        assert!(store.fresh("dev").await.is_some());
+
+        store.mark_all_stale().await;
+
+        // checked_at reset to the epoch, so the snapshot is no longer fresh and a
+        // refresh will be attempted, but the last module list is preserved.
+        assert!(store.fresh("dev").await.is_none());
+        let snapshot = store.get("dev").await.unwrap();
+        assert!(snapshot.stale);
+        assert_eq!(snapshot.modules, BTreeSet::from(["base".into()]));
+    }
 }

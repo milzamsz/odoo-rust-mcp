@@ -431,7 +431,6 @@
     {
       "name": "odoo_refresh_capabilities",
       "description": "Refresh the installed-module capability snapshot for an Odoo instance.",
-      "pack": "core",
       "inputSchema": {
         "type": "object",
         "properties": {
