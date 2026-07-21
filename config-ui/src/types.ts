@@ -149,12 +149,14 @@ export interface AuthStatus {
   authenticated: boolean;
   auth_enabled: boolean;
   username: string | null;
+  version?: string;
 }
 
 export interface AuthContextType {
   isAuthenticated: boolean;
   authEnabled: boolean;
   username: string | null;
+  version: string;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;

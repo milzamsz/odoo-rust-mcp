@@ -422,6 +422,9 @@ struct AuthStatusResponse {
     authenticated: bool,
     auth_enabled: bool,
     username: Option<String>,
+    /// Authoritative binary version, so the UI shows the running server's
+    /// version even if the embedded UI bundle is stale.
+    version: &'static str,
 }
 
 async fn auth_status(State(state): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
@@ -431,6 +434,7 @@ async fn auth_status(State(state): State<AppState>, headers: HeaderMap) -> impl 
             authenticated: true,
             auth_enabled: false,
             username: None,
+            version: env!("CARGO_PKG_VERSION"),
         });
     }
 
@@ -444,6 +448,7 @@ async fn auth_status(State(state): State<AppState>, headers: HeaderMap) -> impl 
                 authenticated: true,
                 auth_enabled: true,
                 username: Some(session.username.clone()),
+                version: env!("CARGO_PKG_VERSION"),
             });
         }
     }
@@ -452,6 +457,7 @@ async fn auth_status(State(state): State<AppState>, headers: HeaderMap) -> impl 
         authenticated: false,
         auth_enabled: true,
         username: None,
+        version: env!("CARGO_PKG_VERSION"),
     })
 }
 
