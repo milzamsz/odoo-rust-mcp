@@ -1,4 +1,4 @@
-class RustMcp < Formula
+class OdooRustMcp < Formula
   desc "Odoo MCP Server - Model Context Protocol server for Odoo integration"
   homepage "https://github.com/rachmataditiya/odoo-rust-mcp"
   homepage "https://github.com/milzamsz/odoo-rust-mcp"
@@ -7,25 +7,25 @@ class RustMcp < Formula
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-aarch64-apple-darwin.tar.gz"
+      url "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v#{version}/odoo-rust-mcp-aarch64-apple-darwin.tar.gz"
       sha256 "d59459c49e26285c366e2538e0bee5897ed3a5aaf7118c2482934eae457d084e"  # macos-arm64
     end
 
     if Hardware::CPU.intel?
-      url "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-x86_64-apple-darwin.tar.gz"
+      url "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v#{version}/odoo-rust-mcp-x86_64-apple-darwin.tar.gz"
       sha256 "87d52ce7083698e23614a67f0e491891242000d309ed222f64795ef653d16ce"  # macos-x64
     end
   end
 
   on_linux do
     if Hardware::CPU.intel?
-      url "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v#{version}/rust-mcp-x86_64-unknown-linux-gnu.tar.gz"
+      url "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v#{version}/odoo-rust-mcp-x86_64-unknown-linux-gnu.tar.gz"
       sha256 "95238f13bbd6dee0dc540fb613bc3eac5e24f9764c18d18f028eb1d07068c47e"  # linux-x64
     end
   end
 
   def install
-    bin.install "rust-mcp"
+    bin.install "odoo-rust-mcp"
     # Install config files to share directory (defaults)
     (share/"odoo-rust-mcp").install Dir["config/*"] if Dir.exist?("config")
     # Install example env file
@@ -40,7 +40,7 @@ class RustMcp < Formula
 
     # Create wrapper script that loads env file before running
     # Also creates config dir if it doesn't exist (fallback for post_install)
-    wrapper_script = bin/"rust-mcp-service"
+    wrapper_script = bin/"odoo-rust-mcp-service"
     wrapper_script.write <<~EOS
       #!/bin/bash
       CONFIG_DIR="$HOME/.config/odoo-rust-mcp"
@@ -175,20 +175,20 @@ MIGRATEEOF
       # Change to share directory so static files can be found
       cd "#{HOMEBREW_PREFIX}/share/odoo-rust-mcp"
       
-      exec "#{opt_bin}/rust-mcp" "$@"
+      exec "#{opt_bin}/odoo-rust-mcp" "$@"
     EOS
     # Ensure executable permission is set correctly
     wrapper_script.chmod 0755
   end
 
-  # Service configuration for `brew services start rust-mcp`
+  # Service configuration for `brew services start odoo-rust-mcp`
   # Service uses binary directly (v0.2.4+ auto-loads config)
   # Supports ODOO_INSTANCES_JSON file for readable multi-instance config
   service do
-    run [opt_bin/"rust-mcp", "--transport", "http", "--listen", "127.0.0.1:8787"]
+    run [opt_bin/"odoo-rust-mcp", "--transport", "http", "--listen", "127.0.0.1:8787"]
     keep_alive true
-    log_path var/"log/rust-mcp.log"
-    error_log_path var/"log/rust-mcp.log"
+    log_path var/"log/odoo-rust-mcp.log"
+    error_log_path var/"log/odoo-rust-mcp.log"
   end
 
   def caveats
@@ -196,24 +196,24 @@ MIGRATEEOF
       Configuration directory: ~/.config/odoo-rust-mcp/
       
       The config directory and default files will be automatically created
-      the first time you run 'rust-mcp-service'.
+      the first time you run 'odoo-rust-mcp-service'.
       
       Quick start:
-        1. Run once to create config: rust-mcp-service --help
+        1. Run once to create config: odoo-rust-mcp-service --help
         2. Edit instances: nano ~/.config/odoo-rust-mcp/instances.json
-        3. Start service: brew services start rust-mcp
+        3. Start service: brew services start odoo-rust-mcp
 
       Multi-instance configuration (default):
         ~/.config/odoo-rust-mcp/instances.json - Configure multiple Odoo instances
         ~/.config/odoo-rust-mcp/env - Environment settings
 
       Service commands:
-        brew services start rust-mcp
-        brew services stop rust-mcp
-        brew services restart rust-mcp
+        brew services start odoo-rust-mcp
+        brew services stop odoo-rust-mcp
+        brew services restart odoo-rust-mcp
 
       Service endpoint: http://127.0.0.1:8787/mcp
-      Service logs: #{var}/log/rust-mcp.log
+      Service logs: #{var}/log/odoo-rust-mcp.log
 
       For Cursor IDE configuration:
         See: https://github.com/rachmataditiya/odoo-rust-mcp#readme
@@ -221,6 +221,6 @@ MIGRATEEOF
   end
 
   test do
-    assert_match "rust-mcp", shell_output("#{bin}/rust-mcp --help")
+    assert_match "odoo-rust-mcp", shell_output("#{bin}/odoo-rust-mcp --help")
   end
 end

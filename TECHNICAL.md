@@ -180,8 +180,8 @@ Current desktop shortcut shape:
 
 Current launcher behavior:
 
-- prefers the release binary at `rust-mcp/target/release/rust-mcp.exe`
-- falls back to an installed-layout binary at `<install-dir>\rust-mcp.exe` when the launcher is run
+- prefers the release binary at `rust-mcp/target/release/odoo-rust-mcp.exe`
+- falls back to an installed-layout binary at `<install-dir>\odoo-rust-mcp.exe` when the launcher is run
   from a release install directory instead of a source checkout
 - checks for an already healthy Config UI before attempting any rebuild
 - rebuilds with `cargo build --release --manifest-path rust-mcp/Cargo.toml` when inputs are newer
@@ -220,7 +220,7 @@ Windows Tauri rollout notes:
 - Linux packaged desktop installs place the Config UI assets under `/usr/lib/Odoo Rust MCP/static/dist`
   (and AppDir mirrors that under `AppDir/usr/lib/Odoo Rust MCP/static/dist`), so
   `find_static_dir()` must probe those locations instead of assuming `static/dist` sits beside
-  `usr/bin/rust-mcp`
+  `usr/bin/odoo-rust-mcp`
 
 If a user reports that `http://localhost:3008` cannot be reached from the shortcut, validate the launcher with:
 

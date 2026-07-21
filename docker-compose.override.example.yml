@@ -120,7 +120,7 @@ services:
       # Use multi-instance config from file
       ODOO_INSTANCES_JSON: "/config/instances.json"
     # Override command for development
-    # command: ["rust-mcp", "--transport", "http", "--listen", "0.0.0.0:8787"]
+    # command: ["odoo-rust-mcp", "--transport", "http", "--listen", "0.0.0.0:8787"]
 
 # =========================================================================
 # VOLUMES

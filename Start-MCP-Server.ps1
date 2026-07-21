@@ -4,8 +4,8 @@
 Add-Type -AssemblyName System.Windows.Forms
 
 $RepoRoot = $PSScriptRoot
-$RepoReleaseExe = Join-Path $RepoRoot "rust-mcp\target\release\rust-mcp.exe"
-$InstalledExe = Join-Path $RepoRoot "rust-mcp.exe"
+$RepoReleaseExe = Join-Path $RepoRoot "rust-mcp\target\release\odoo-rust-mcp.exe"
+$InstalledExe = Join-Path $RepoRoot "odoo-rust-mcp.exe"
 $HasSourceLayout = Test-Path (Join-Path $RepoRoot "rust-mcp\Cargo.toml")
 $ServerExe = if ($HasSourceLayout) { $RepoReleaseExe } else { $InstalledExe }
 
@@ -62,7 +62,7 @@ function Show-Dialog {
 }
 
 function Stop-ExistingServer {
-    $running = Get-Process rust-mcp -ErrorAction SilentlyContinue
+    $running = Get-Process odoo-rust-mcp -ErrorAction SilentlyContinue
 
     if ($running) {
         $running | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -232,7 +232,7 @@ function Ensure-ReleaseBinaryCurrent {
         Show-Dialog `
             -Title "MCP Server Launch Error" `
             -Icon ([System.Windows.Forms.MessageBoxIcon]::Error) `
-            -Message "The installed MCP launcher could not find rust-mcp.exe.`n`nExpected path:`n$ExecutablePath"
+            -Message "The installed MCP launcher could not find odoo-rust-mcp.exe.`n`nExpected path:`n$ExecutablePath"
         return $false
     }
 

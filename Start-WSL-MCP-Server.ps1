@@ -29,9 +29,9 @@ if (-not $IsWslPath) {
 
 # Copy release binary from root to target/release if target/release is missing but root binary exists
 $TargetReleaseDir = Join-Path $RepoRoot "rust-mcp\target\release"
-$TargetExePath = Join-Path $TargetReleaseDir "rust-mcp.exe"
+$TargetExePath = Join-Path $TargetReleaseDir "odoo-rust-mcp.exe"
 if (-not (Test-Path $TargetExePath)) {
-    $RootExePath = Join-Path $RepoRoot "rust-mcp.exe"
+    $RootExePath = Join-Path $RepoRoot "odoo-rust-mcp.exe"
     if (Test-Path $RootExePath) {
         New-Item -ItemType Directory -Force -Path $TargetReleaseDir | Out-Null
         Copy-Item $RootExePath -Destination $TargetExePath -Force
@@ -57,10 +57,10 @@ $WslConfigJson = "/mnt/" + $WinHome.Substring(0, 1).ToLower() + $WinHome.Substri
 
 Write-Host "Stopping any running Odoo Rust MCP servers..." -ForegroundColor Yellow
 # Stop any local Windows processes first
-Stop-Process -Name "rust-mcp" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "odoo-rust-mcp" -Force -ErrorAction SilentlyContinue
 # Stop any running processes within WSL
 if ($null -ne (Get-Command wsl -ErrorAction SilentlyContinue)) {
-    wsl -d $Distro pkill -f rust-mcp.exe 2>$null
+    wsl -d $Distro pkill -f odoo-rust-mcp.exe 2>$null
 }
 Start-Sleep -Seconds 1
 

@@ -23,10 +23,10 @@ The React Config UI must be built **before** the Rust binary, because the built 
    rust-mcp/static/dist/  (generated)
        |
        v
-2. rust-mcp (cargo build --release)
+2. odoo-rust-mcp (cargo build --release)
        |
        v
-   rust-mcp/target/release/rust-mcp  (final binary)
+   rust-mcp/target/release/odoo-rust-mcp  (final binary)
 ```
 
 ---
@@ -50,8 +50,8 @@ cargo build --release
 ```
 
 **Binary location:**
-- Debug: `rust-mcp/target/debug/rust-mcp`
-- Release: `rust-mcp/target/release/rust-mcp`
+- Debug: `rust-mcp/target/debug/odoo-rust-mcp`
+- Release: `rust-mcp/target/release/odoo-rust-mcp`
 
 **Windows (PowerShell):**
 ```powershell
@@ -132,10 +132,10 @@ EOF
 
 ```bash
 # stdio transport (for AI clients)
-./rust-mcp/target/debug/rust-mcp --transport stdio
+./rust-mcp/target/debug/odoo-rust-mcp --transport stdio
 
 # HTTP transport (with Config UI on :3008)
-./rust-mcp/target/debug/rust-mcp --transport http --listen 127.0.0.1:8787
+./rust-mcp/target/debug/odoo-rust-mcp --transport http --listen 127.0.0.1:8787
 ```
 
 ---

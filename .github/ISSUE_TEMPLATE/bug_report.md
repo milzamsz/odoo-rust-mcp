@@ -29,7 +29,7 @@ A clear and concise description of what actually happened.
 
 - **OS**: [e.g., macOS 14.0, Ubuntu 22.04, Windows 11]
 - **Rust Version**: [e.g., 1.75.0] (run `rustc --version`)
-- **odoo-rust-mcp Version**: [e.g., 0.3.4] (run `rust-mcp --version` or check installed version)
+- **odoo-rust-mcp Version**: [e.g., 0.3.4] (run `odoo-rust-mcp --version` or check installed version)
 - **Odoo Version**: [e.g., 19.0, 18.0, 17.0]
 - **Transport Mode**: [e.g., stdio, http, websocket, sse]
 - **Installation Method**: [e.g., Homebrew, APT, Docker, from source]

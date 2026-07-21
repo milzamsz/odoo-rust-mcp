@@ -346,7 +346,7 @@ fn find_static_dir() -> PathBuf {
             "/usr/lib/Odoo Rust MCP/static/dist",
             "/opt/homebrew/share/odoo-rust-mcp/static/dist",
             "/usr/local/share/odoo-rust-mcp/static/dist",
-            "/usr/share/rust-mcp/static/dist",
+            "/usr/share/odoo-rust-mcp/static/dist",
         ];
         for candidate_str in &candidates {
             let candidate = std::path::Path::new(candidate_str);
@@ -391,7 +391,7 @@ fn find_docs_dir_from(
             [
                 "/opt/homebrew/share/odoo-rust-mcp/docs/book",
                 "/usr/local/share/odoo-rust-mcp/docs/book",
-                "/usr/share/rust-mcp/docs/book",
+                "/usr/share/odoo-rust-mcp/docs/book",
             ]
             .into_iter()
             .map(PathBuf::from),

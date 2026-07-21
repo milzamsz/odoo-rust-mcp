@@ -19,7 +19,7 @@ use rust_mcp::mcp::runtime::ServerCompat;
 use rust_mcp::mcp::tools::OdooClientPool;
 
 /// Get config directory based on context:
-/// - If running as root/systemd service: /etc/rust-mcp
+/// - If running as root/systemd service: /etc/odoo-rust-mcp
 /// - If running as regular user: ~/.config/odoo-rust-mcp
 fn get_config_dir() -> Option<PathBuf> {
     // Check if running as root (systemd service context)
@@ -29,7 +29,7 @@ fn get_config_dir() -> Option<PathBuf> {
         // SAFETY: geteuid() is always safe to call
         if unsafe { libc::geteuid() } == 0 {
             // Running as root - use system config directory
-            let system_config = PathBuf::from("/etc/rust-mcp");
+            let system_config = PathBuf::from("/etc/odoo-rust-mcp");
             // If system config exists or we can create it, use it
             if system_config.exists() || std::fs::create_dir_all(&system_config).is_ok() {
                 return Some(system_config);
@@ -50,10 +50,10 @@ fn get_share_dir() -> Option<PathBuf> {
         // Homebrew Intel Mac
         PathBuf::from("/usr/local/share/odoo-rust-mcp"),
         // Linux (APT, manual install)
-        PathBuf::from("/usr/share/rust-mcp"),
+        PathBuf::from("/usr/share/odoo-rust-mcp"),
         PathBuf::from("/usr/local/share/odoo-rust-mcp"),
         // System config directory (for systemd service)
-        PathBuf::from("/etc/rust-mcp"),
+        PathBuf::from("/etc/odoo-rust-mcp"),
     ];
 
     candidates.into_iter().find(|path| path.exists())
@@ -630,7 +630,7 @@ enum TransportMode {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "odoo-mcp-rust", version, about = "Odoo MCP server (Rust)")]
+#[command(name = "odoo-rust-mcp", version, about = "Odoo MCP server (Rust)")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,

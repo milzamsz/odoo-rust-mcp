@@ -287,13 +287,13 @@
         <div class="card">
             <h2><span class="icon">⚡</span> Quick Install</h2>
             <p style="color: var(--text-muted); margin-bottom: 1rem;">
-                Install rust-mcp on Debian/Ubuntu with a single command:
+                Install odoo-rust-mcp on Debian/Ubuntu with a single command:
             </p>
             <div class="code-block">
                 <pre><code><span class="comment"># Add GPG key and repository, then install</span>
-curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg
-echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://milzamsz.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
-sudo apt update && sudo apt install rust-mcp</code></pre>
+curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/odoo-rust-mcp.gpg
+echo "deb [signed-by=/usr/share/keyrings/odoo-rust-mcp.gpg] https://milzamsz.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/odoo-rust-mcp.list
+sudo apt update && sudo apt install odoo-rust-mcp</code></pre>
             </div>
         </div>
 
@@ -303,18 +303,18 @@ sudo apt update && sudo apt install rust-mcp</code></pre>
                 <li>
                     <h3>Add GPG Key</h3>
                     <p>Import the repository signing key</p>
-                    <pre><code>curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg</code></pre>
+                    <pre><code>curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/odoo-rust-mcp.gpg</code></pre>
                 </li>
                 <li>
                     <h3>Add Repository</h3>
                     <p>Add the APT repository to your sources</p>
-                    <pre><code>echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://milzamsz.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list</code></pre>
+                    <pre><code>echo "deb [signed-by=/usr/share/keyrings/odoo-rust-mcp.gpg] https://milzamsz.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/odoo-rust-mcp.list</code></pre>
                 </li>
                 <li>
                     <h3>Install Package</h3>
-                    <p>Update and install rust-mcp</p>
+                    <p>Update and install odoo-rust-mcp</p>
                     <pre><code>sudo apt update
-sudo apt install rust-mcp</code></pre>
+sudo apt install odoo-rust-mcp</code></pre>
                 </li>
                 <li>
                     <h3>Configure</h3>
@@ -328,8 +328,8 @@ sudo apt install rust-mcp</code></pre>
                 <li>
                     <h3>Start Service</h3>
                     <p>Enable and start the MCP server</p>
-                    <pre><code>sudo systemctl enable rust-mcp
-sudo systemctl start rust-mcp</code></pre>
+                    <pre><code>sudo systemctl enable odoo-rust-mcp
+sudo systemctl start odoo-rust-mcp</code></pre>
                     <p style="margin-top: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">
                         Access Config UI at <code>http://localhost:3008</code> (default: admin/changeme)
                     </p>

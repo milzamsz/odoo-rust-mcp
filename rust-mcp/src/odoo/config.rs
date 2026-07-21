@@ -212,7 +212,7 @@ pub fn default_instances_json_path() -> Option<PathBuf> {
     {
         // Match the startup behavior for system-wide installs running as root.
         if unsafe { libc::geteuid() } == 0 {
-            return Some(PathBuf::from("/etc/rust-mcp/instances.json"));
+            return Some(PathBuf::from("/etc/odoo-rust-mcp/instances.json"));
         }
     }
 

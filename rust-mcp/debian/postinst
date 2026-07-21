@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e
 
-# Post-installation script for rust-mcp
+# Post-installation script for odoo-rust-mcp
 # Creates system and user configuration directories
 
 # Always create system config directory for systemd service
-SYSTEM_CONFIG_DIR="/etc/rust-mcp"
-SHARE_DIR="/usr/share/rust-mcp"
+SYSTEM_CONFIG_DIR="/etc/odoo-rust-mcp"
+SHARE_DIR="/usr/share/odoo-rust-mcp"
 
 echo "Setting up system configuration..."
 mkdir -p "$SYSTEM_CONFIG_DIR"
@@ -75,14 +75,14 @@ fi
 # Skip user config if no valid user found (e.g., during automated builds)
 if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
     echo "Note: Skipping user config setup (no regular user detected)"
-    echo "Run 'rust-mcp-service --help' as your user to create user-level config"
+    echo "Run 'odoo-rust-mcp-service --help' as your user to create user-level config"
     echo ""
     echo "System configuration is ready in $SYSTEM_CONFIG_DIR"
-    echo "Start service with: sudo systemctl start rust-mcp"
+    echo "Start service with: sudo systemctl start odoo-rust-mcp"
     exit 0
 fi
 
-CONFIG_DIR="$ACTUAL_HOME/.config/rust-mcp"
+CONFIG_DIR="$ACTUAL_HOME/.config/odoo-rust-mcp"
 
 # Create config directory if it doesn't exist
 if [ ! -d "$CONFIG_DIR" ]; then
@@ -191,7 +191,7 @@ fi
 
 echo ""
 echo "=============================================="
-echo "rust-mcp installed successfully!"
+echo "odoo-rust-mcp installed successfully!"
 echo "=============================================="
 echo ""
 echo "Configuration:"
@@ -200,8 +200,8 @@ echo "  Env file:  $CONFIG_DIR/env"
 echo ""
 echo "Quick start:"
 echo "  1. Edit instances: nano $CONFIG_DIR/instances.json"
-echo "  2. Start service:  sudo systemctl start rust-mcp"
-echo "  3. Enable on boot: sudo systemctl enable rust-mcp"
+echo "  2. Start service:  sudo systemctl start odoo-rust-mcp"
+echo "  3. Enable on boot: sudo systemctl enable odoo-rust-mcp"
 echo ""
 echo "Service endpoint: http://127.0.0.1:8787/mcp"
 echo ""

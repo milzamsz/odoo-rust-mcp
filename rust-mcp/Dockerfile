@@ -68,14 +68,14 @@ WORKDIR /app/rust-mcp
 RUN cargo build --release --verbose 2>&1 | tail -100
 
 # Verify binary exists
-RUN if [ ! -f /app/rust-mcp/target/release/rust-mcp ]; then \
-  echo "ERROR: Binary not found at /app/rust-mcp/target/release/rust-mcp"; \
+RUN if [ ! -f /app/rust-mcp/target/release/odoo-rust-mcp ]; then \
+  echo "ERROR: Binary not found at /app/rust-mcp/target/release/odoo-rust-mcp"; \
   echo "Contents of /app/rust-mcp/target/release:"; \
   ls -la /app/rust-mcp/target/release/ 2>/dev/null || echo "Directory does not exist"; \
   exit 1; \
   else \
-  echo "✓ Binary found at /app/rust-mcp/target/release/rust-mcp"; \
-  ls -lh /app/rust-mcp/target/release/rust-mcp; \
+  echo "✓ Binary found at /app/rust-mcp/target/release/odoo-rust-mcp"; \
+  ls -lh /app/rust-mcp/target/release/odoo-rust-mcp; \
   fi
 
 # Let Docker fail with a clear error if binary doesn't exist
@@ -108,8 +108,8 @@ RUN mkdir -p /config && chown mcp:mcp /config
 WORKDIR /app
 
 # Copy binary from builder
-# Note: Binary is built in /app/rust-mcp/target/release/rust-mcp (not /app/target/release/rust-mcp)
-COPY --from=builder /app/rust-mcp/target/release/rust-mcp /usr/local/bin/rust-mcp
+# Note: Binary is built in /app/rust-mcp/target/release/odoo-rust-mcp (not /app/target/release/odoo-rust-mcp)
+COPY --from=builder /app/rust-mcp/target/release/odoo-rust-mcp /usr/local/bin/odoo-rust-mcp
 
 # Copy static files (React UI) from builder
 # Note: Working directory is /app, so static/dist will be at /app/static/dist
@@ -139,4 +139,4 @@ ENV MCP_SERVER_JSON=/config/server.json
 
 # Default to Streamable HTTP transport
 # Override with: --transport stdio|ws
-CMD ["rust-mcp", "--transport", "http", "--listen", "0.0.0.0:8787"]
+CMD ["odoo-rust-mcp", "--transport", "http", "--listen", "0.0.0.0:8787"]

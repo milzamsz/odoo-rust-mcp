@@ -1,6 +1,6 @@
 # Homebrew Formula for odoo-rust-mcp
 
-This folder contains the Homebrew formula source for `rust-mcp`.
+This folder contains the Homebrew formula source for `odoo-rust-mcp`.
 
 The actual Homebrew tap is hosted at: https://github.com/rachmataditiya/homebrew-odoo-rust-mcp
 
@@ -10,7 +10,7 @@ The actual Homebrew tap is hosted at: https://github.com/rachmataditiya/homebrew
 
 ```bash
 brew tap rachmataditiya/odoo-rust-mcp
-brew install rust-mcp
+brew install odoo-rust-mcp
 ```
 
 ### After Installation
@@ -22,7 +22,7 @@ brew install rust-mcp
 
 2. Start the service:
    ```bash
-   brew services start rust-mcp
+   brew services start odoo-rust-mcp
    ```
 
 3. Service runs at: `http://127.0.0.1:8787/mcp`
@@ -34,7 +34,7 @@ brew install rust-mcp
 To enable Bearer token authentication for the HTTP service, you can either:
 
 **Option 1: Via Config UI (Recommended)**
-1. Start the service: `brew services start rust-mcp`
+1. Start the service: `brew services start odoo-rust-mcp`
 2. Open `http://localhost:3008` and login (default: `admin` / `changeme`)
 3. Go to **Security** tab
 4. Toggle **Enable MCP HTTP Authentication**
@@ -53,7 +53,7 @@ MCP_AUTH_TOKEN=your-secure-random-token-here
 Then restart the service:
 
 ```bash
-brew services restart rust-mcp
+brew services restart odoo-rust-mcp
 ```
 
 **Config UI Authentication:**
@@ -82,7 +82,7 @@ CONFIG_UI_PASSWORD=your-secure-password
 {
   "mcpServers": {
     "odoo": {
-      "command": "/opt/homebrew/bin/rust-mcp-service",
+      "command": "/opt/homebrew/bin/odoo-rust-mcp-service",
       "args": ["--transport", "stdio"]
     }
   }
@@ -122,12 +122,12 @@ For complete documentation, see: https://github.com/rachmataditiya/homebrew-odoo
 
 ### Formula Location
 
-- Source: `homebrew/Formula/rust-mcp.rb` (this repo)
+- Source: `homebrew/Formula/odoo-rust-mcp.rb` (this repo)
 - Published: https://github.com/rachmataditiya/homebrew-odoo-rust-mcp
 
 ### Updating the Formula
 
-1. Update `Formula/rust-mcp.rb` in this repo
+1. Update `Formula/odoo-rust-mcp.rb` in this repo
 2. Copy to homebrew-odoo-rust-mcp repo
 3. Commit and push both repos
 
@@ -153,7 +153,7 @@ After creating a release, generate checksums:
 
 ```bash
 VERSION=0.1.0
-curl -sL "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-aarch64-apple-darwin.tar.gz" | shasum -a 256
-curl -sL "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-x86_64-apple-darwin.tar.gz" | shasum -a 256
-curl -sL "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v${VERSION}/rust-mcp-x86_64-unknown-linux-gnu.tar.gz" | shasum -a 256
+curl -sL "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v${VERSION}/odoo-rust-mcp-aarch64-apple-darwin.tar.gz" | shasum -a 256
+curl -sL "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v${VERSION}/odoo-rust-mcp-x86_64-apple-darwin.tar.gz" | shasum -a 256
+curl -sL "https://github.com/milzamsz/odoo-rust-mcp/releases/download/v${VERSION}/odoo-rust-mcp-x86_64-unknown-linux-gnu.tar.gz" | shasum -a 256
 ```

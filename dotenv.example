@@ -83,7 +83,7 @@ MCP_AUTH_ENABLED=false
 # ODOO_CAPABILITY_CONTROLLED_MODE=true
 # ODOO_CAPABILITY_REGISTRY=/config/odoo-agent-config.json
 # ODOO_CAPABILITY_APPROVAL_HMAC_KEY=replace-with-at-least-32-random-bytes
-# ODOO_CAPABILITY_STATE_DIR=/var/lib/rust-mcp/capability-state
+# ODOO_CAPABILITY_STATE_DIR=/var/lib/odoo-rust-mcp/capability-state
 
 # Enable odoo_execute only with a reviewed per-instance toolConfig.executeAllowlist.
 # Unset denies it even when ODOO_ENABLE_WRITE_TOOLS=true.

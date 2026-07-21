@@ -322,7 +322,7 @@ On startup the server:
 
 Config directory behavior:
 
-- Unix root / service context: `/etc/rust-mcp`
+- Unix root / service context: `/etc/odoo-rust-mcp`
 - Regular user and current default local behavior: `~/.config/odoo-rust-mcp`
 
 Runtime files:
@@ -336,7 +336,7 @@ Runtime files:
 Do not confuse runtime config with seed defaults:
 
 - Edit `rust-mcp/config/*` for normal repo changes and examples.
-- Edit user runtime config in `~/.config/odoo-rust-mcp/` or `/etc/rust-mcp/` for deployed behavior.
+- Edit user runtime config in `~/.config/odoo-rust-mcp/` or `/etc/odoo-rust-mcp/` for deployed behavior.
 - `rust-mcp/config-defaults/*` are embedded seed defaults used to create missing runtime files.
 
 ## Agent Rules and Gotchas
@@ -442,7 +442,7 @@ This rule is enforced by behavior in `rust-mcp/src/mcp/registry.rs` and guarded 
 
 When documenting or validating stdio client setup, use **absolute paths** for:
 
-- the `rust-mcp` binary
+- the `odoo-rust-mcp` binary
 - `MCP_TOOLS_JSON`
 - `MCP_PROMPTS_JSON`
 - `MCP_SERVER_JSON`

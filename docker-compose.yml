@@ -136,4 +136,4 @@ services:
           memory: 64M
     # Default: HTTP transport on port 8787, Config server on port 3008 (inspired by Peugeot 3008)
     # Override for other transports:
-    # command: ["rust-mcp", "--transport", "ws", "--listen", "0.0.0.0:8787", "--config-server-port", "3008"]
+    # command: ["odoo-rust-mcp", "--transport", "ws", "--listen", "0.0.0.0:8787", "--config-server-port", "3008"]

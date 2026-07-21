@@ -203,13 +203,13 @@ ODOO_ENABLE_CLEANUP_TOOLS=true    # database cleanup operations
 ### stdio Transport (Cursor/Claude Desktop)
 
 ```bash
-rust-mcp --transport stdio
+odoo-rust-mcp --transport stdio
 ```
 
 ### HTTP Transport (Remote)
 
 ```bash
-rust-mcp --transport http --listen 127.0.0.1:8787
+odoo-rust-mcp --transport http --listen 127.0.0.1:8787
 ```
 
 Endpoints:
@@ -223,7 +223,7 @@ Endpoints:
 {
   "mcpServers": {
     "odoo": {
-      "command": "rust-mcp",
+      "command": "odoo-rust-mcp",
       "args": ["--transport", "stdio"]
     }
   }

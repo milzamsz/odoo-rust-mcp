@@ -8,8 +8,8 @@
   Pop $0
   Pop $1
 
-  ; Kill the rust-mcp sidecar if running
-  nsExec::ExecToStack 'taskkill /F /IM "rust-mcp.exe" /T'
+  ; Kill the odoo-rust-mcp sidecar if running
+  nsExec::ExecToStack 'taskkill /F /IM "odoo-rust-mcp.exe" /T'
   Pop $0
   Pop $1
 
