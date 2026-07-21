@@ -1,16 +1,16 @@
 # Homebrew Formula for odoo-rust-mcp
 
-This folder contains the Homebrew formula source for `odoo-rust-mcp`.
+This folder contains the Homebrew formula for `odoo-rust-mcp`.
 
-The actual Homebrew tap is hosted at: https://github.com/rachmataditiya/homebrew-odoo-rust-mcp
+No separate tap repository is required — install straight from the formula in
+this repo. Works on both macOS and Linux (Homebrew on Linux).
 
 ## For Users
 
 ### Quick Install
 
 ```bash
-brew tap rachmataditiya/odoo-rust-mcp
-brew install odoo-rust-mcp
+brew install https://raw.githubusercontent.com/milzamsz/odoo-rust-mcp/main/homebrew/Formula/odoo-rust-mcp.rb
 ```
 
 ### After Installation
