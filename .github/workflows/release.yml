@@ -729,13 +729,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install from raw formula URL (no tap required)
+      - name: Install from formula file (no tap required)
         run: |
-          # Install directly from the formula committed to this repo by the
-          # update-homebrew job — no separate homebrew-* tap repo needed.
+          # Modern Homebrew no longer accepts `brew install <url>`, so download
+          # the formula committed to this repo by the update-homebrew job and
+          # install from the local file — still no separate homebrew-* tap repo.
           FORMULA_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/homebrew/Formula/odoo-rust-mcp.rb"
-          echo "Installing from $FORMULA_URL"
-          brew install "$FORMULA_URL"
+          echo "Downloading formula from $FORMULA_URL"
+          curl -fsSL "$FORMULA_URL" -o odoo-rust-mcp.rb
+          brew install ./odoo-rust-mcp.rb
           chmod +x "$(brew --prefix)/bin/odoo-rust-mcp-service" 2>/dev/null || true
 
       - name: Verify installation

@@ -53,7 +53,8 @@ cd rust-mcp-<platform>
 ### Option 2: Homebrew (macOS/Linux)
 
 ```bash
-brew install https://raw.githubusercontent.com/milzamsz/odoo-rust-mcp/main/homebrew/Formula/odoo-rust-mcp.rb
+curl -fsSL https://raw.githubusercontent.com/milzamsz/odoo-rust-mcp/main/homebrew/Formula/odoo-rust-mcp.rb -o odoo-rust-mcp.rb
+brew install ./odoo-rust-mcp.rb
 ```
 
 ### Option 3: APT (Debian/Ubuntu)
