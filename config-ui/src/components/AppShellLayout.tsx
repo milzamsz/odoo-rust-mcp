@@ -17,7 +17,6 @@ import {
   Tooltip,
   useMantineColorScheme,
 } from '@mantine/core';
-import packageJson from '../../package.json';
 import { useColorScheme, useDisclosure, useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import {
@@ -105,7 +104,7 @@ export function AppShellLayout() {
     defaultValue: false,
   });
   const { colorScheme, setColorScheme } = useMantineColorScheme();
-  const { username, logout } = useAuth();
+  const { username, logout, version } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { isDirty, activeMessage, clearAll } = useDirtyState();
@@ -498,7 +497,7 @@ export function AppShellLayout() {
                 Hot reload
               </Badge>
               <Text size="sm" c="dimmed">
-                v{packageJson.version} — Changes are applied to the embedded config surface without restart.
+                v{version} — Changes are applied to the embedded config surface without restart.
               </Text>
             </Group>
             <Group gap="xs" wrap="nowrap">

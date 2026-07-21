@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { AuthStatus } from '../types';
+import packageJson from '../../package.json';
 import { AuthContext, TOKEN_STORAGE_KEY } from './AuthContext';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authEnabled, setAuthEnabled] = useState(true);
   const [username, setUsername] = useState<string | null>(null);
+  // Prefer the version reported by the running server (authoritative even if
+  // this embedded UI bundle is stale); fall back to the build-time value.
+  const [version, setVersion] = useState<string>(packageJson.version);
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_STORAGE_KEY));
   const [loading, setLoading] = useState(true);
 
@@ -22,6 +26,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthEnabled(data.auth_enabled);
       setIsAuthenticated(data.authenticated);
       setUsername(data.username);
+      if (data.version) {
+        setVersion(data.version);
+      }
 
       // If auth is disabled, we're always authenticated
       if (!data.auth_enabled) {
@@ -82,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated,
         authEnabled,
         username,
+        version,
         token,
         login,
         logout,

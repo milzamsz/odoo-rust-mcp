@@ -14,10 +14,9 @@ import { useState, type FormEvent } from 'react';
 import { LockKey, WarningCircle, User } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { AppMark } from './AppMark';
-import packageJson from '../../package.json';
 
 export function LoginForm() {
-  const { login } = useAuth();
+  const { login, version } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +59,7 @@ export function LoginForm() {
               Sign in to configuration
             </Title>
             <Text c="dimmed" size="xs" mt="sm">
-              Version {packageJson.version}
+              Version {version}
             </Text>
           </Box>
 
