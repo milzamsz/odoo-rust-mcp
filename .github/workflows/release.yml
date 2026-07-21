@@ -729,15 +729,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install from Homebrew tap
+      - name: Install from raw formula URL (no tap required)
         run: |
-          TAP_REPO="${{ vars.HOMEBREW_TAP_REPO }}"
-          if [ -z "$TAP_REPO" ]; then
-            TAP_REPO="rachmataditiya/odoo-rust-mcp"
-          fi
-          brew untap "$TAP_REPO" 2>/dev/null || true
-          brew tap "$TAP_REPO"
-          brew install odoo-rust-mcp
+          # Install directly from the formula committed to this repo by the
+          # update-homebrew job — no separate homebrew-* tap repo needed.
+          FORMULA_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/homebrew/Formula/odoo-rust-mcp.rb"
+          echo "Installing from $FORMULA_URL"
+          brew install "$FORMULA_URL"
           chmod +x "$(brew --prefix)/bin/odoo-rust-mcp-service" 2>/dev/null || true
 
       - name: Verify installation
