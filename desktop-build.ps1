@@ -14,7 +14,7 @@ $Root = $PSScriptRoot
 $DesktopDir = "$Root\desktop"
 $TauriDir = "$DesktopDir\src-tauri"
 $RustRelease = "$Root\rust-mcp\target\release\odoo-rust-mcp.exe"
-$SidecarTarget = "$TauriDir\binaries\odoo-rust-mcp-x86_64-pc-windows-msvc.exe"
+$SidecarTarget = "$TauriDir\binaries\odoo-rust-mcp-desktop-server-x86_64-pc-windows-msvc.exe"
 
 # Step 1: Ensure the release binary is built and copied to the sidecar location
 Write-Host "[desktop-build] Building rust-mcp release binary (incremental)..."

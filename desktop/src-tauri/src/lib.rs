@@ -169,7 +169,7 @@ async fn start_sidecar(app: &AppHandle) {
 
     let shell = app.shell();
     let sidecar = shell
-        .sidecar("odoo-rust-mcp")
+        .sidecar("odoo-rust-mcp-desktop-server")
         .expect("failed to create sidecar command")
         .args([
             "--transport",

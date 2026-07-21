@@ -353,7 +353,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path desktop/src-tauri/binaries | Out-Null
-          Copy-Item "rust-mcp/target/x86_64-pc-windows-msvc/release/odoo-rust-mcp.exe" -Destination "desktop/src-tauri/binaries/odoo-rust-mcp-x86_64-pc-windows-msvc.exe"
+          Copy-Item "rust-mcp/target/x86_64-pc-windows-msvc/release/odoo-rust-mcp.exe" -Destination "desktop/src-tauri/binaries/odoo-rust-mcp-desktop-server-x86_64-pc-windows-msvc.exe"
           New-Item -ItemType Directory -Force -Path desktop/src-tauri/static/dist | Out-Null
           Copy-Item -Recurse "rust-mcp/static/dist/*" -Destination "desktop/src-tauri/static/dist/"
           New-Item -ItemType Directory -Force -Path desktop/src-tauri/docs/book | Out-Null
@@ -385,12 +385,93 @@ jobs:
             desktop/src-tauri/target/release/bundle/msi/*.zip*
 
   # =============================================================================
+  # Stage 2: Build Linux Desktop App (AppImage/deb) — depends on build-ui/build-docs
+  # =============================================================================
+  build-desktop-linux:
+    name: Build Linux Desktop App
+    needs: [build-ui, build-docs]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download UI build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: config-ui-dist
+          path: rust-mcp/static/dist
+
+      - name: Download documentation artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: mdbook-docs
+          path: docs/book
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: desktop/package.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Build odoo-rust-mcp sidecar binary
+        run: cargo build --release --target x86_64-unknown-linux-gnu --manifest-path rust-mcp/Cargo.toml --bin odoo-rust-mcp
+
+      - name: Prepare Tauri sidecar and assets
+        run: |
+          mkdir -p desktop/src-tauri/binaries
+          cp rust-mcp/target/x86_64-unknown-linux-gnu/release/odoo-rust-mcp \
+            desktop/src-tauri/binaries/odoo-rust-mcp-desktop-server-x86_64-unknown-linux-gnu
+          mkdir -p desktop/src-tauri/static/dist
+          cp -r rust-mcp/static/dist/* desktop/src-tauri/static/dist/
+          mkdir -p desktop/src-tauri/docs/book
+          cp -r docs/book/* desktop/src-tauri/docs/book/
+
+      - name: Install Desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build Tauri Desktop App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: desktop
+          includeRelease: false
+          includeUpdaterJson: false
+
+      - name: Upload Desktop artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: odoo-rust-mcp-desktop-linux
+          path: |
+            desktop/src-tauri/target/release/bundle/appimage/*.AppImage*
+            desktop/src-tauri/target/release/bundle/deb/*.deb
+
+  # =============================================================================
   # Stage 3: Create GitHub Release (waits for all builds, runs if build succeeds)
   # =============================================================================
   release:
     name: Create GitHub Release
-    needs: [build, build-docker, build-deb, build-desktop]
-    # Run even if build-docker or build-deb fail, as long as build and build-desktop succeed
+    needs: [build, build-docker, build-deb, build-desktop, build-desktop-linux]
+    # Run even if optional builds fail, as long as the core binary + Windows desktop succeed
     if: always() && needs.build.result == 'success' && needs.build-desktop.result == 'success'
     runs-on: ubuntu-latest
     permissions:
