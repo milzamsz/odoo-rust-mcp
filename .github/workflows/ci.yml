@@ -420,14 +420,14 @@ jobs:
           
           echo "=== Installing config files ==="
           sudo mkdir -p /usr/share/odoo-rust-mcp
-          sudo cp rust-mcp/config-defaults/*.json /usr/share/rust-mcp/
+          sudo cp rust-mcp/config-defaults/*.json /usr/share/odoo-rust-mcp/
           
           echo "=== Installing systemd service ==="
           sudo cp rust-mcp/debian/odoo-rust-mcp.service /lib/systemd/system/odoo-rust-mcp.service
           
           echo "=== Verifying installation ==="
           ls -la /usr/bin/odoo-rust-mcp*
-          ls -la /usr/share/rust-mcp/
+          ls -la /usr/share/odoo-rust-mcp/
           cat /lib/systemd/system/odoo-rust-mcp.service
       
       - name: Setup system config directory
@@ -436,7 +436,7 @@ jobs:
           sudo mkdir -p /etc/odoo-rust-mcp
           
           echo "=== Creating instances.json ==="
-          sudo tee /etc/rust-mcp/instances.json > /dev/null << 'EOF'
+          sudo tee /etc/odoo-rust-mcp/instances.json > /dev/null << 'EOF'
           {
             "test": {
               "url": "http://localhost:8069",
@@ -447,25 +447,25 @@ jobs:
           EOF
           
           echo "=== Copying config files ==="
-          sudo cp /usr/share/rust-mcp/tools.json /etc/rust-mcp/
-          sudo cp /usr/share/rust-mcp/prompts.json /etc/rust-mcp/
-          sudo cp /usr/share/rust-mcp/server.json /etc/rust-mcp/
+          sudo cp /usr/share/odoo-rust-mcp/tools.json /etc/odoo-rust-mcp/
+          sudo cp /usr/share/odoo-rust-mcp/prompts.json /etc/odoo-rust-mcp/
+          sudo cp /usr/share/odoo-rust-mcp/server.json /etc/odoo-rust-mcp/
           
           echo "=== Creating env file ==="
-          sudo tee /etc/rust-mcp/env > /dev/null << EOF
-          ODOO_INSTANCES_JSON=/etc/rust-mcp/instances.json
-          MCP_TOOLS_JSON=/etc/rust-mcp/tools.json
-          MCP_PROMPTS_JSON=/etc/rust-mcp/prompts.json
-          MCP_SERVER_JSON=/etc/rust-mcp/server.json
+          sudo tee /etc/odoo-rust-mcp/env > /dev/null << EOF
+          ODOO_INSTANCES_JSON=/etc/odoo-rust-mcp/instances.json
+          MCP_TOOLS_JSON=/etc/odoo-rust-mcp/tools.json
+          MCP_PROMPTS_JSON=/etc/odoo-rust-mcp/prompts.json
+          MCP_SERVER_JSON=/etc/odoo-rust-mcp/server.json
           EOF
           
           echo "=== Verifying config ==="
-          ls -la /etc/rust-mcp/
-          [ -f "/etc/rust-mcp/instances.json" ] && echo "PASS: instances.json created"
-          [ -f "/etc/rust-mcp/env" ] && echo "PASS: env file created"
-          [ -f "/etc/rust-mcp/tools.json" ] && echo "PASS: tools.json copied"
-          [ -f "/etc/rust-mcp/prompts.json" ] && echo "PASS: prompts.json copied"
-          [ -f "/etc/rust-mcp/server.json" ] && echo "PASS: server.json copied"
+          ls -la /etc/odoo-rust-mcp/
+          [ -f "/etc/odoo-rust-mcp/instances.json" ] && echo "PASS: instances.json created"
+          [ -f "/etc/odoo-rust-mcp/env" ] && echo "PASS: env file created"
+          [ -f "/etc/odoo-rust-mcp/tools.json" ] && echo "PASS: tools.json copied"
+          [ -f "/etc/odoo-rust-mcp/prompts.json" ] && echo "PASS: prompts.json copied"
+          [ -f "/etc/odoo-rust-mcp/server.json" ] && echo "PASS: server.json copied"
       
       - name: Test systemd service lifecycle
         run: |

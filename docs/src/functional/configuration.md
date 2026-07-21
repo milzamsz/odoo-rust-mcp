@@ -210,8 +210,8 @@ Files: `instances.json`, `tools.json`, `prompts.json`, `server.json`, `env`
 
 | Platform | Directory |
 |----------|-----------|
-| Linux (systemd) | `/etc/rust-mcp/` |
-| Linux (deb) | `/usr/share/rust-mcp/` |
+| Linux (systemd) | `/etc/odoo-rust-mcp/` |
+| Linux (deb) | `/usr/share/odoo-rust-mcp/` |
 | Windows | `%ProgramData%\\odoo-rust-mcp\\` |
 
 ### Config Resolution Order

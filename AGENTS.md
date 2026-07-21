@@ -336,7 +336,7 @@ Runtime files:
 Do not confuse runtime config with seed defaults:
 
 - Edit `rust-mcp/config/*` for normal repo changes and examples.
-- Edit user runtime config in `~/.config/odoo-rust-mcp/` or `/etc/rust-mcp/` for deployed behavior.
+- Edit user runtime config in `~/.config/odoo-rust-mcp/` or `/etc/odoo-rust-mcp/` for deployed behavior.
 - `rust-mcp/config-defaults/*` are embedded seed defaults used to create missing runtime files.
 
 ## Agent Rules and Gotchas
