@@ -50,15 +50,7 @@ cd rust-mcp-<platform>
 ./install.sh
 ```
 
-### Option 2: Homebrew (macOS/Linux)
-
-Modern Homebrew only installs formulae from a tap. This repo does not host a
-dedicated Homebrew tap yet, so use the pre-built binary (Option 1) or the
-platform packages below. The formula source lives at
-[`homebrew/Formula/odoo-rust-mcp.rb`](https://github.com/milzamsz/odoo-rust-mcp/blob/main/homebrew/Formula/odoo-rust-mcp.rb)
-if you want to add it to your own tap.
-
-### Option 3: APT (Debian/Ubuntu)
+### Option 2: APT (Debian/Ubuntu)
 
 ```bash
 curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/odoo-rust-mcp.gpg
@@ -66,7 +58,7 @@ echo "deb [signed-by=/usr/share/keyrings/odoo-rust-mcp.gpg] https://milzamsz.git
 sudo apt update && sudo apt install odoo-rust-mcp
 ```
 
-### Option 4: Docker
+### Option 3: Docker
 
 ```bash
 docker run -d --name odoo-mcp \
@@ -77,7 +69,7 @@ docker run -d --name odoo-mcp \
   ghcr.io/milzamsz/odoo-rust-mcp:latest
 ```
 
-### Option 5: Build from Source
+### Option 4: Build from Source
 
 See [Building from Source](../developer/building.md) for full instructions.
 

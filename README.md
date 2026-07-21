@@ -134,7 +134,6 @@ Then connect your client:
 
 If you are not installing on Windows:
 
-- Homebrew: [homebrew/README.md](homebrew/README.md)
 - APT: [docs/src/functional/getting-started.md](docs/src/functional/getting-started.md)
 - Docker, Helm, Kubernetes: [docs/src/functional/deployment.md](docs/src/functional/deployment.md)
 
