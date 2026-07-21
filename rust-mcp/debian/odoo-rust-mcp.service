@@ -7,8 +7,8 @@ After=network.target
 Type=simple
 
 # Setup config directory before starting
-ExecStartPre=/bin/mkdir -p /etc/rust-mcp
-ExecStart=/usr/bin/rust-mcp-service --transport http --listen 127.0.0.1:8787
+ExecStartPre=/bin/mkdir -p /etc/odoo-rust-mcp
+ExecStart=/usr/bin/odoo-rust-mcp-service --transport http --listen 127.0.0.1:8787
 Restart=on-failure
 RestartSec=5
 
@@ -18,11 +18,11 @@ ProtectSystem=full
 PrivateTmp=true
 
 # Config and runtime directories
-ConfigurationDirectory=rust-mcp
-RuntimeDirectory=rust-mcp
+ConfigurationDirectory=odoo-rust-mcp
+RuntimeDirectory=odoo-rust-mcp
 
 # Working directory for static files
-WorkingDirectory=/usr/share/rust-mcp
+WorkingDirectory=/usr/share/odoo-rust-mcp
 
 # Environment
 Environment=RUST_LOG=info
@@ -31,7 +31,7 @@ Environment=HOME=/root
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=rust-mcp
+SyslogIdentifier=odoo-rust-mcp
 
 [Install]
 WantedBy=multi-user.target

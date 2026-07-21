@@ -144,7 +144,7 @@ export function OverviewTab() {
     2
   );
 
-  const exePath = mcpAuthStatus?.exe_path || 'C:\\path\\to\\rust-mcp.exe';
+  const exePath = mcpAuthStatus?.exe_path || 'C:\\path\\to\\odoo-rust-mcp.exe';
   const stdioSnippet = JSON.stringify(
     {
       mcpServers: {
@@ -393,7 +393,7 @@ export function OverviewTab() {
                 </Alert>
               ) : (
                 <Alert color="blue" radius="md">
-                  Make sure to replace <code>C:\\path\\to\\rust-mcp.exe</code> with the actual absolute path to your downloaded binary.
+                  Make sure to replace <code>C:\\path\\to\\odoo-rust-mcp.exe</code> with the actual absolute path to your downloaded binary.
                 </Alert>
               )}
             </Stack>

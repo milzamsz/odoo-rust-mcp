@@ -62,7 +62,7 @@ Centralized configuration store:
 - Both checked in CI (`fmt` and `clippy` jobs)
 
 ### Build Outputs
-- **Rust Binary**: `target/debug/rust-mcp` or `target/release/rust-mcp`
+- **Rust Binary**: `target/debug/odoo-rust-mcp` or `target/release/odoo-rust-mcp`
 - **UI Static**: Built to `rust-mcp/static/dist/` (embedded in binary via `include_dir!`)
 - **Coverage**: Rust via `cargo-tarpaulin`, TS via `vitest` with `@vitest/coverage-istanbul`
 

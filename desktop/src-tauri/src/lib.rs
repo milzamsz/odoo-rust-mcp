@@ -150,7 +150,7 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-/// Locate and start the `rust-mcp.exe` sidecar.
+/// Locate and start the `odoo-rust-mcp.exe` sidecar.
 async fn start_sidecar(app: &AppHandle) {
     use tauri_plugin_shell::ShellExt;
 
@@ -169,7 +169,7 @@ async fn start_sidecar(app: &AppHandle) {
 
     let shell = app.shell();
     let sidecar = shell
-        .sidecar("rust-mcp")
+        .sidecar("odoo-rust-mcp")
         .expect("failed to create sidecar command")
         .args([
             "--transport",
@@ -213,7 +213,7 @@ async fn start_sidecar(app: &AppHandle) {
             show_startup_error(
                 app,
                 &format!(
-                    "The desktop app could not start the bundled rust-mcp server: {}",
+                    "The desktop app could not start the bundled odoo-rust-mcp server: {}",
                     e
                 ),
             );

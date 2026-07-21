@@ -44,7 +44,7 @@ Choose one of the following installation methods:
 
 ### Option B: Advanced CLI / Windows Service
 
-1. Download the latest `rust-mcp-windows.zip` from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases).
+1. Download the latest `odoo-rust-mcp-windows.zip` from [GitHub Releases](https://github.com/milzamsz/odoo-rust-mcp/releases).
 2. Extract it to a permanent folder (e.g., `C:\Workspace\mcp\odoo-rust-mcp`).
 3. Open PowerShell as Administrator in that folder and run:
    ```powershell
@@ -53,7 +53,7 @@ Choose one of the following installation methods:
    ```
 
 *What the script installer does:*
-- Copies `rust-mcp.exe` to `C:\Program Files\odoo-rust-mcp`.
+- Copies `odoo-rust-mcp.exe` to `C:\Program Files\odoo-rust-mcp`.
 - Initializes configurations in `C:\ProgramData\odoo-rust-mcp`.
 - Registers a desktop shortcut `Odoo MCP Server.lnk`.
 - (Optional) Appending `-Service` installs the backend server as a persistent Windows Service.
@@ -111,7 +111,7 @@ Run this flow:
 2. Download the latest Windows release ZIP.
 3. Extract it to a persistent folder.
 4. Run install.ps1 as Administrator.
-5. Confirm C:\Program Files\odoo-rust-mcp\rust-mcp.exe exists.
+5. Confirm C:\Program Files\odoo-rust-mcp\odoo-rust-mcp.exe exists.
 6. Confirm the desktop shortcut Odoo MCP Server.lnk exists.
 7. Launch the shortcut.
 8. Verify http://localhost:3008 opens.

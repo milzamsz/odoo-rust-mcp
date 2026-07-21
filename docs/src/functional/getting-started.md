@@ -16,17 +16,17 @@ Download the latest release for your platform:
 
 | Platform | Download |
 |----------|----------|
-| Windows x64 | `rust-mcp-x86_64-pc-windows-msvc.zip` |
-| macOS Intel | `rust-mcp-x86_64-apple-darwin.tar.gz` |
-| macOS Apple Silicon | `rust-mcp-aarch64-apple-darwin.tar.gz` |
-| Linux x64 | `rust-mcp-x86_64-unknown-linux-gnu.tar.gz` |
+| Windows x64 | `odoo-rust-mcp-x86_64-pc-windows-msvc.zip` |
+| macOS Intel | `odoo-rust-mcp-x86_64-apple-darwin.tar.gz` |
+| macOS Apple Silicon | `odoo-rust-mcp-aarch64-apple-darwin.tar.gz` |
+| Linux x64 | `odoo-rust-mcp-x86_64-unknown-linux-gnu.tar.gz` |
 
 **Download URL**: [github.com/rachmataditiya/odoo-rust-mcp/releases/latest](https://github.com/rachmataditiya/odoo-rust-mcp/releases/latest)
 
 **Windows Installation:**
 ```powershell
 # Download and extract
-Expand-Archive rust-mcp-x86_64-pc-windows-msvc.zip -DestinationPath C:\odoo-mcp
+Expand-Archive odoo-rust-mcp-x86_64-pc-windows-msvc.zip -DestinationPath C:\odoo-mcp
 cd C:\odoo-mcp
 .\install.ps1
 ```
@@ -45,7 +45,7 @@ cd C:\odoo-mcp
 
 **Linux/macOS Installation:**
 ```bash
-tar -xzf rust-mcp-<platform>.tar.gz
+tar -xzf odoo-rust-mcp-<platform>.tar.gz
 cd rust-mcp-<platform>
 ./install.sh
 ```
@@ -54,15 +54,15 @@ cd rust-mcp-<platform>
 
 ```bash
 brew tap milzamsz/odoo-rust-mcp
-brew install rust-mcp
+brew install odoo-rust-mcp
 ```
 
 ### Option 3: APT (Debian/Ubuntu)
 
 ```bash
-curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg
-echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://milzamsz.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
-sudo apt update && sudo apt install rust-mcp
+curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/odoo-rust-mcp.gpg
+echo "deb [signed-by=/usr/share/keyrings/odoo-rust-mcp.gpg] https://milzamsz.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/odoo-rust-mcp.list
+sudo apt update && sudo apt install odoo-rust-mcp
 ```
 
 ### Option 4: Docker
@@ -138,7 +138,7 @@ Create `instances.json` with your Odoo connection details:
 {
   "mcpServers": {
     "odoo": {
-      "command": "rust-mcp",
+      "command": "odoo-rust-mcp",
       "args": ["--transport", "stdio"],
       "env": {
         "ODOO_INSTANCES_JSON": "/path/to/instances.json"
@@ -154,7 +154,7 @@ Create `instances.json` with your Odoo connection details:
 {
   "mcpServers": {
     "odoo": {
-      "command": "/path/to/rust-mcp",
+      "command": "/path/to/odoo-rust-mcp",
       "args": ["--transport", "stdio"],
       "env": {
         "ODOO_INSTANCES_JSON": "/path/to/instances.json"
@@ -170,7 +170,7 @@ Create `instances.json` with your Odoo connection details:
 {
   "mcpServers": {
     "odoo": {
-      "command": "rust-mcp",
+      "command": "odoo-rust-mcp",
       "args": ["--transport", "stdio"],
       "env": {
         "ODOO_INSTANCES_JSON": "/path/to/instances.json"
@@ -180,7 +180,7 @@ Create `instances.json` with your Odoo connection details:
 }
 ```
 
-**Windsurf**: Follow Windsurf's MCP configuration guide. The server configuration is identical -- use `rust-mcp --transport stdio` as the command.
+**Windsurf**: Follow Windsurf's MCP configuration guide. The server configuration is identical -- use `odoo-rust-mcp --transport stdio` as the command.
 
 ---
 
@@ -189,7 +189,7 @@ Create `instances.json` with your Odoo connection details:
 ### Step 1: Validate Configuration
 
 ```bash
-rust-mcp validate-config
+odoo-rust-mcp validate-config
 ```
 
 This checks that your `instances.json` is valid and all required fields are present.
@@ -221,7 +221,7 @@ Search for the first 5 partners in my production instance
 ## CLI Reference
 
 ```
-rust-mcp [OPTIONS] [COMMAND]
+odoo-rust-mcp [OPTIONS] [COMMAND]
 
 Commands:
   validate-config    Validate Odoo instance configuration
@@ -267,7 +267,7 @@ Configure your client settings with the server URL:
 
 ### Option 2: Stdio Connection (For Cursor and Claude Desktop)
 
-Clients like **Cursor** and **Claude Desktop** require launching their own MCP subprocess. For these clients, configure them to run the standalone `rust-mcp.exe` binary.
+Clients like **Cursor** and **Claude Desktop** require launching their own MCP subprocess. For these clients, configure them to run the standalone `odoo-rust-mcp.exe` binary.
 
 #### 1. Cursor (`~/.cursor/mcp.json`)
 Add the following configuration (replace with the absolute path to your downloaded binary):
@@ -275,7 +275,7 @@ Add the following configuration (replace with the absolute path to your download
 {
   "mcpServers": {
     "odoo-rust-mcp": {
-      "command": "C:\\path\\to\\rust-mcp.exe",
+      "command": "C:\\path\\to\\odoo-rust-mcp.exe",
       "args": ["--transport", "stdio"]
     }
   }
@@ -287,7 +287,7 @@ Add the following configuration (replace with the absolute path to your download
 {
   "mcpServers": {
     "odoo-rust-mcp": {
-      "command": "C:\\path\\to\\rust-mcp.exe",
+      "command": "C:\\path\\to\\odoo-rust-mcp.exe",
       "args": ["--transport", "stdio"]
     }
   }

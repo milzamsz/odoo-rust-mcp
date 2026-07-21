@@ -7,15 +7,15 @@
 #
 # This runs `tauri dev` which:
 #   1. Starts the Config UI server on port 3008
-#   2. Spawns the sidecar (rust-mcp.exe) with MCP HTTP on 8787
+#   2. Spawns the sidecar (odoo-rust-mcp.exe) with MCP HTTP on 8787
 #   3. Opens the Tauri webview pointing to http://127.0.0.1:3008
 
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 $DesktopDir = "$Root\desktop"
 $TauriDir = "$DesktopDir\src-tauri"
-$RustRelease = "$Root\rust-mcp\target\release\rust-mcp.exe"
-$SidecarTarget = "$TauriDir\binaries\rust-mcp-x86_64-pc-windows-msvc.exe"
+$RustRelease = "$Root\rust-mcp\target\release\odoo-rust-mcp.exe"
+$SidecarTarget = "$TauriDir\binaries\odoo-rust-mcp-x86_64-pc-windows-msvc.exe"
 
 # Ensure sidecar binary exists
 if (-not (Test-Path $SidecarTarget)) {

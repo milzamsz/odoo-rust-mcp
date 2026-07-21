@@ -23,13 +23,13 @@ Download a pre-built binary from [GitHub Releases](https://github.com/rachmatadi
 
 ```bash
 # stdio transport (for AI clients like Cursor, Claude Desktop)
-./rust-mcp --transport stdio
+./odoo-rust-mcp --transport stdio
 
 # HTTP transport (for remote access + Config UI)
-./rust-mcp --transport http --listen 127.0.0.1:8787
+./odoo-rust-mcp --transport http --listen 127.0.0.1:8787
 
 # WebSocket transport
-./rust-mcp --transport ws --listen 127.0.0.1:8787
+./odoo-rust-mcp --transport ws --listen 127.0.0.1:8787
 ```
 
 When using HTTP or WebSocket transport, the Config UI is available at `http://localhost:3008`.
@@ -67,7 +67,7 @@ PREFIX=$HOME/.local ./install.sh
 ```
 
 This creates:
-- Binary at `/usr/local/bin/rust-mcp`
+- Binary at `/usr/local/bin/odoo-rust-mcp`
 - Config at `/usr/local/share/odoo-rust-mcp/`
 - Environment file at `/usr/local/etc/odoo-rust-mcp.env`
 - Systemd unit at `/etc/systemd/system/odoo-rust-mcp.service`
@@ -86,7 +86,7 @@ Type=simple
 User=nobody
 Group=nogroup
 EnvironmentFile=/usr/local/etc/odoo-rust-mcp.env
-ExecStart=/usr/local/bin/rust-mcp --transport http --listen 127.0.0.1:8787
+ExecStart=/usr/local/bin/odoo-rust-mcp --transport http --listen 127.0.0.1:8787
 Restart=on-failure
 RestartSec=5
 
@@ -122,7 +122,7 @@ sudo journalctl -u odoo-rust-mcp -f
 ```
 
 This creates:
-- Binary at `/usr/local/bin/rust-mcp`
+- Binary at `/usr/local/bin/odoo-rust-mcp`
 - Config at `~/.config/odoo-rust-mcp/`
 - Plist at `~/Library/LaunchAgents/com.odoo.rust-mcp.plist`
 
@@ -156,7 +156,7 @@ tail -f ~/.config/odoo-rust-mcp/stdout.log
 ### Manual Setup
 
 1. Download the Windows binary from GitHub Releases
-2. Place `rust-mcp.exe` in a permanent location (e.g., `%LOCALAPPDATA%\odoo-rust-mcp\`)
+2. Place `odoo-rust-mcp.exe` in a permanent location (e.g., `%LOCALAPPDATA%\odoo-rust-mcp\`)
 3. Copy `static/dist/` alongside the binary for Config UI
 4. Add the directory to your `PATH`
 5. Create `~/.config/odoo-rust-mcp/instances.json` with your Odoo credentials
@@ -165,7 +165,7 @@ tail -f ~/.config/odoo-rust-mcp/stdout.log
 
 ```powershell
 # Start in background
-Start-Process -NoNewWindow rust-mcp -ArgumentList "--transport","http","--listen","127.0.0.1:8787"
+Start-Process -NoNewWindow odoo-rust-mcp -ArgumentList "--transport","http","--listen","127.0.0.1:8787"
 ```
 
 For a persistent Windows service, use [NSSM](https://nssm.cc/) or Task Scheduler.

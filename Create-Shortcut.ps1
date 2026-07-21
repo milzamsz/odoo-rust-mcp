@@ -45,10 +45,10 @@ $shortcut.Description = "Start Odoo Rust MCP Server and open the Config UI"
 
 $iconPath = Join-Path $RepoRoot "assets\odoo-rust-mcp.ico"
 if (-not (Test-Path $iconPath)) {
-    $iconPath = Join-Path $RepoRoot "rust-mcp\target\release\rust-mcp.exe"
+    $iconPath = Join-Path $RepoRoot "rust-mcp\target\release\odoo-rust-mcp.exe"
 }
 if (-not (Test-Path $iconPath)) {
-    $iconPath = Join-Path $RepoRoot "rust-mcp.exe"
+    $iconPath = Join-Path $RepoRoot "odoo-rust-mcp.exe"
 }
 if (Test-Path $iconPath) {
     $shortcut.IconLocation = "$iconPath,0"

@@ -5,6 +5,12 @@ edition = "2024"
 description = "Model Context Protocol server for Odoo integration"
 license = "AGPL-3.0-only"
 
+# Keep the library/crate name "rust-mcp" (import path `rust_mcp::`) but ship the
+# binary as "odoo-rust-mcp" to match the Debian package and repo naming.
+[[bin]]
+name = "odoo-rust-mcp"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1"
 async-trait = "0.1"
@@ -44,6 +50,7 @@ mockall = "0.14"
 tempfile = "3"
 
 [package.metadata.deb]
+name = "odoo-rust-mcp"
 maintainer = "Milzam <milzam@arkana.co.id>"
 copyright = "2024-2026, Milzam (Arkana)"
 license-file = ["../LICENSE", "0"]
@@ -54,18 +61,18 @@ section = "utils"
 priority = "optional"
 depends = "$auto"
 assets = [
-    ["target/release/rust-mcp", "usr/bin/", "755"],
-    ["config/tools.json", "usr/share/rust-mcp/", "644"],
-    ["config/prompts.json", "usr/share/rust-mcp/", "644"],
-    ["config/server.json", "usr/share/rust-mcp/", "644"],
-    ["../dotenv.example", "usr/share/rust-mcp/.env.example", "644"],
-    ["debian/rust-mcp-service", "usr/bin/", "755"],
+    ["target/release/odoo-rust-mcp", "usr/bin/", "755"],
+    ["config/tools.json", "usr/share/odoo-rust-mcp/", "644"],
+    ["config/prompts.json", "usr/share/odoo-rust-mcp/", "644"],
+    ["config/server.json", "usr/share/odoo-rust-mcp/", "644"],
+    ["../dotenv.example", "usr/share/odoo-rust-mcp/.env.example", "644"],
+    ["debian/odoo-rust-mcp-service", "usr/bin/", "755"],
     # Static UI files (glob pattern for recursive copy)
-    ["static/dist/**/*", "usr/share/rust-mcp/static/dist/", "644"],
-    ["../docs/book/**/*", "usr/share/rust-mcp/docs/book/", "644"],
+    ["static/dist/**/*", "usr/share/odoo-rust-mcp/static/dist/", "644"],
+    ["../docs/book/**/*", "usr/share/odoo-rust-mcp/docs/book/", "644"],
 ]
 maintainer-scripts = "debian/"
-systemd-units = { unit-name = "rust-mcp", enable = false }
+systemd-units = { unit-name = "odoo-rust-mcp", enable = false }
 
 [profile.release]
 strip = true

@@ -14,7 +14,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$BinaryName = "rust-mcp"
+$BinaryName = "odoo-rust-mcp"
 $ServiceName = "OdooRustMcp"
 $ServiceDisplayName = "Odoo Rust MCP Server"
 $InstallDir = "$env:ProgramFiles\odoo-rust-mcp"

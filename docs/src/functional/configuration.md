@@ -140,7 +140,7 @@ ODOO_API_KEY=your-key
 ### stdio
 
 ```bash
-rust-mcp --transport stdio
+odoo-rust-mcp --transport stdio
 ```
 
 - used by local AI clients
@@ -149,7 +149,7 @@ rust-mcp --transport stdio
 ### HTTP
 
 ```bash
-rust-mcp --transport http --listen 127.0.0.1:8787
+odoo-rust-mcp --transport http --listen 127.0.0.1:8787
 ```
 
 - MCP endpoint: `POST /mcp`
@@ -159,7 +159,7 @@ rust-mcp --transport http --listen 127.0.0.1:8787
 ### WebSocket
 
 ```bash
-rust-mcp --transport ws --listen 127.0.0.1:8787
+odoo-rust-mcp --transport ws --listen 127.0.0.1:8787
 ```
 
 ---

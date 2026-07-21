@@ -287,7 +287,7 @@ jobs:
           ODOO_CONFIG_SERVER_PORT=3008 \
           ODOO_CONFIG_DIR=/tmp/test-config \
           RUST_LOG=info \
-          timeout 60 ./rust-mcp/target/release/rust-mcp \
+          timeout 60 ./rust-mcp/target/release/odoo-rust-mcp \
             --transport http --listen 0.0.0.0:8787 \
             --config-dir /tmp/test-config &
           sleep 3
@@ -411,29 +411,29 @@ jobs:
       - name: Install binary and service files
         run: |
           echo "=== Installing binary ==="
-          sudo cp rust-mcp/target/release/rust-mcp /usr/bin/rust-mcp
-          sudo chmod +x /usr/bin/rust-mcp
+          sudo cp rust-mcp/target/release/odoo-rust-mcp /usr/bin/odoo-rust-mcp
+          sudo chmod +x /usr/bin/odoo-rust-mcp
           
           echo "=== Installing service wrapper ==="
-          sudo cp rust-mcp/debian/rust-mcp-service /usr/bin/rust-mcp-service
-          sudo chmod +x /usr/bin/rust-mcp-service
+          sudo cp rust-mcp/debian/odoo-rust-mcp-service /usr/bin/odoo-rust-mcp-service
+          sudo chmod +x /usr/bin/odoo-rust-mcp-service
           
           echo "=== Installing config files ==="
-          sudo mkdir -p /usr/share/rust-mcp
+          sudo mkdir -p /usr/share/odoo-rust-mcp
           sudo cp rust-mcp/config-defaults/*.json /usr/share/rust-mcp/
           
           echo "=== Installing systemd service ==="
-          sudo cp rust-mcp/debian/rust-mcp.service /lib/systemd/system/rust-mcp.service
+          sudo cp rust-mcp/debian/odoo-rust-mcp.service /lib/systemd/system/odoo-rust-mcp.service
           
           echo "=== Verifying installation ==="
-          ls -la /usr/bin/rust-mcp*
+          ls -la /usr/bin/odoo-rust-mcp*
           ls -la /usr/share/rust-mcp/
-          cat /lib/systemd/system/rust-mcp.service
+          cat /lib/systemd/system/odoo-rust-mcp.service
       
       - name: Setup system config directory
         run: |
           echo "=== Creating system config directory ==="
-          sudo mkdir -p /etc/rust-mcp
+          sudo mkdir -p /etc/odoo-rust-mcp
           
           echo "=== Creating instances.json ==="
           sudo tee /etc/rust-mcp/instances.json > /dev/null << 'EOF'
@@ -473,24 +473,24 @@ jobs:
           sudo systemctl daemon-reload
           
           echo "=== Enabling service ==="
-          sudo systemctl enable rust-mcp
+          sudo systemctl enable odoo-rust-mcp
           echo "PASS: Service enabled"
           
           echo "=== Starting service ==="
-          sudo systemctl start rust-mcp
+          sudo systemctl start odoo-rust-mcp
           
           echo "=== Waiting for service to start ==="
           sleep 3
           
           echo "=== Checking service status ==="
-          sudo systemctl status rust-mcp --no-pager || true
+          sudo systemctl status odoo-rust-mcp --no-pager || true
           
-          if sudo systemctl is-active --quiet rust-mcp; then
-            echo "PASS: rust-mcp service is running"
+          if sudo systemctl is-active --quiet odoo-rust-mcp; then
+            echo "PASS: odoo-rust-mcp service is running"
           else
-            echo "FAIL: rust-mcp service is not running"
+            echo "FAIL: odoo-rust-mcp service is not running"
             echo "=== Service logs ==="
-            sudo journalctl -u rust-mcp --no-pager -n 100
+            sudo journalctl -u odoo-rust-mcp --no-pager -n 100
             exit 1
           fi
       
@@ -510,7 +510,7 @@ jobs:
           # Verify health endpoint responded
           if ! curl -s http://127.0.0.1:8787/health > /dev/null 2>&1; then
             echo "FAIL: HTTP health endpoint not responding"
-            sudo journalctl -u rust-mcp --no-pager -n 50
+            sudo journalctl -u odoo-rust-mcp --no-pager -n 50
             exit 1
           fi
           
@@ -542,14 +542,14 @@ jobs:
       - name: Test service restart
         run: |
           echo "=== Restarting service ==="
-          sudo systemctl restart rust-mcp
+          sudo systemctl restart odoo-rust-mcp
           sleep 3
           
-          if sudo systemctl is-active --quiet rust-mcp; then
+          if sudo systemctl is-active --quiet odoo-rust-mcp; then
             echo "PASS: Service restarted successfully"
           else
             echo "FAIL: Service failed to restart"
-            sudo journalctl -u rust-mcp --no-pager -n 50
+            sudo journalctl -u odoo-rust-mcp --no-pager -n 50
             exit 1
           fi
           
@@ -564,10 +564,10 @@ jobs:
       - name: Test service stop
         run: |
           echo "=== Stopping service ==="
-          sudo systemctl stop rust-mcp
+          sudo systemctl stop odoo-rust-mcp
           sleep 2
           
-          if ! sudo systemctl is-active --quiet rust-mcp; then
+          if ! sudo systemctl is-active --quiet odoo-rust-mcp; then
             echo "PASS: Service stopped cleanly"
           else
             echo "FAIL: Service did not stop"
@@ -575,17 +575,17 @@ jobs:
           fi
           
           echo "=== Disabling service ==="
-          sudo systemctl disable rust-mcp
+          sudo systemctl disable odoo-rust-mcp
           echo "PASS: Service disabled"
       
       - name: Collect logs on failure
         if: failure()
         run: |
           echo "=== Full service logs ==="
-          sudo journalctl -u rust-mcp --no-pager -n 200
+          sudo journalctl -u odoo-rust-mcp --no-pager -n 200
           echo ""
           echo "=== System status ==="
-          sudo systemctl status rust-mcp --no-pager || true
+          sudo systemctl status odoo-rust-mcp --no-pager || true
 
   test-macos-service:
     name: Test macOS Service
@@ -638,7 +638,7 @@ jobs:
       - name: Test binary directly
         run: |
           echo "=== Testing binary help ==="
-          ./rust-mcp/target/release/rust-mcp --help
+          ./rust-mcp/target/release/odoo-rust-mcp --help
           
           echo ""
           echo "=== Starting binary in background ==="
@@ -646,7 +646,7 @@ jobs:
           MCP_PROMPTS_JSON="$PWD/rust-mcp/config-defaults/prompts.json" \
           MCP_SERVER_JSON="$PWD/rust-mcp/config-defaults/server.json" \
           ODOO_INSTANCES_JSON="$HOME/.config/odoo-rust-mcp/instances.json" \
-          ./rust-mcp/target/release/rust-mcp --transport http --listen 127.0.0.1:8787 &
+          ./rust-mcp/target/release/odoo-rust-mcp --transport http --listen 127.0.0.1:8787 &
           
           BINARY_PID=$!
           echo "Started with PID: $BINARY_PID"
@@ -697,5 +697,5 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          pkill -f "rust-mcp.*--transport.*http" 2>/dev/null || true
+          pkill -f "odoo-rust-mcp.*--transport.*http" 2>/dev/null || true
           rm -rf "$HOME/.config/odoo-rust-mcp" 2>/dev/null || true

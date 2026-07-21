@@ -1,6 +1,6 @@
 # Odoo Rust MCP - APT Repository
 
-This directory contains the APT repository configuration for distributing rust-mcp on Debian/Ubuntu systems.
+This directory contains the APT repository configuration for distributing odoo-rust-mcp on Debian/Ubuntu systems.
 
 ## Installation
 
@@ -8,14 +8,14 @@ This directory contains the APT repository configuration for distributing rust-m
 
 ```bash
 # Add GPG key
-curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rust-mcp.gpg
+curl -fsSL https://milzamsz.github.io/odoo-rust-mcp/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/odoo-rust-mcp.gpg
 
 # Add repository
-echo "deb [signed-by=/usr/share/keyrings/rust-mcp.gpg] https://milzamsz.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/rust-mcp.list
+echo "deb [signed-by=/usr/share/keyrings/odoo-rust-mcp.gpg] https://milzamsz.github.io/odoo-rust-mcp stable main" | sudo tee /etc/apt/sources.list.d/odoo-rust-mcp.list
 
 # Install
 sudo apt update
-sudo apt install rust-mcp
+sudo apt install odoo-rust-mcp
 ```
 
 ### Configuration
@@ -30,13 +30,13 @@ nano ~/.config/rust-mcp/env
 
 ```bash
 # Start the service
-sudo systemctl start rust-mcp
+sudo systemctl start odoo-rust-mcp
 
 # Enable on boot
-sudo systemctl enable rust-mcp
+sudo systemctl enable odoo-rust-mcp
 
 # Check status
-sudo systemctl status rust-mcp
+sudo systemctl status odoo-rust-mcp
 ```
 
 ### Service Endpoint
@@ -46,9 +46,9 @@ Once running, the MCP server is available at: `http://127.0.0.1:8787/mcp`
 ## Uninstall
 
 ```bash
-sudo apt remove rust-mcp
-sudo rm /etc/apt/sources.list.d/rust-mcp.list
-sudo rm /usr/share/keyrings/rust-mcp.gpg
+sudo apt remove odoo-rust-mcp
+sudo rm /etc/apt/sources.list.d/odoo-rust-mcp.list
+sudo rm /usr/share/keyrings/odoo-rust-mcp.gpg
 ```
 
 ## Repository Structure

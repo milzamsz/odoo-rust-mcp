@@ -5,7 +5,7 @@ set -e
 # Installs to /usr/local/bin (binary) and /usr/local/share/odoo-rust-mcp (config)
 # Run from extracted release directory: ./install.sh [install|uninstall|service|service-uninstall]
 
-BINARY_NAME="rust-mcp"
+BINARY_NAME="odoo-rust-mcp"
 # Support custom PREFIX for testing (e.g., PREFIX=$HOME/.local ./install.sh)
 PREFIX="${PREFIX:-/usr/local}"
 INSTALL_DIR="${PREFIX}/bin"
