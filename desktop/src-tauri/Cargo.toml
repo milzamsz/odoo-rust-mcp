@@ -1,6 +1,6 @@
 [package]
 name = "odoo-rust-mcp-desktop"
-version = "0.6.1"
+version = "0.6.2"
 description = "Native Windows desktop app for Odoo Rust MCP"
 authors = ["milzamsz"]
 edition = "2021"
