@@ -15,7 +15,7 @@ $Root = $PSScriptRoot
 $DesktopDir = "$Root\desktop"
 $TauriDir = "$DesktopDir\src-tauri"
 $RustRelease = "$Root\rust-mcp\target\release\odoo-rust-mcp.exe"
-$SidecarTarget = "$TauriDir\binaries\odoo-rust-mcp-x86_64-pc-windows-msvc.exe"
+$SidecarTarget = "$TauriDir\binaries\odoo-rust-mcp-desktop-server-x86_64-pc-windows-msvc.exe"
 
 # Ensure sidecar binary exists
 if (-not (Test-Path $SidecarTarget)) {

@@ -353,7 +353,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path desktop/src-tauri/binaries | Out-Null
-          Copy-Item "rust-mcp/target/x86_64-pc-windows-msvc/release/odoo-rust-mcp.exe" -Destination "desktop/src-tauri/binaries/odoo-rust-mcp-x86_64-pc-windows-msvc.exe"
+          Copy-Item "rust-mcp/target/x86_64-pc-windows-msvc/release/odoo-rust-mcp.exe" -Destination "desktop/src-tauri/binaries/odoo-rust-mcp-desktop-server-x86_64-pc-windows-msvc.exe"
           New-Item -ItemType Directory -Force -Path desktop/src-tauri/static/dist | Out-Null
           Copy-Item -Recurse "rust-mcp/static/dist/*" -Destination "desktop/src-tauri/static/dist/"
           New-Item -ItemType Directory -Force -Path desktop/src-tauri/docs/book | Out-Null
@@ -436,7 +436,7 @@ jobs:
         run: |
           mkdir -p desktop/src-tauri/binaries
           cp rust-mcp/target/x86_64-unknown-linux-gnu/release/odoo-rust-mcp \
-            desktop/src-tauri/binaries/odoo-rust-mcp-x86_64-unknown-linux-gnu
+            desktop/src-tauri/binaries/odoo-rust-mcp-desktop-server-x86_64-unknown-linux-gnu
           mkdir -p desktop/src-tauri/static/dist
           cp -r rust-mcp/static/dist/* desktop/src-tauri/static/dist/
           mkdir -p desktop/src-tauri/docs/book
