@@ -7,7 +7,7 @@ use rust_mcp::odoo::legacy_client::OdooLegacyClient;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, Respond, ResponseTemplate};
 
 fn create_legacy_config(url: &str) -> OdooInstanceConfig {
@@ -131,6 +131,43 @@ async fn test_legacy_auth_failure() {
 
     // Should fail because authentication returns false
     assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn test_legacy_auth_falls_back_to_web_session_on_rpc_error() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/jsonrpc"))
+        .and(body_partial_json(json!({"params": {"service": "common"}})))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(jsonrpc_error(200, "object is not bound")),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/web/session/authenticate"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(jsonrpc_success(json!({
+                "uid": 2
+            }))),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/jsonrpc"))
+        .and(body_partial_json(json!({"params": {"service": "object"}})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(jsonrpc_success(json!([1, 2]))))
+        .mount(&server)
+        .await;
+
+    let client = OdooLegacyClient::new(&create_legacy_config(&server.uri())).unwrap();
+    let result = client
+        .search("res.partner", None, None, None, None, None)
+        .await
+        .unwrap();
+
+    assert_eq!(result, vec![1, 2]);
 }
 
 // ============================================================================

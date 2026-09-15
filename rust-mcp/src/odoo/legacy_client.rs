@@ -204,9 +204,13 @@ impl OdooLegacyClient {
 
         // Authenticate via common service
         let args = json!([self.db, self.username, self.password, {}]);
-        let result = self
+        let result = match self
             .jsonrpc_call("common", "authenticate", args, RetryMode::Safe)
-            .await?;
+            .await
+        {
+            Ok(result) => result,
+            Err(_) => self.web_session_authenticate().await?,
+        };
 
         let uid = result.as_i64().ok_or_else(|| OdooError::Api {
             status: 401,
@@ -235,6 +239,42 @@ impl OdooLegacyClient {
         }
 
         Ok(uid)
+    }
+
+    async fn web_session_authenticate(&self) -> OdooResult<Value> {
+        let mut url = self.base_url.clone();
+        url.set_path("/web/session/authenticate");
+        let response = self
+            .http
+            .post(url)
+            .headers(self.headers())
+            .json(&json!({
+                "jsonrpc": "2.0",
+                "method": "call",
+                "params": {
+                    "db": self.db,
+                    "login": self.username,
+                    "password": self.password
+                },
+                "id": 1
+            }))
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await?;
+
+        response
+            .pointer("/result/uid")
+            .cloned()
+            .ok_or_else(|| OdooError::Api {
+                status: 401,
+                message: format!(
+                    "Authentication failed for user '{}'. Check username/password.",
+                    self.username
+                ),
+                body: None,
+            })
     }
 
     /// Call execute_kw on the object service
