@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.6.5] - 2026-09-15
+
+### Fixed
+- Fall back to Odoo's web-session authentication when legacy JSON-RPC authentication is rejected by request-context-dependent custom addons.
+- Publish the fallback in the Windows, Linux, and macOS release builds.
+
 ## [v0.6.0] - 2026-07-20
 
 ### Added
