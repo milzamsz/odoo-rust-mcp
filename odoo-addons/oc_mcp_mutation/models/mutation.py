@@ -2,6 +2,52 @@ from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 
+def _precise(write_date):
+    return write_date.isoformat(sep=" ", timespec="microseconds")
+
+
+def _version_matches(write_date, expected):
+    """Compare a full-precision version token, or fall back to whole seconds."""
+    # Odoo's APIs serialize write_date to whole seconds, which cannot see a second
+    # edit within the same second; the precise token comes from oc_mcp_write_version.
+    if "." in expected:
+        return _precise(write_date) == expected
+    return fields.Datetime.to_string(write_date) == expected
+
+
+def _write_versions(cr, table, ids):
+    # Table names come only from the fixed _POLICIES/_VERSIONED_TABLES maps, never from input.
+    cr.execute(f"SELECT id, write_date FROM {table} WHERE id IN %s", [tuple(ids)])
+    return {row_id: _precise(write_date) for row_id, write_date in cr.fetchall() if write_date}
+
+
+class WriteVersionMixin(models.AbstractModel):
+    _name = "oc.mcp.write.version.mixin"
+    _description = "Full-precision write version for guarded draft updates"
+
+    oc_mcp_write_version = fields.Char(
+        compute="_compute_oc_mcp_write_version",
+        help="write_date with microseconds; pass it as expected_write_date to the guarded update.",
+    )
+
+    def _compute_oc_mcp_write_version(self):
+        stored = self.filtered("id")
+        self.flush_model(["write_date"])
+        versions = _write_versions(self.env.cr, self._table, stored.ids) if stored else {}
+        for record in self:
+            record.oc_mcp_write_version = versions.get(record.id, False)
+
+
+class SaleOrder(models.Model):
+    _name = "sale.order"
+    _inherit = ["sale.order", "oc.mcp.write.version.mixin"]
+
+
+class AccountMove(models.Model):
+    _name = "account.move"
+    _inherit = ["account.move", "oc.mcp.write.version.mixin"]
+
+
 class ControlledMutation(models.AbstractModel):
     _name = "oc.mcp.mutation"
     _description = "Atomic controlled mutation boundary"
@@ -60,7 +106,7 @@ class ControlledMutation(models.AbstractModel):
             }
         if state != "draft":
             return {"status": "conflict", "reason": "record is no longer draft"}
-        if fields.Datetime.to_string(write_date) != expected_write_date:
+        if not _version_matches(write_date, expected_write_date):
             return {"status": "conflict", "reason": "record changed after preview"}
 
         values = {
@@ -71,10 +117,12 @@ class ControlledMutation(models.AbstractModel):
         # ORM write applies ACLs, record rules, and model constraints on every
         # supported Odoo version; the row lock above only adds atomicity.
         record.write(values)
+        record.flush_recordset()
         return {
             "status": "updated",
             "id": record.id,
             "company_id": record.company_id.id,
             "state": record.state,
             "write_date": fields.Datetime.to_string(record.write_date),
+            "write_version": _write_versions(self.env.cr, policy["table"], record.ids)[record.id],
         }
