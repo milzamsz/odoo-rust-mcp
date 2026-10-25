@@ -99,7 +99,9 @@ async fn mcp_initialize_and_list_tools_prompts() {
         &instances,
         serde_json::json!({"default": {
             "url": "http://localhost:8069", "db": "v19_pos",
-            "apiKey": "dummy", "version": "19"
+            "apiKey": "dummy", "version": "19",
+            // Keep the env-level limits: connect to a closed port is slow on Windows.
+            "timeout_ms": 250, "max_retries": 0
         }})
         .to_string(),
     )
