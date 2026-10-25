@@ -59,6 +59,7 @@ pub async fn execute(pool: &OdooClientPool, args: Value) -> OdooResult<Value> {
     let envelope: Envelope = serde_json::from_value(args.clone())
         .map_err(|e| invalid(format!("invalid capability envelope: {e}")))?;
     let registry = validate_envelope(pool, &args, &envelope)?;
+    preflight_receipt(&registry, &envelope)?;
 
     let (state_path, created) = claim(&envelope)?;
     if !created {
@@ -95,6 +96,9 @@ pub async fn execute(pool: &OdooClientPool, args: Value) -> OdooResult<Value> {
             .await
         {
             Ok(value) => value,
+            Err(error) if is_access_denied(&error) => {
+                return denied(&registry, &envelope, &state_path, "draft_write", &error);
+            }
             Err(error) => {
                 return validate_result(
                     &registry,
@@ -167,6 +171,10 @@ pub async fn execute(pool: &OdooClientPool, args: Value) -> OdooResult<Value> {
         .await
     {
         Ok(id) => id,
+        Err(error) if is_access_denied(&error) => {
+            let class = operation_class(&envelope.capability);
+            return denied(&registry, &envelope, &state_path, class, &error);
+        }
         Err(error) => {
             return validate_result(
                 &registry,
@@ -316,6 +324,65 @@ fn validate_result(registry: &Value, envelope: &Envelope, output: Value) -> Odoo
     if let Err(error) = validator.validate(receipt) {
         return Err(invalid(format!("capability receipt rejected: {error}")));
     }
+    Ok(output)
+}
+
+/// Validate a provisional receipt for this envelope before any claim or write,
+/// so a target the receipt schema cannot accept fails without touching Odoo.
+fn preflight_receipt(registry: &Value, envelope: &Envelope) -> OdooResult<()> {
+    let provisional = result(
+        envelope,
+        "uncertain",
+        None,
+        operation_class(&envelope.capability),
+        "uncertain",
+        Some("preflight"),
+    );
+    validate_result(registry, envelope, provisional)
+        .map(|_| ())
+        .map_err(|error| {
+            invalid(format!(
+                "capability preflight rejected before write: {error}"
+            ))
+        })
+}
+
+/// Odoo rejects an unauthorized write with an AccessError and rolls the transaction
+/// back: HTTP 403 on JSON-2, or an error named `...AccessError` on legacy JSON-RPC.
+fn is_access_denied(error: &OdooError) -> bool {
+    match error {
+        OdooError::Api { status, body, .. } => {
+            *status == 403
+                || body
+                    .as_ref()
+                    .and_then(|body| body.name.as_deref())
+                    .is_some_and(|name| name.ends_with("AccessError"))
+        }
+        _ => false,
+    }
+}
+
+/// A definitive Odoo access denial: no record exists, so the claim completes as denied.
+fn denied(
+    registry: &Value,
+    envelope: &Envelope,
+    state_path: &Path,
+    class: &str,
+    error: &OdooError,
+) -> OdooResult<Value> {
+    let output = validate_result(
+        registry,
+        envelope,
+        result(
+            envelope,
+            "denied",
+            None,
+            class,
+            "not_run",
+            Some(&format!("Odoo denied the write: {error}")),
+        ),
+    )?;
+    persist_completed(state_path, envelope, &output)?;
     Ok(output)
 }
 
@@ -990,14 +1057,27 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn signed_capability_executes_once_and_replays_receipt() {
-        let _lock = ENV_LOCK.lock().unwrap();
+    struct CrmFixture {
+        _server: MockServer,
+        _temp: TempDir,
+        _env: EnvGuard,
+        pool: OdooClientPool,
+        envelope: Value,
+        secret: &'static str,
+    }
+
+    /// Signed CRM lead envelope against a mocked JSON-2 server. The caller holds ENV_LOCK.
+    async fn crm_fixture(
+        create: ResponseTemplate,
+        creates: u64,
+        reads: u64,
+        receipt_schema: Value,
+    ) -> CrmFixture {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/json/2/crm.lead/create"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!([42])))
-            .expect(1)
+            .respond_with(create)
+            .expect(creates)
             .mount(&server)
             .await;
         Mock::given(method("POST"))
@@ -1005,7 +1085,7 @@ mod tests {
             .respond_with(ResponseTemplate::new(200).set_body_json(json!([{
                 "id": 42, "company_id": [1, "Test"], "type": "lead"
             }])))
-            .expect(1)
+            .expect(reads)
             .mount(&server)
             .await;
 
@@ -1035,7 +1115,7 @@ mod tests {
                 },
                 "output": {"type": "object"}
             }},
-            "capability_receipt": {"type": "object"},
+            "capability_receipt": receipt_schema,
             "capability_contract": {
                 "cells": {"odoo19-community": {
                     "version": "19.0", "edition": "community", "protocol": "json2", "auth_mode": "api_key"
@@ -1050,7 +1130,7 @@ mod tests {
         fs::write(&registry_path, &registry_bytes).unwrap();
         let revision = format!("sha256:{:x}", Sha256::digest(&registry_bytes));
         let secret = "test-key-0123456789abcdef-0123456789abcdef";
-        let _env = EnvGuard::set(&[
+        let env = EnvGuard::set(&[
             (
                 "ODOO_CAPABILITY_REGISTRY",
                 registry_path.display().to_string(),
@@ -1131,21 +1211,120 @@ mod tests {
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
         mac.update(&canonical(&unsigned).unwrap());
         value["signature"] = json!(hex::encode(mac.finalize().into_bytes()));
+        CrmFixture {
+            _server: server,
+            _temp: temp,
+            _env: env,
+            pool,
+            envelope: value,
+            secret,
+        }
+    }
 
-        let first = execute(&pool, value.clone()).await.unwrap();
+    #[tokio::test]
+    async fn signed_capability_executes_once_and_replays_receipt() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let fixture = crm_fixture(
+            ResponseTemplate::new(200).set_body_json(json!([42])),
+            1,
+            1,
+            json!({"type": "object"}),
+        )
+        .await;
+        let pool = &fixture.pool;
+        let mut value = fixture.envelope.clone();
+        let _ = fixture.secret;
+        let first = execute(pool, value.clone()).await.unwrap();
         assert_eq!(first["status"], "created");
         assert_eq!(first["receipt"]["verification"]["status"], "passed");
-        let replay = execute(&pool, value.clone()).await.unwrap();
+        let replay = execute(pool, value.clone()).await.unwrap();
         assert_eq!(replay["status"], "replay");
         assert_eq!(replay["receipt"]["status"], "replay");
 
         value["actor_ref"] = json!("tampered");
         assert!(
-            execute(&pool, value)
+            execute(pool, value)
                 .await
                 .unwrap_err()
                 .to_string()
                 .contains("signature mismatch")
         );
+    }
+
+    #[tokio::test]
+    async fn odoo_access_error_on_create_is_denied_and_not_retried() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let fixture = crm_fixture(
+            ResponseTemplate::new(403).set_body_json(json!({
+                "name": "odoo.exceptions.AccessError",
+                "message": "You are not allowed to create 'Lead/Opportunity' (crm.lead) records.",
+                "arguments": [], "context": {}, "debug": ""
+            })),
+            1,
+            0,
+            json!({"type": "object"}),
+        )
+        .await;
+        let first = execute(&fixture.pool, fixture.envelope.clone())
+            .await
+            .unwrap();
+        assert_eq!(first["status"], "denied");
+        assert_eq!(first["receipt"]["status"], "denied");
+        assert_eq!(first["receipt"]["verification"]["status"], "not_run");
+        let again = execute(&fixture.pool, fixture.envelope.clone())
+            .await
+            .unwrap();
+        assert_eq!(again["status"], "replay");
+    }
+
+    #[tokio::test]
+    async fn receipt_target_rejection_happens_before_any_write() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let narrow_receipt = json!({
+            "type": "object",
+            "properties": {"target_cell": {"type": "object", "properties": {
+                "version": {"enum": ["17.0", "18.0"]}
+            }}}
+        });
+        let fixture = crm_fixture(
+            ResponseTemplate::new(200).set_body_json(json!([42])),
+            0,
+            0,
+            narrow_receipt,
+        )
+        .await;
+        let error = execute(&fixture.pool, fixture.envelope.clone())
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("preflight rejected before write"), "{error}");
+    }
+
+    #[test]
+    fn access_denied_detection_covers_json2_and_legacy_errors() {
+        let json2 = OdooError::Api {
+            status: 403,
+            message: "Forbidden".into(),
+            body: None,
+        };
+        assert!(is_access_denied(&json2));
+        let legacy = OdooError::Api {
+            status: 200,
+            message: "Odoo Server Error".into(),
+            body: Some(crate::odoo::types::OdooErrorBody {
+                name: Some("odoo.exceptions.AccessError".into()),
+                message: None,
+                arguments: vec![],
+                context: Value::Null,
+                debug: None,
+            }),
+        };
+        assert!(is_access_denied(&legacy));
+        let server = OdooError::Api {
+            status: 500,
+            message: "boom".into(),
+            body: None,
+        };
+        assert!(!is_access_denied(&server));
     }
 }
