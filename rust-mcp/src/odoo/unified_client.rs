@@ -7,6 +7,8 @@ use super::legacy_client::OdooLegacyClient;
 use super::types::OdooResult;
 
 /// Trait for Odoo client operations, enabling mockability for testing.
+// async_trait's expansion adds #[must_use] to boxed futures; newer Clippy flags that as double_must_use.
+#[allow(unknown_lints, clippy::double_must_use)]
 #[async_trait]
 pub trait OdooClientTrait: Send + Sync {
     async fn search(
