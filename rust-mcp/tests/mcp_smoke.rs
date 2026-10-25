@@ -91,6 +91,26 @@ async fn mcp_initialize_and_list_tools_prompts() {
         );
     }
 
+    // Pin a temporary single-instance file so the pool never falls back to the
+    // developer's ~/.config/odoo-rust-mcp/instances.json (and its real servers).
+    std::fs::create_dir_all(&tmp).unwrap();
+    let instances = tmp.join("instances.json");
+    std::fs::write(
+        &instances,
+        serde_json::json!({"default": {
+            "url": "http://localhost:8069", "db": "v19_pos",
+            "apiKey": "dummy", "version": "19"
+        }})
+        .to_string(),
+    )
+    .unwrap();
+    unsafe {
+        std::env::set_var(
+            "ODOO_INSTANCES_JSON",
+            instances.to_string_lossy().to_string(),
+        );
+    }
+
     let pool = OdooClientPool::from_env().unwrap();
     let registry = Arc::new(Registry::from_env());
     registry.initial_load().await.unwrap();

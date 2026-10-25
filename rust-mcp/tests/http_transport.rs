@@ -27,12 +27,31 @@ async fn setup_test_server(with_auth: bool) -> (TestServer, TempDir) {
     std::fs::write(temp_dir.path().join("tools.json"), minimal_tools_json()).unwrap();
     std::fs::write(temp_dir.path().join("prompts.json"), minimal_prompts_json()).unwrap();
     std::fs::write(temp_dir.path().join("server.json"), minimal_server_json()).unwrap();
+    // Pin a single test instance so the pool never falls back to the developer's
+    // ~/.config/odoo-rust-mcp/instances.json (and its real servers).
+    std::fs::write(
+        temp_dir.path().join("instances.json"),
+        serde_json::json!({"default": {
+            "url": "http://localhost:8069", "db": "test_db",
+            "apiKey": "test_key", "version": "19"
+        }})
+        .to_string(),
+    )
+    .unwrap();
 
     // Set up environment
     unsafe {
         std::env::set_var("ODOO_URL", "http://localhost:8069");
         std::env::set_var("ODOO_DB", "test_db");
         std::env::set_var("ODOO_API_KEY", "test_key");
+        std::env::set_var(
+            "ODOO_INSTANCES_JSON",
+            temp_dir
+                .path()
+                .join("instances.json")
+                .to_string_lossy()
+                .to_string(),
+        );
         std::env::set_var(
             "MCP_TOOLS_JSON",
             temp_dir
