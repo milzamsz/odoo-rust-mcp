@@ -575,14 +575,20 @@ fn line_commands(input: &Map<String, Value>, quotation: bool, version: &str) -> 
             "tax_ids": [[6, 0, line["tax_ids"]]],
         });
         if quotation {
+            // Odoo 19 renamed sale.order.line tax_id/product_uom; later majors keep the new names.
+            let renamed = version
+                .split('.')
+                .next()
+                .and_then(|major| major.parse::<u32>().ok())
+                .is_some_and(|major| major >= 19);
             values["product_id"] = line["product_id"].clone();
-            if version != "19.0" {
+            if !renamed {
                 values["tax_id"] = values
                     .as_object_mut()
                     .and_then(|values| values.remove("tax_ids"))
                     .expect("line values contain tax_ids");
             }
-            values[if version == "19.0" {
+            values[if renamed {
                 "product_uom_id"
             } else {
                 "product_uom"
@@ -940,6 +946,8 @@ mod tests {
         let input = input.as_object().unwrap();
         let old = line_commands(input, true, "18.0").unwrap();
         let new = line_commands(input, true, "19.0").unwrap();
+        let next = line_commands(input, true, "20.0").unwrap();
+        assert_eq!(next, new);
         assert_eq!(old[0][2]["product_uom"], 2);
         assert!(old[0][2].get("product_uom_id").is_none());
         assert!(old[0][2].get("tax_id").is_some());
