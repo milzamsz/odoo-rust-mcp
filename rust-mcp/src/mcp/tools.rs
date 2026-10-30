@@ -1380,6 +1380,7 @@ mod tests {
                 map: HashMap::new(),
             },
             guards: None,
+            enabled: true,
         }
     }
 

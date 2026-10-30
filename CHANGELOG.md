@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.6.6] - 2026-10-01
+
+- Fixed desktop restart reusing an existing server instead of replacing its owned child.
+- Verify both server endpoints and backend version; report external ownership and restart failures.
+
+- Added persistent global permission-gate controls with saved/active state reporting.
+- Preserved tool guards while adding explicit catalog enable flags.
+
 All notable changes to the **Odoo Rust MCP Server** are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/),

@@ -8,6 +8,7 @@ import type {
   PromptConfig,
   ToolCatalogDrift,
   ToolCatalogImportResult,
+  PermissionsResponse,
 } from '../types';
 
 type ConfigData = InstanceConfig | ServerConfig | ToolConfig[] | PromptConfig[];
@@ -170,4 +171,19 @@ export async function importMissingTools(): Promise<ToolCatalogImportResult> {
   }
 
   return response.json();
+}
+
+export async function loadPermissions(): Promise<PermissionsResponse> {
+  const response = await fetch('/api/config/permissions', { headers: getAuthHeaders() });
+  if (!response.ok) throw new Error('Failed to load permission gates');
+  return response.json();
+}
+
+export async function savePermissions(values: Record<string, boolean>): Promise<PermissionsResponse> {
+  const response = await fetch('/api/config/permissions', {
+    method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(values),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Failed to save permission gates');
+  return data.permissions;
 }

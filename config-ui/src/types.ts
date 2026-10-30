@@ -68,6 +68,7 @@ export interface ToolConfig {
     requiresEnvTrueAll?: string[];
     [key: string]: string | string[] | undefined;
   };
+  enabled?: boolean;
   inputSchema?: {
     properties?: Record<string, ToolSchemaProperty>;
     required?: string[];
@@ -79,6 +80,19 @@ export interface ToolConfig {
     [key: string]: unknown;
   };
   [key: string]: unknown;
+}
+
+export interface PermissionGateState {
+  saved: boolean;
+  active: boolean;
+  source: string;
+  restart_required: boolean;
+  environment_override: boolean;
+}
+
+export interface PermissionsResponse {
+  gates: Record<string, PermissionGateState>;
+  config_path: string;
 }
 
 export interface ToolCatalogToolSummary {

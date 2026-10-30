@@ -175,12 +175,8 @@ pub async fn start_config_server(
     let config_watcher = Arc::new(ConfigWatcher::new(config_dir.clone())?);
     let auth_config = DynamicAuthConfig::new(AuthConfig::from_env());
 
-    // Determine env file path
-    let env_file_path = if let Some(home) = dirs::home_dir() {
-        home.join(".config/odoo-rust-mcp/env")
-    } else {
-        config_dir.join("env")
-    };
+    // Use the same configuration directory for persisted gates and startup.
+    let env_file_path = config_dir.join("env");
 
     let state = AppState {
         config_manager,
@@ -234,6 +230,8 @@ pub async fn start_config_server(
         )
         .route("/api/config/tools", get(get_tools))
         .route("/api/config/tools", post(update_tools))
+        .route("/api/config/permissions", get(get_permissions))
+        .route("/api/config/permissions", post(update_permissions))
         .route("/api/config/tools/drift", get(get_tools_drift))
         .route(
             "/api/config/tools/import-missing",
@@ -1326,6 +1324,87 @@ async fn update_instances(
                 .into_response()
         }
     }
+}
+
+const PERMISSION_GATES: [&str; 3] = [
+    "ODOO_ENABLE_WRITE_TOOLS",
+    "ODOO_ENABLE_CLEANUP_TOOLS",
+    "ODOO_ENABLE_EXECUTE_TOOL",
+];
+
+#[derive(Debug, Deserialize)]
+struct PermissionUpdate {
+    #[serde(flatten)]
+    values: HashMap<String, bool>,
+}
+
+fn permission_state(path: &PathBuf) -> Value {
+    let saved = read_active_env_vars(path);
+    let gates = PERMISSION_GATES
+        .iter()
+        .map(|key| {
+            let saved_value = saved.get(*key).is_some_and(|v| env_value_true(v));
+            let active_raw = std::env::var(key).ok();
+            let active_value = active_raw.as_deref().is_some_and(env_value_true);
+            let source = if active_raw.is_some() {
+                "process_environment"
+            } else {
+                "env_file"
+            };
+            (
+                key.to_string(),
+                json!({
+                    "saved": saved_value,
+                    "active": active_value,
+                    "source": source,
+                    "restart_required": saved_value != active_value,
+                    "environment_override": active_raw.is_some(),
+                }),
+            )
+        })
+        .collect::<serde_json::Map<_, _>>();
+    json!({ "gates": gates, "config_path": path.display().to_string() })
+}
+
+fn env_value_true(value: &str) -> bool {
+    matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "y" | "on"
+    )
+}
+
+async fn get_permissions(State(state): State<AppState>) -> impl IntoResponse {
+    (StatusCode::OK, Json(permission_state(&state.env_file_path))).into_response()
+}
+
+async fn update_permissions(
+    State(state): State<AppState>,
+    Json(payload): Json<PermissionUpdate>,
+) -> impl IntoResponse {
+    for (key, value) in payload.values {
+        if !PERMISSION_GATES.contains(&key.as_str()) {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": format!("Unknown permission gate: {key}") })),
+            )
+                .into_response();
+        }
+        if std::env::var(&key).is_ok() {
+            return (StatusCode::CONFLICT, Json(json!({ "error": format!("{key} is overridden by the process environment; change the launcher environment first") }))).into_response();
+        }
+        if let Err(error) = update_env_var(
+            &state.env_file_path,
+            &key,
+            if value { "true" } else { "false" },
+        ) {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": error.to_string() })),
+            )
+                .into_response();
+        }
+    }
+    (StatusCode::OK, Json(json!({ "status": "saved", "restart_required": true, "permissions": permission_state(&state.env_file_path) }))).into_response()
 }
 
 async fn get_tools(State(state): State<AppState>) -> impl IntoResponse {
