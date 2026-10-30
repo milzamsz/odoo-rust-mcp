@@ -99,6 +99,13 @@ impl OdooHttpClient {
                 .and_then(|body| body.message.clone())
                 .unwrap_or_else(|| text.to_string())
         };
+        let message = if status == reqwest::StatusCode::UNAUTHORIZED {
+            format!(
+                "{message}. Odoo 20 only accepts API keys created with the \"rpc\" scope on /json/2; MCP-scope keys are rejected. Check the key is not expired or revoked."
+            )
+        } else {
+            message
+        };
 
         OdooError::Api {
             status: status.as_u16(),
@@ -221,6 +228,17 @@ impl OdooHttpClient {
             match resp {
                 Ok(r) => {
                     let status = r.status();
+                    let is_pdf = r
+                        .headers()
+                        .get(reqwest::header::CONTENT_TYPE)
+                        .and_then(|v| v.to_str().ok())
+                        .is_some_and(|v| v.starts_with("application/pdf"));
+                    // Odoo 19/20 redirect /report/pdf to the login page for API keys; don't return that HTML as a PDF.
+                    if status.is_success() && !is_pdf {
+                        return Err(OdooError::InvalidResponse(format!(
+                            "{url} did not return a PDF (Odoo redirected to the login page). Odoo 19+ does not accept API keys on /report/pdf; use a username/password instance for reports."
+                        )));
+                    }
                     if status.is_success() {
                         let bytes = r.bytes().await.map_err(OdooError::Http)?;
                         return Ok(bytes.to_vec());
@@ -478,45 +496,6 @@ impl OdooHttpClient {
             .await
     }
 
-    /// read_group - Aggregate records with GROUP BY
-    pub async fn read_group(
-        &self,
-        model: &str,
-        domain: Option<Value>,
-        fields: Vec<String>,
-        groupby: Vec<String>,
-        offset: Option<i64>,
-        limit: Option<i64>,
-        orderby: Option<String>,
-        lazy: Option<bool>,
-        context: Option<Value>,
-    ) -> OdooResult<Value> {
-        let mut body = json!({
-            "fields": fields,
-            "groupby": groupby
-        });
-        if let Some(ctx) = context {
-            body["context"] = ctx;
-        }
-        if let Some(d) = domain {
-            body["domain"] = d;
-        }
-        if let Some(v) = offset {
-            body["offset"] = json!(v);
-        }
-        if let Some(v) = limit {
-            body["limit"] = json!(v);
-        }
-        if let Some(v) = orderby {
-            body["orderby"] = json!(v);
-        }
-        if let Some(v) = lazy {
-            body["lazy"] = json!(v);
-        }
-        self.post_json2_raw(model, "read_group", body, RetryMode::Safe)
-            .await
-    }
-
     /// name_search - Search by name with autocomplete-style matching
     pub async fn name_search(
         &self,
@@ -534,8 +513,9 @@ impl OdooHttpClient {
         if let Some(n) = name {
             body["name"] = json!(n);
         }
+        // JSON-2 is Odoo 19+, where the parameter is `domain` (renamed from `args` in 17).
         if let Some(a) = args {
-            body["args"] = a;
+            body["domain"] = a;
         }
         if let Some(op) = operator {
             body["operator"] = json!(op);
@@ -547,21 +527,6 @@ impl OdooHttpClient {
             .await
     }
 
-    /// name_get - Get display names for records
-    pub async fn name_get(
-        &self,
-        model: &str,
-        ids: Vec<i64>,
-        context: Option<Value>,
-    ) -> OdooResult<Value> {
-        let mut body = json!({ "ids": ids });
-        if let Some(ctx) = context {
-            body["context"] = ctx;
-        }
-        self.post_json2_raw(model, "name_get", body, RetryMode::Safe)
-            .await
-    }
-
     /// default_get - Get default values for new records
     pub async fn default_get(
         &self,
@@ -569,7 +534,8 @@ impl OdooHttpClient {
         fields_list: Vec<String>,
         context: Option<Value>,
     ) -> OdooResult<Value> {
-        let mut body = json!({ "fields_list": fields_list });
+        // `fields_list` was renamed `fields` in Odoo 19, the first JSON-2 version.
+        let mut body = json!({ "fields": fields_list });
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
@@ -628,8 +594,8 @@ impl OdooHttpClient {
         let mut body = json!({
             "ids": ids,
             "values": values,
-            "field_name": field_name,
-            "field_onchange": field_onchange
+            "field_names": field_name,
+            "fields_spec": field_onchange
         });
         if let Some(ctx) = context {
             body["context"] = ctx;
@@ -789,7 +755,8 @@ mod tests {
                 body,
             } => {
                 assert_eq!(status, 401);
-                assert_eq!(message, "Access denied");
+                assert!(message.starts_with("Access denied. "));
+                assert!(message.contains("\"rpc\" scope"));
                 assert_eq!(
                     body.and_then(|value| value.name),
                     Some("odoo.exceptions.AccessDenied".to_string())

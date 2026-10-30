@@ -192,34 +192,6 @@ async fn test_fields_get_success() {
 }
 
 #[tokio::test]
-async fn test_read_group_success() {
-    let mock = MockOdooServer::start().await;
-    mock.mock_method("sale.order", "read_group", responses::read_group_by_state())
-        .await;
-
-    let config = create_config(&mock.uri());
-    let client = OdooHttpClient::new(&config).unwrap();
-
-    let result = client
-        .read_group(
-            "sale.order",
-            None,
-            vec!["state".to_string()],
-            vec!["state".to_string()],
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-    assert!(result.is_array());
-    assert_eq!(result.as_array().unwrap().len(), 3);
-}
-
-#[tokio::test]
 async fn test_name_search_success() {
     let mock = MockOdooServer::start().await;
     mock.mock_method(
@@ -246,23 +218,6 @@ async fn test_name_search_success() {
 
     assert!(result.is_array());
     assert_eq!(result.as_array().unwrap().len(), 3);
-}
-
-#[tokio::test]
-async fn test_name_get_success() {
-    let mock = MockOdooServer::start().await;
-    mock.mock_method("res.partner", "name_get", responses::name_search_results())
-        .await;
-
-    let config = create_config(&mock.uri());
-    let client = OdooHttpClient::new(&config).unwrap();
-
-    let result = client
-        .name_get("res.partner", vec![1, 2, 3], None)
-        .await
-        .unwrap();
-
-    assert!(result.is_array());
 }
 
 #[tokio::test]
@@ -446,4 +401,28 @@ async fn test_download_report_pdf() {
         .unwrap();
 
     assert_eq!(result, pdf_content);
+}
+
+#[tokio::test]
+async fn test_should_reject_login_page_returned_instead_of_pdf() {
+    use wiremock::matchers::{method, path_regex};
+    use wiremock::{Mock, ResponseTemplate};
+
+    let mock = MockOdooServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"/report/pdf/.*"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/html; charset=utf-8")
+                .set_body_string("<!doctype html><title>Login</title>"),
+        )
+        .mount(&mock.server)
+        .await;
+
+    let client = OdooHttpClient::new(&create_config(&mock.uri())).unwrap();
+    let error = client
+        .download_report_pdf("account.report_invoice", &[1])
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("did not return a PDF"));
 }

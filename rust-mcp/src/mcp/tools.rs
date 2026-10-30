@@ -14,6 +14,7 @@ use crate::mcp::registry::{OpSpec, ToolDef, audit_tool_denial, capability_denial
 use crate::odoo::config::{OdooEnvConfig, load_odoo_env};
 use crate::odoo::types::OdooError;
 use crate::odoo::unified_client::OdooClient;
+use crate::odoo::version::OdooVersion;
 
 const DEFAULT_MAX_REPORT_BYTES: usize = 10 * 1024 * 1024;
 const ABSOLUTE_MAX_REPORT_BYTES: usize = 50 * 1024 * 1024;
@@ -232,6 +233,36 @@ impl OdooClientPool {
             .and_then(|config| config.tool_config)
             .map(|config| config.disabled_packs)
             .unwrap_or_default()
+    }
+
+    /// Configured version wins, then what the server reported, then a guess from the client kind.
+    pub async fn odoo_version(&self, instance: &str) -> OdooVersion {
+        if let Some(version) = self
+            .instance_config(instance)
+            .ok()
+            .and_then(|config| config.version)
+            .as_deref()
+            .and_then(OdooVersion::parse)
+        {
+            return version;
+        }
+        if let Some(version) = self
+            .module_snapshot(instance)
+            .await
+            .detected_version
+            .as_deref()
+            .and_then(OdooVersion::parse)
+        {
+            return version;
+        }
+        let legacy = self
+            .get(instance)
+            .await
+            .is_ok_and(|client| client.is_legacy());
+        OdooVersion {
+            major: if legacy { 18 } else { 19 },
+            minor: 0,
+        }
     }
 
     pub async fn module_snapshot(&self, instance: &str) -> ModuleSnapshot {
@@ -725,10 +756,13 @@ async fn op_search_read(
     let offset = opt_i64(&args, op, "offset")?;
     let order = opt_str(&args, op, "order")?;
     let context = opt_value(&args, op, "context");
+    let version = pool.odoo_version(&instance).await;
+    let (fields, datas) = attachment_read_fields(version, &model, fields);
 
     let records = client
         .search_read(&model, domain, fields, limit, offset, order, context)
         .await?;
+    let records = normalize_read(&client, version, &model, records, datas).await?;
     let count = records.as_array().map(|a| a.len()).unwrap_or(0);
     Ok(ok_text(json!({ "records": records, "count": count })))
 }
@@ -744,7 +778,10 @@ async fn op_read(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Valu
         .get(&instance)
         .await
         .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    let version = pool.odoo_version(&instance).await;
+    let (fields, datas) = attachment_read_fields(version, &model, fields);
     let records = client.read(&model, ids, fields, context).await?;
+    let records = normalize_read(&client, version, &model, records, datas).await?;
     Ok(ok_text(json!({ "records": records })))
 }
 
@@ -753,6 +790,7 @@ async fn op_create(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Va
     let model = req_str(&args, op, "model")?;
     let values = req_value(&args, op, "values")?;
     let context = opt_value(&args, op, "context");
+    let values = attachment_write_values(pool.odoo_version(&instance).await, &model, values);
 
     let client = pool
         .get(&instance)
@@ -768,6 +806,7 @@ async fn op_write(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Val
     let ids = req_vec_i64(&args, op, "ids")?;
     let values = req_value(&args, op, "values")?;
     let context = opt_value(&args, op, "context");
+    let values = attachment_write_values(pool.odoo_version(&instance).await, &model, values);
 
     let client = pool
         .get(&instance)
@@ -777,6 +816,122 @@ async fn op_write(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Val
     Ok(ok_text(
         json!({ "success": ok, "updated_count": ids.len() }),
     ))
+}
+
+/// Odoo 20 removed ir.attachment.datas (writes are silently dropped); raw takes the same base64 string.
+fn attachment_write_values(version: OdooVersion, model: &str, values: Value) -> Value {
+    if model != "ir.attachment" || !version.at_least(20, 0) {
+        return values;
+    }
+    rename_keys(values, "datas", "raw")
+}
+
+/// On Odoo 20 a read of ir.attachment.datas becomes raw, renamed back afterwards.
+fn attachment_read_fields(
+    version: OdooVersion,
+    model: &str,
+    fields: Option<Vec<String>>,
+) -> (Option<Vec<String>>, bool) {
+    match fields {
+        Some(fields)
+            if model == "ir.attachment"
+                && version.at_least(20, 0)
+                && fields.iter().any(|f| f == "datas") =>
+        {
+            let fields = fields
+                .into_iter()
+                .map(|f| if f == "datas" { "raw".to_string() } else { f })
+                .collect();
+            (Some(fields), true)
+        }
+        fields => (fields, false),
+    }
+}
+
+fn rename_keys(value: Value, from: &str, to: &str) -> Value {
+    match value {
+        Value::Array(items) => Value::Array(
+            items
+                .into_iter()
+                .map(|item| rename_keys(item, from, to))
+                .collect(),
+        ),
+        Value::Object(mut map) => {
+            if let Some(v) = map.remove(from) {
+                map.insert(to.to_string(), v);
+            }
+            Value::Object(map)
+        }
+        other => other,
+    }
+}
+
+/// Odoo 20 reads binary fields as {content, size, filename}; flatten to the base64 string
+/// every older version returns. Only fields typed binary are touched, never Json fields.
+async fn normalize_read(
+    client: &OdooClient,
+    version: OdooVersion,
+    model: &str,
+    records: Value,
+    datas_requested: bool,
+) -> Result<Value, OdooError> {
+    if !version.at_least(20, 0) {
+        return Ok(records);
+    }
+    let records = flatten_binary_fields(client, model, records).await?;
+    Ok(if datas_requested {
+        rename_keys(records, "raw", "datas")
+    } else {
+        records
+    })
+}
+
+async fn flatten_binary_fields(
+    client: &OdooClient,
+    model: &str,
+    records: Value,
+) -> Result<Value, OdooError> {
+    let candidates: BTreeSet<String> = records
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_object)
+        .flat_map(|record| record.iter())
+        .filter(|(_, v)| v.get("content").is_some_and(Value::is_string))
+        .map(|(k, _)| k.clone())
+        .collect();
+    if candidates.is_empty() {
+        return Ok(records);
+    }
+    let fields = client.fields_get(model, None).await?;
+    let binary: BTreeSet<&String> = candidates
+        .iter()
+        .filter(|name| fields.pointer(&format!("/{name}/type")) == Some(&json!("binary")))
+        .collect();
+    Ok(flatten_binary(records, &binary))
+}
+
+fn flatten_binary(records: Value, binary: &BTreeSet<&String>) -> Value {
+    let Value::Array(items) = records else {
+        return records;
+    };
+    Value::Array(
+        items
+            .into_iter()
+            .map(|mut record| {
+                if let Some(map) = record.as_object_mut() {
+                    for (key, value) in map.iter_mut() {
+                        if binary.contains(key)
+                            && let Some(content) = value.get("content").cloned()
+                        {
+                            *value = content;
+                        }
+                    }
+                }
+                record
+            })
+            .collect(),
+    )
 }
 
 async fn op_unlink(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<Value, OdooError> {
@@ -1097,25 +1252,161 @@ async fn op_read_group(
 ) -> Result<Value, OdooError> {
     let instance = req_str(&args, op, "instance")?;
     let model = req_str(&args, op, "model")?;
-    let fields = opt_vec_string(&args, op, "fields")?.unwrap_or_default();
+    let domain = opt_value(&args, op, "domain").unwrap_or_else(|| json!([]));
     let groupby = opt_vec_string(&args, op, "groupby")?.unwrap_or_default();
-    let domain = opt_value(&args, op, "domain");
+    let mut aggregates = opt_vec_string(&args, op, "aggregates")?.unwrap_or_default();
+    let having = opt_value(&args, op, "having");
     let offset = opt_i64(&args, op, "offset")?;
     let limit = opt_i64(&args, op, "limit")?;
-    let orderby = opt_str(&args, op, "orderby")?;
-    let lazy = opt_bool(&args, op, "lazy")?;
+    let mut order = opt_str(&args, op, "order")?;
     let context = opt_value(&args, op, "context");
 
     let client = pool
         .get(&instance)
         .await
         .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
-    let result = client
-        .read_group(
-            &model, domain, fields, groupby, offset, limit, orderby, lazy, context,
-        )
-        .await?;
-    Ok(ok_text(json!({ "groups": result })))
+
+    // shortcut: pre-0.7 input (fields/lazy/orderby) is still mapped; drop this block in 0.8.
+    let legacy_fields = opt_vec_string(&args, op, "fields")?;
+    let legacy_input = legacy_fields.is_some()
+        || ptr(&args, op, "lazy").is_some()
+        || ptr(&args, op, "orderby").is_some();
+    let mut deprecation = None;
+    if legacy_input {
+        order = order.or(opt_str(&args, op, "orderby")?);
+        let fields = legacy_fields.unwrap_or_default();
+        let plain: Vec<&String> = fields
+            .iter()
+            .filter(|f| !f.contains(':') && !groupby.contains(f))
+            .collect();
+        let field_meta = if plain.is_empty() {
+            json!({})
+        } else {
+            let mut params = Map::new();
+            params.insert("attributes".into(), json!(["aggregator", "group_operator"]));
+            client
+                .call_named(&model, "fields_get", None, params, context.clone())
+                .await?
+        };
+        // Old read_group always returned a count per group.
+        aggregates.push("__count".to_string());
+        aggregates.extend(legacy_fields_to_aggregates(&fields, &groupby, &field_meta));
+        deprecation = Some(
+            "fields/lazy/orderby are deprecated: use aggregates (\"field:agg\") and order. \
+             lazy is ignored; results are always grouped by every groupby entry."
+                .to_string(),
+        );
+    }
+
+    let groups = if pool.odoo_version(&instance).await.at_least(19, 0) {
+        let mut params = Map::new();
+        params.insert("domain".into(), domain);
+        params.insert("groupby".into(), json!(groupby));
+        params.insert("aggregates".into(), json!(aggregates));
+        if let Some(having) = having {
+            params.insert("having".into(), having);
+        }
+        insert_opt(&mut params, "offset", offset);
+        insert_opt(&mut params, "limit", limit);
+        insert_opt(&mut params, "order", order);
+        client
+            .call_named(&model, "formatted_read_group", None, params, context)
+            .await?
+    } else {
+        if having.is_some() {
+            return Err(OdooError::InvalidResponse(
+                "'having' needs Odoo 19 or later".to_string(),
+            ));
+        }
+        let mut params = Map::new();
+        params.insert("domain".into(), domain);
+        params.insert(
+            "fields".into(),
+            json!(aggregates_to_legacy_fields(&aggregates)),
+        );
+        params.insert("groupby".into(), json!(groupby));
+        params.insert("lazy".into(), json!(false));
+        insert_opt(&mut params, "offset", offset);
+        insert_opt(&mut params, "limit", limit);
+        insert_opt(&mut params, "orderby", order);
+        let groups = client
+            .call_named(&model, "read_group", None, params, context)
+            .await?;
+        rename_legacy_groups(groups, &aggregates)
+    };
+    let mut out = json!({ "groups": groups });
+    if let Some(note) = deprecation {
+        out["deprecation"] = json!(note);
+    }
+    Ok(ok_text(out))
+}
+
+fn insert_opt<T: serde::Serialize>(params: &mut Map<String, Value>, key: &str, value: Option<T>) {
+    if let Some(value) = value {
+        params.insert(key.into(), json!(value));
+    }
+}
+
+/// Old `fields` -> new `aggregates`: "x:sum" and "a:sum(x)" become "x:sum"; plain
+/// names use the field's own aggregator from fields_get, or are dropped without one.
+fn legacy_fields_to_aggregates(fields: &[String], groupby: &[String], meta: &Value) -> Vec<String> {
+    fields
+        .iter()
+        .filter(|f| !groupby.contains(f))
+        .filter_map(|f| match f.split_once(':') {
+            Some((_, spec)) if spec.contains('(') => {
+                let (agg, field) = spec.trim_end_matches(')').split_once('(')?;
+                Some(format!("{field}:{agg}"))
+            }
+            Some(_) => Some(f.clone()),
+            None => {
+                let attrs = meta.get(f)?;
+                let agg = attrs
+                    .get("aggregator")
+                    .or_else(|| attrs.get("group_operator"))
+                    .and_then(Value::as_str)?;
+                Some(format!("{f}:{agg}"))
+            }
+        })
+        .collect()
+}
+
+/// Pre-19 read_group takes "alias:agg(field)"; "__count" comes back on its own when lazy=false.
+fn aggregates_to_legacy_fields(aggregates: &[String]) -> Vec<String> {
+    aggregates
+        .iter()
+        .filter(|a| a.as_str() != "__count")
+        .filter_map(|a| {
+            let (field, agg) = a.split_once(':')?;
+            Some(format!("{}:{agg}({field})", legacy_alias(a)))
+        })
+        .collect()
+}
+
+fn legacy_alias(aggregate: &str) -> String {
+    aggregate.replace(':', "__")
+}
+
+/// Renames pre-19 alias keys back to their "field:agg" spec so every version returns one shape.
+fn rename_legacy_groups(groups: Value, aggregates: &[String]) -> Value {
+    let Value::Array(groups) = groups else {
+        return groups;
+    };
+    Value::Array(
+        groups
+            .into_iter()
+            .map(|mut group| {
+                if let Some(obj) = group.as_object_mut() {
+                    for aggregate in aggregates {
+                        if let Some(value) = obj.remove(&legacy_alias(aggregate)) {
+                            obj.insert(aggregate.clone(), value);
+                        }
+                    }
+                }
+                group
+            })
+            .collect(),
+    )
 }
 
 async fn op_name_search(
@@ -1151,8 +1442,17 @@ async fn op_name_get(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<
         .get(&instance)
         .await
         .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
-    let result = client.name_get(&model, ids, context).await?;
-    Ok(ok_text(json!({ "names": result })))
+    // name_get was removed in Odoo 18; display_name is readable on every version.
+    let records = client
+        .read(&model, ids, Some(vec!["display_name".to_string()]), context)
+        .await?;
+    let names: Vec<Value> = records
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|r| json!([r["id"], r["display_name"]]))
+        .collect();
+    Ok(ok_text(json!({ "names": names })))
 }
 
 async fn op_default_get(
@@ -1195,8 +1495,11 @@ async fn op_onchange(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<
     let ids = req_vec_i64(&args, op, "ids")?;
     let values = req_value(&args, op, "values")?;
     let field_name = opt_vec_string(&args, op, "fieldName")?.unwrap_or_default();
-    let field_onchange = opt_value(&args, op, "fieldOnchange").unwrap_or(json!({}));
+    let mut field_onchange = opt_value(&args, op, "fieldOnchange").unwrap_or(json!({}));
     let context = opt_value(&args, op, "context");
+    if pool.odoo_version(&instance).await.at_least(17, 0) {
+        field_onchange = onchange_fields_spec(field_onchange);
+    }
 
     let client = pool
         .get(&instance)
@@ -1206,6 +1509,18 @@ async fn op_onchange(pool: &OdooClientPool, op: &OpSpec, args: Value) -> Result<
         .onchange(&model, ids, values, field_name, field_onchange, context)
         .await?;
     Ok(ok_text(json!({ "result": result })))
+}
+
+/// Odoo 17+ expects `fields_spec` ({"field": {}}); 16's `field_onchange` used {"field": "1"}.
+fn onchange_fields_spec(spec: Value) -> Value {
+    match spec {
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .map(|(k, v)| (k, if v.is_object() { v } else { json!({}) }))
+                .collect(),
+        ),
+        other => other,
+    }
 }
 
 async fn op_list_models(
@@ -1256,45 +1571,60 @@ async fn op_check_access(
         .await
         .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
 
-    // Note: check_access() in Odoo 19+ is a private method and cannot be called remotely.
-    // We must use check_access_rights() and check_access_rule() for all Odoo versions,
-    // even though they are deprecated in Odoo 19+. They are still callable remotely.
-    let mut params = serde_json::Map::new();
+    let mut params = Map::new();
     params.insert("operation".to_string(), json!(operation));
+    // Legacy execute_kw needs ids as the first arg even for an empty recordset (model-level check).
+    let record_ids = ids.clone().unwrap_or_default();
 
-    let access_result = client
-        .call_named(
-            &model,
-            "check_access_rights",
-            None,
-            params.clone(),
-            context.clone(),
-        )
-        .await?;
-
-    // If IDs provided, also check record-level access rules
-    let record_result = if let Some(record_ids) = ids {
-        let ids_array: Vec<i64> = record_ids.clone();
+    let has_access = if pool.odoo_version(&instance).await.at_least(18, 0) {
+        // has_access is public on 18+; check_access_rights/rule are gone from saas~19.1 and 20.
         client
-            .call_named(
-                &model,
-                "check_access_rule",
-                Some(ids_array),
-                params,
-                context,
-            )
-            .await
-            .ok()
+            .call_named(&model, "has_access", Some(record_ids), params, context)
+            .await?
+            .as_bool()
+            .unwrap_or(false)
     } else {
-        None
+        let mut rights = params.clone();
+        rights.insert("raise_exception".to_string(), json!(false));
+        let model_ok = client
+            .call_named(&model, "check_access_rights", None, rights, context.clone())
+            .await?
+            .as_bool()
+            .unwrap_or(false);
+        if model_ok && !record_ids.is_empty() {
+            match client
+                .call_named(
+                    &model,
+                    "check_access_rule",
+                    Some(record_ids),
+                    params,
+                    context,
+                )
+                .await
+            {
+                Ok(_) => true,
+                Err(OdooError::Api {
+                    body: Some(ref body),
+                    ..
+                }) if body
+                    .name
+                    .as_deref()
+                    .is_some_and(|n| n.contains("AccessError")) =>
+                {
+                    false
+                }
+                Err(error) => return Err(error),
+            }
+        } else {
+            model_ok
+        }
     };
 
     let result = json!({
-        "has_access": true,
+        "has_access": has_access,
         "model": model,
         "operation": operation,
-        "model_level": access_result,
-        "record_level": record_result
+        "ids": ids,
     });
 
     Ok(ok_text(result))
@@ -1309,6 +1639,8 @@ async fn op_create_batch(
     let model = req_str(&args, op, "model")?;
     let values_array = req_value(&args, op, "values")?;
     let context = opt_value(&args, op, "context");
+    let values_array =
+        attachment_write_values(pool.odoo_version(&instance).await, &model, values_array);
 
     // Validate values is an array
     let values_list = values_array
@@ -1344,6 +1676,94 @@ async fn op_create_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_should_flatten_only_binary_typed_fields() {
+        let records =
+            json!([{"image": {"content": "QUJD", "size": 3}, "tax_totals": {"content": "x"}}]);
+        let image = "image".to_string();
+        let binary = BTreeSet::from([&image]);
+        assert_eq!(
+            flatten_binary(records, &binary),
+            json!([{"image": "QUJD", "tax_totals": {"content": "x"}}])
+        );
+    }
+
+    #[test]
+    fn test_should_rewrite_attachment_datas_only_on_odoo20() {
+        let v20 = OdooVersion {
+            major: 20,
+            minor: 0,
+        };
+        let v19 = OdooVersion {
+            major: 19,
+            minor: 0,
+        };
+        let values = json!({"name": "a.txt", "datas": "QUJD"});
+        assert_eq!(
+            attachment_write_values(v20, "ir.attachment", values.clone()),
+            json!({"name": "a.txt", "raw": "QUJD"})
+        );
+        assert_eq!(
+            attachment_write_values(v19, "ir.attachment", values.clone()),
+            values
+        );
+        assert_eq!(
+            attachment_write_values(v20, "res.partner", values.clone()),
+            values
+        );
+        let (fields, renamed) = attachment_read_fields(
+            v20,
+            "ir.attachment",
+            Some(vec!["datas".into(), "name".into()]),
+        );
+        assert!(renamed);
+        assert_eq!(fields.unwrap(), ["raw", "name"]);
+    }
+
+    #[test]
+    fn test_should_convert_field_onchange_to_fields_spec() {
+        assert_eq!(
+            onchange_fields_spec(json!({"partner_id": "1", "order_line": {"fields": {}}})),
+            json!({"partner_id": {}, "order_line": {"fields": {}}})
+        );
+    }
+
+    #[test]
+    fn test_should_map_legacy_read_group_fields_to_aggregates() {
+        let meta = json!({"amount_total": {"aggregator": "sum"}, "name": {}});
+        let fields: Vec<String> = [
+            "amount_total",
+            "name",
+            "state",
+            "qty:max",
+            "n:count_distinct(partner_id)",
+        ]
+        .map(String::from)
+        .to_vec();
+        let groupby = vec!["state".to_string()];
+        assert_eq!(
+            legacy_fields_to_aggregates(&fields, &groupby, &meta),
+            ["amount_total:sum", "qty:max", "partner_id:count_distinct"]
+        );
+    }
+
+    #[test]
+    fn test_should_round_trip_aggregates_through_pre19_read_group() {
+        let aggregates = vec!["amount_total:sum".to_string(), "__count".to_string()];
+        assert_eq!(
+            aggregates_to_legacy_fields(&aggregates),
+            ["amount_total__sum:sum(amount_total)"]
+        );
+        let renamed = rename_legacy_groups(
+            json!([{"state": "draft", "amount_total__sum": 10.0, "__count": 2}]),
+            &aggregates,
+        );
+        assert_eq!(
+            renamed,
+            json!([{"state": "draft", "amount_total:sum": 10.0, "__count": 2}])
+        );
+    }
     use crate::odoo::config::{InstanceToolConfig, OdooEnvConfig, OdooInstanceConfig};
     use std::collections::HashMap;
     use std::sync::{Arc, RwLock};

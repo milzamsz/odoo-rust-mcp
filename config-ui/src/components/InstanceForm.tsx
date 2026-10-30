@@ -354,7 +354,7 @@ export function InstanceForm({
             <Radio.Card value="apiKey" radius="xl" p="md">
               <Text>API Key</Text>
               <Text size="sm" c="dimmed">
-                Best for Odoo 19 and JSON-2.
+                Best for Odoo 19+ and JSON-2. On Odoo 20 the key needs the &quot;rpc&quot; scope.
               </Text>
             </Radio.Card>
             <Radio.Card value="userPass" radius="xl" p="md">
@@ -365,6 +365,13 @@ export function InstanceForm({
             </Radio.Card>
           </Group>
         </Radio.Group>
+
+        {authType === 'userPass' && Number.parseInt(version.replace(/^saas~/, ''), 10) >= 20 ? (
+          <Text size="sm" c="orange">
+            Odoo 20 still accepts username/password over the deprecated /jsonrpc, which Odoo 22 removes. Prefer an
+            API key with the &quot;rpc&quot; scope.
+          </Text>
+        ) : null}
 
         <Grid>
           {authType === 'apiKey' ? (

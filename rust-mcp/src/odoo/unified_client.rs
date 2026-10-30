@@ -5,7 +5,7 @@ use super::client::OdooHttpClient;
 use super::config::{OdooAuthMode, OdooInstanceConfig};
 use super::legacy_client::OdooLegacyClient;
 use super::types::OdooResult;
-use super::version::ServerVersionInfo;
+use super::version::{OdooVersion, ServerVersionInfo};
 
 /// Trait for Odoo client operations, enabling mockability for testing.
 // async_trait's expansion adds #[must_use] to boxed futures; newer Clippy flags that as double_must_use.
@@ -73,19 +73,6 @@ pub trait OdooClientTrait: Send + Sync {
 
     async fn download_report_pdf(&self, report_name: &str, ids: &[i64]) -> OdooResult<Vec<u8>>;
 
-    async fn read_group(
-        &self,
-        model: &str,
-        domain: Option<Value>,
-        fields: Vec<String>,
-        groupby: Vec<String>,
-        offset: Option<i64>,
-        limit: Option<i64>,
-        orderby: Option<String>,
-        lazy: Option<bool>,
-        context: Option<Value>,
-    ) -> OdooResult<Value>;
-
     async fn name_search(
         &self,
         model: &str,
@@ -93,13 +80,6 @@ pub trait OdooClientTrait: Send + Sync {
         args: Option<Value>,
         operator: Option<String>,
         limit: Option<i64>,
-        context: Option<Value>,
-    ) -> OdooResult<Value>;
-
-    async fn name_get(
-        &self,
-        model: &str,
-        ids: Vec<i64>,
         context: Option<Value>,
     ) -> OdooResult<Value>;
 
@@ -158,6 +138,17 @@ impl OdooClient {
                 Ok(OdooClient::Modern(client))
             }
             OdooAuthMode::Password => {
+                if cfg
+                    .version
+                    .as_deref()
+                    .and_then(OdooVersion::parse)
+                    .is_some_and(|v| v.major >= 20)
+                {
+                    tracing::warn!(
+                        url = %cfg.url,
+                        "username/password uses Odoo's deprecated /jsonrpc, removed in Odoo 22; switch to an API key"
+                    );
+                }
                 let client = OdooLegacyClient::new(cfg)?;
                 Ok(OdooClient::Legacy(client))
             }
@@ -304,34 +295,6 @@ impl OdooClient {
         }
     }
 
-    pub async fn read_group(
-        &self,
-        model: &str,
-        domain: Option<Value>,
-        fields: Vec<String>,
-        groupby: Vec<String>,
-        offset: Option<i64>,
-        limit: Option<i64>,
-        orderby: Option<String>,
-        lazy: Option<bool>,
-        context: Option<Value>,
-    ) -> OdooResult<Value> {
-        match self {
-            OdooClient::Modern(c) => {
-                c.read_group(
-                    model, domain, fields, groupby, offset, limit, orderby, lazy, context,
-                )
-                .await
-            }
-            OdooClient::Legacy(c) => {
-                c.read_group(
-                    model, domain, fields, groupby, offset, limit, orderby, lazy, context,
-                )
-                .await
-            }
-        }
-    }
-
     pub async fn name_search(
         &self,
         model: &str,
@@ -350,18 +313,6 @@ impl OdooClient {
                 c.name_search(model, name, args, operator, limit, context)
                     .await
             }
-        }
-    }
-
-    pub async fn name_get(
-        &self,
-        model: &str,
-        ids: Vec<i64>,
-        context: Option<Value>,
-    ) -> OdooResult<Value> {
-        match self {
-            OdooClient::Modern(c) => c.name_get(model, ids, context).await,
-            OdooClient::Legacy(c) => c.name_get(model, ids, context).await,
         }
     }
 
@@ -508,24 +459,6 @@ impl OdooClientTrait for OdooClient {
         self.download_report_pdf(report_name, ids).await
     }
 
-    async fn read_group(
-        &self,
-        model: &str,
-        domain: Option<Value>,
-        fields: Vec<String>,
-        groupby: Vec<String>,
-        offset: Option<i64>,
-        limit: Option<i64>,
-        orderby: Option<String>,
-        lazy: Option<bool>,
-        context: Option<Value>,
-    ) -> OdooResult<Value> {
-        self.read_group(
-            model, domain, fields, groupby, offset, limit, orderby, lazy, context,
-        )
-        .await
-    }
-
     async fn name_search(
         &self,
         model: &str,
@@ -537,15 +470,6 @@ impl OdooClientTrait for OdooClient {
     ) -> OdooResult<Value> {
         self.name_search(model, name, args, operator, limit, context)
             .await
-    }
-
-    async fn name_get(
-        &self,
-        model: &str,
-        ids: Vec<i64>,
-        context: Option<Value>,
-    ) -> OdooResult<Value> {
-        self.name_get(model, ids, context).await
     }
 
     async fn default_get(
