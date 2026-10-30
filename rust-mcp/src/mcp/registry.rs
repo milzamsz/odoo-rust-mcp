@@ -10,6 +10,7 @@ use tracing::{debug, info, warn};
 
 use crate::mcp::module_snapshot::ModuleSnapshot;
 use crate::mcp::prompts::Prompt;
+use crate::odoo::version::OdooVersion;
 
 // Embedded seed defaults (used when target files are missing).
 const DEFAULT_TOOLS_JSON: &str = include_str!("../../config-defaults/tools.json");
@@ -43,6 +44,9 @@ pub struct ToolDef {
     pub pack: Option<String>,
     #[serde(default, rename = "requiredModules")]
     pub required_modules: Vec<String>,
+    /// Lowest Odoo version the tool works on, e.g. "17" or "19.4". Unknown versions are allowed.
+    #[serde(default, rename = "minVersion")]
+    pub min_version: Option<String>,
     #[serde(rename = "inputSchema")]
     pub input_schema: Value,
     pub op: OpSpec,
@@ -403,6 +407,20 @@ pub(crate) fn capability_denial(
     {
         return Some(("pack_disabled", pack.clone()));
     }
+    if let Some(min) = tool.min_version.as_deref().and_then(OdooVersion::parse)
+        && let Some(snapshot) = snapshot
+        && let Some(version) = snapshot
+            .version
+            .as_deref()
+            .or(snapshot.detected_version.as_deref())
+            .and_then(OdooVersion::parse)
+        && version < min
+    {
+        return Some((
+            "version_unsupported",
+            format!("needs Odoo {}.{}", min.major, min.minor),
+        ));
+    }
     if tool.required_modules.is_empty() {
         return None;
     }
@@ -573,6 +591,50 @@ mod tests {
             capability_denial(&tool, Some(&installed), &["inventory".into()]),
             Some(("pack_disabled", "inventory".into()))
         );
+    }
+
+    #[test]
+    fn min_version_hides_tool_on_older_or_saas_versions_only() {
+        let tool: ToolDef = serde_json::from_value(json!({
+            "name": "access_rules", "description": "x", "minVersion": "19.4",
+            "inputSchema": {"type": "object"}, "op": {"type": "search"}
+        }))
+        .unwrap();
+        let snapshot = |configured: Option<&str>, detected: Option<&str>| ModuleSnapshot {
+            instance: "dev".into(),
+            version: configured.map(Into::into),
+            detected_version: detected.map(Into::into),
+            version_mismatch: false,
+            edition: "community".into(),
+            modules: BTreeSet::new(),
+            refreshed_at: Utc::now(),
+            checked_at: Utc::now(),
+            stale: false,
+            last_error: None,
+        };
+        let denied = Some(("version_unsupported", "needs Odoo 19.4".to_string()));
+        assert_eq!(
+            capability_denial(&tool, Some(&snapshot(Some("18"), None)), &[]),
+            denied
+        );
+        assert_eq!(
+            capability_denial(&tool, Some(&snapshot(None, Some("saas~19.3+e"))), &[]),
+            denied
+        );
+        assert_eq!(
+            capability_denial(&tool, Some(&snapshot(None, Some("20.0"))), &[]),
+            None
+        );
+        // Configured version wins over detection; unknown version is allowed.
+        assert_eq!(
+            capability_denial(&tool, Some(&snapshot(Some("20"), Some("18.0"))), &[]),
+            None
+        );
+        assert_eq!(
+            capability_denial(&tool, Some(&snapshot(None, None)), &[]),
+            None
+        );
+        assert_eq!(capability_denial(&tool, None, &[]), None);
     }
 
     #[tokio::test]

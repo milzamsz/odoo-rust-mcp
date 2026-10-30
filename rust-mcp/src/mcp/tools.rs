@@ -51,7 +51,7 @@ pub struct OdooClientPool {
     env: Arc<RwLock<OdooEnvConfig>>,
     clients: Arc<Mutex<HashMap<String, OdooClient>>>,
     pub metadata_cache: MetadataCache,
-    module_snapshots: ModuleSnapshotStore,
+    pub(crate) module_snapshots: ModuleSnapshotStore,
 }
 
 impl OdooClientPool {
@@ -1805,6 +1805,7 @@ mod tests {
             description: String::new(),
             pack: None,
             required_modules: Vec::new(),
+            min_version: None,
             input_schema: json!({"type": "object"}),
             op: OpSpec {
                 op_type: op_type.to_string(),
