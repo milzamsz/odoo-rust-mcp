@@ -4,6 +4,8 @@ use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue, USER_
 use serde_json::{Value, json};
 use url::Url;
 
+use super::version::{ServerVersionInfo, fetch_version_info};
+
 use super::config::OdooInstanceConfig;
 use super::types::{OdooError, OdooErrorBody, OdooResult};
 
@@ -23,6 +25,10 @@ pub struct OdooHttpClient {
 }
 
 impl OdooHttpClient {
+    pub async fn version_info(&self) -> OdooResult<ServerVersionInfo> {
+        fetch_version_info(&self.http, &self.base_url).await
+    }
+
     pub fn new(cfg: &OdooInstanceConfig) -> anyhow::Result<Self> {
         let mut base_url = Url::parse(&cfg.url)
             .map_err(|e| anyhow::anyhow!("Invalid Odoo url '{}': {e}", cfg.url))?;

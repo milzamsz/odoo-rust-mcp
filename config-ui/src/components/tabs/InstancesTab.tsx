@@ -66,6 +66,9 @@ type ConnStatus =
 
 interface ModuleSnapshot {
   edition: string;
+  version?: string;
+  detectedVersion?: string;
+  versionMismatch?: boolean;
   modules: string[];
   refreshedAt: string;
   stale: boolean;
@@ -1054,6 +1057,21 @@ function CapabilitySummary({ status }: { status: CapStatus }) {
       <Badge variant="light" color="grape" size="sm">
         {snapshot.edition}
       </Badge>
+      {snapshot.detectedVersion ? (
+        <Badge variant="light" color="blue" size="sm">
+          server {snapshot.detectedVersion}
+        </Badge>
+      ) : null}
+      {snapshot.versionMismatch ? (
+        <Badge
+          variant="light"
+          color="orange"
+          size="sm"
+          title={`Configured v${snapshot.version ?? '?'} is used; the server reports ${snapshot.detectedVersion}`}
+        >
+          version mismatch
+        </Badge>
+      ) : null}
       {snapshot.stale ? (
         <Badge variant="light" color="orange" size="sm">
           stale

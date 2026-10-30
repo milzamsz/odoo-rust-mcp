@@ -269,7 +269,9 @@ impl OdooClientPool {
                 .get(&canonical)
                 .await
                 .map_err(|error| OdooError::InvalidResponse(error.to_string()))?;
-            client
+            // shortcut: version_info failure is non-fatal; edition then falls back to web_enterprise.
+            let info = client.version_info().await.ok();
+            let modules = client
                 .search_read(
                     "ir.module.module",
                     Some(json!([["state", "=", "installed"]])),
@@ -279,12 +281,13 @@ impl OdooClientPool {
                     Some("name asc".to_string()),
                     None,
                 )
-                .await
+                .await?;
+            Ok::<_, OdooError>((modules, info))
         }
         .await;
 
         match result {
-            Ok(value) => {
+            Ok((value, info)) => {
                 let modules: Result<BTreeSet<String>, OdooError> = value
                     .as_array()
                     .ok_or_else(|| {
@@ -314,7 +317,9 @@ impl OdooClientPool {
                     .and_then(Value::as_str)
                     .map(str::to_string)
                     .unwrap_or_else(|| {
-                        if modules.contains("web_enterprise") {
+                        if info.as_ref().is_some_and(|info| info.enterprise_marker)
+                            || modules.contains("web_enterprise")
+                        {
                             "enterprise".to_string()
                         } else {
                             "community".to_string()
@@ -322,7 +327,13 @@ impl OdooClientPool {
                     });
                 Ok(self
                     .module_snapshots
-                    .success(&canonical, config.version, edition, modules)
+                    .success(
+                        &canonical,
+                        config.version,
+                        info.map(|info| info.server_version),
+                        edition,
+                        modules,
+                    )
                     .await)
             }
             Err(error) => {
@@ -2160,6 +2171,7 @@ mod tests {
             .success(
                 "school-prod",
                 Some("19".into()),
+                None,
                 "community".into(),
                 BTreeSet::from(["base".into()]),
             )

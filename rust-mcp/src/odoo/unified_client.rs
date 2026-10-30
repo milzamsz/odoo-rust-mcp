@@ -5,6 +5,7 @@ use super::client::OdooHttpClient;
 use super::config::{OdooAuthMode, OdooInstanceConfig};
 use super::legacy_client::OdooLegacyClient;
 use super::types::OdooResult;
+use super::version::ServerVersionInfo;
 
 /// Trait for Odoo client operations, enabling mockability for testing.
 // async_trait's expansion adds #[must_use] to boxed futures; newer Clippy flags that as double_must_use.
@@ -160,6 +161,14 @@ impl OdooClient {
                 let client = OdooLegacyClient::new(cfg)?;
                 Ok(OdooClient::Legacy(client))
             }
+        }
+    }
+
+    /// Asks the server which version and edition it runs (no auth needed).
+    pub async fn version_info(&self) -> OdooResult<ServerVersionInfo> {
+        match self {
+            OdooClient::Modern(c) => c.version_info().await,
+            OdooClient::Legacy(c) => c.version_info().await,
         }
     }
 

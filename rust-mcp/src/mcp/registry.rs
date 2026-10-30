@@ -549,6 +549,8 @@ mod tests {
         let snapshot = ModuleSnapshot {
             instance: "dev".into(),
             version: Some("18".into()),
+            detected_version: None,
+            version_mismatch: false,
             edition: "community".into(),
             modules: BTreeSet::from(["base".into()]),
             refreshed_at: Utc::now(),
@@ -595,6 +597,8 @@ mod tests {
         let missing = ModuleSnapshot {
             instance: "dev".into(),
             version: None,
+            detected_version: None,
+            version_mismatch: false,
             edition: "unknown".into(),
             modules: BTreeSet::new(),
             refreshed_at: Utc::now(),

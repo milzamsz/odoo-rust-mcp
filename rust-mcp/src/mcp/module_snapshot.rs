@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::warn;
 
+use crate::odoo::version::OdooVersion;
+
 const DEFAULT_TTL_SECS: i64 = 300;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -14,6 +16,12 @@ const DEFAULT_TTL_SECS: i64 = 300;
 pub struct ModuleSnapshot {
     pub instance: String,
     pub version: Option<String>,
+    /// `server_version` reported by Odoo itself, e.g. "20.0" or "saas~19.3+e".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detected_version: Option<String>,
+    /// Configured and detected major versions disagree; the configured one is still used.
+    #[serde(default)]
+    pub version_mismatch: bool,
     pub edition: String,
     pub modules: BTreeSet<String>,
     pub refreshed_at: DateTime<Utc>,
@@ -74,13 +82,29 @@ impl ModuleSnapshotStore {
         &self,
         instance: &str,
         version: Option<String>,
+        detected_version: Option<String>,
         edition: String,
         modules: BTreeSet<String>,
     ) -> ModuleSnapshot {
         let now = Utc::now();
+        let major = |v: &Option<String>| v.as_deref().and_then(OdooVersion::parse).map(|v| v.major);
+        let version_mismatch = matches!(
+            (major(&version), major(&detected_version)),
+            (Some(configured), Some(detected)) if configured != detected
+        );
+        if version_mismatch {
+            warn!(
+                instance,
+                configured = version.as_deref().unwrap_or_default(),
+                detected = detected_version.as_deref().unwrap_or_default(),
+                "configured Odoo version differs from the server; using the configured version"
+            );
+        }
         let snapshot = ModuleSnapshot {
             instance: instance.to_string(),
             version,
+            detected_version,
+            version_mismatch,
             edition,
             modules,
             refreshed_at: now,
@@ -113,6 +137,8 @@ impl ModuleSnapshotStore {
             .or_insert_with(|| ModuleSnapshot {
                 instance: instance.to_string(),
                 version: None,
+                detected_version: None,
+                version_mismatch: false,
                 edition: "unknown".to_string(),
                 modules: BTreeSet::new(),
                 refreshed_at: now,
@@ -163,6 +189,7 @@ mod tests {
             .success(
                 "dev",
                 Some("18".into()),
+                None,
                 "community".into(),
                 BTreeSet::from(["base".into(), "stock".into()]),
             )
@@ -187,6 +214,7 @@ mod tests {
             .success(
                 "dev",
                 Some("18".into()),
+                None,
                 "community".into(),
                 BTreeSet::from(["base".into()]),
             )
@@ -198,6 +226,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(loaded.modules, BTreeSet::from(["base".into()]));
+        assert!(!loaded.version_mismatch);
         assert!(!loaded.stale);
     }
 
@@ -207,6 +236,7 @@ mod tests {
         store
             .success(
                 "dev",
+                None,
                 None,
                 "community".into(),
                 BTreeSet::from(["base".into()]),
@@ -228,6 +258,7 @@ mod tests {
             .success(
                 "dev",
                 None,
+                None,
                 "community".into(),
                 BTreeSet::from(["base".into()]),
             )
@@ -242,5 +273,32 @@ mod tests {
         let snapshot = store.get("dev").await.unwrap();
         assert!(snapshot.stale);
         assert_eq!(snapshot.modules, BTreeSet::from(["base".into()]));
+    }
+
+    #[tokio::test]
+    async fn test_should_flag_major_version_mismatch() {
+        let store = ModuleSnapshotStore::memory();
+        let modules = BTreeSet::new();
+        let same = store
+            .success(
+                "a",
+                Some("19".into()),
+                Some("saas~19.3+e".into()),
+                "enterprise".into(),
+                modules.clone(),
+            )
+            .await;
+        assert!(!same.version_mismatch);
+        let differs = store
+            .success(
+                "b",
+                Some("19".into()),
+                Some("20.0".into()),
+                "community".into(),
+                modules,
+            )
+            .await;
+        assert!(differs.version_mismatch);
+        assert_eq!(differs.detected_version.as_deref(), Some("20.0"));
     }
 }

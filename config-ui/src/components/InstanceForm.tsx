@@ -331,7 +331,7 @@ export function InstanceForm({
           <Grid.Col span={{ base: 12, md: 6 }}>
             <TextInput
               label="Version"
-              placeholder="16, 17, 18, 19"
+              placeholder="16, 17, 18, 19, 20"
               value={version}
               onChange={(event) => setVersion(event.currentTarget.value)}
             />
