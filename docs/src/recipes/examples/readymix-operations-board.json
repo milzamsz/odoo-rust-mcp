@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "recipe": "readymix-operations-board",
+  "description": "Worked Dashboard Ninja build for odoo-rust-mcp. Every id below was read from the live erp-dev-hksis instance (Odoo 18 EE). Copy, re-resolve the ids for another database, execute the steps in order.",
+  "instance": "erp-dev-hksis",
+  "requires": {
+    "serverEnv": ["ODOO_ENABLE_WRITE_TOOLS=true"],
+    "odooVersion": "18",
+    "modules": ["ks_dashboard_ninja"]
+  },
+  "idResolution": {
+    "note": "Re-run these on a different database. Do not reuse these ids across instances.",
+    "steps": [
+      {
+        "purpose": "source model",
+        "tool": "odoo_search_read",
+        "args": {
+          "instance": "erp-dev-hksis",
+          "model": "ir.model",
+          "domain": [["model", "=", "sale.order"]],
+          "fields": ["id", "model", "name"]
+        },
+        "observed": { "id": 688, "model": "sale.order", "name": "Sales Order" }
+      },
+      {
+        "purpose": "picker fields",
+        "tool": "odoo_search_read",
+        "args": {
+          "instance": "erp-dev-hksis",
+          "model": "ir.model.fields",
+          "domain": [
+            ["model", "=", "sale.order"],
+            ["name", "in", ["name", "partner_id", "state", "date_order", "amount_total"]]
+          ],
+          "fields": ["id", "name", "field_description", "ttype", "store", "relation"]
+        },
+        "observed": {
+          "name": { "id": 10473, "ttype": "char", "store": true },
+          "partner_id": { "id": 10475, "ttype": "many2one", "store": true },
+          "state": { "id": 10476, "ttype": "selection", "store": true },
+          "date_order": { "id": 10482, "ttype": "datetime", "store": true },
+          "amount_total": { "id": 10506, "ttype": "monetary", "store": true }
+        }
+      },
+      {
+        "purpose": "parent menu",
+        "tool": "odoo_search_read",
+        "args": {
+          "instance": "erp-dev-hksis",
+          "model": "ir.ui.menu",
+          "domain": [["parent_id", "=", false], ["name", "ilike", "dash"]],
+          "fields": ["id", "name", "complete_name"]
+        },
+        "observed": { "id": 1196, "complete_name": "Dashboard" }
+      }
+    ],
+    "constants": {
+      "blankTemplateId": 1,
+      "currencyIdrId": 12
+    }
+  },
+  "preflight": [
+    {
+      "purpose": "confirm write rights",
+      "tool": "odoo_check_access",
+      "args": { "instance": "erp-dev-hksis", "model": "ks_dashboard_ninja.item", "operation": "create" },
+      "observed": { "has_access": true }
+    },
+    {
+      "purpose": "confirm the aggregation returns data",
+      "tool": "odoo_read_group",
+      "args": {
+        "instance": "erp-dev-hksis",
+        "model": "sale.order",
+        "domain": [["state", "=", "sale"]],
+        "fields": ["amount_total:sum", "__count"],
+        "groupby": ["date_order:month"],
+        "limit": 6,
+        "orderby": "date_order:month"
+      },
+      "observed": [
+        { "date_order:month": "Januari 2026", "amount_total": 2128887051966.8, "date_order_count": 58 },
+        { "date_order:month": "Februari 2026", "amount_total": 270543608881.14, "date_order_count": 25 },
+        { "date_order:month": "Maret 2026", "amount_total": 7324149890.3, "date_order_count": 8 },
+        { "date_order:month": "April 2026", "amount_total": 2466650003.1, "date_order_count": 6 },
+        { "date_order:month": "Mei 2026", "amount_total": 67565700.0, "date_order_count": 2 },
+        { "date_order:month": "Juni 2026", "amount_total": 306343904480.0, "date_order_count": 28 }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "tool": "odoo_create",
+      "args": {
+        "instance": "erp-dev-hksis",
+        "model": "ks_dashboard_ninja.board",
+        "values": {
+          "name": "Readymix Ops",
+          "ks_dashboard_menu_name": "Readymix Ops",
+          "ks_dashboard_top_menu_id": 1196,
+          "ks_dashboard_menu_sequence": 30,
+          "ks_dashboard_active": true,
+          "ks_date_filter_selection": "l_none",
+          "ks_dashboard_default_template": 1
+        }
+      },
+      "capture": "BOARD_ID",
+      "sideEffect": "create() auto-creates ir.actions.client + ir.ui.menu because ks_dashboard_top_menu_id and ks_dashboard_menu_name are both set"
+    },
+    {
+      "step": 2,
+      "tool": "odoo_create_batch",
+      "args": {
+        "instance": "erp-dev-hksis",
+        "model": "ks_dashboard_ninja.item",
+        "values": [
+          {
+            "name": "Open Orders",
+            "ks_dashboard_ninja_board_id": "{{BOARD_ID}}",
+            "ks_model_id": 688,
+            "ks_dashboard_item_type": "ks_tile",
+            "ks_layout": "layout1",
+            "ks_list_view_type": "ungrouped",
+            "ks_date_filter_selection": "l_none",
+            "ks_date_filter_selection_2": "l_none",
+            "ks_record_count_type": "count",
+            "ks_domain": "[[\"state\",\"in\",[\"draft\",\"confirm\",\"hod\"]]]",
+            "ks_default_icon": "shopping-cart",
+            "ks_dashboard_item_theme": "blue",
+            "ks_show_records": true
+          },
+          {
+            "name": "Sales per Month",
+            "ks_dashboard_ninja_board_id": "{{BOARD_ID}}",
+            "ks_model_id": 688,
+            "ks_dashboard_item_type": "ks_bar_chart",
+            "ks_layout": "layout5",
+            "ks_list_view_type": "ungrouped",
+            "ks_date_filter_selection": "l_none",
+            "ks_date_filter_selection_2": "l_none",
+            "ks_chart_relation_groupby": 10482,
+            "ks_chart_date_groupby": "month",
+            "ks_chart_data_count_type": "sum",
+            "ks_chart_measure_field": [[6, 0, [10506]]],
+            "ks_chart_item_color": "material",
+            "ks_show_data_value": true,
+            "ks_sort_by_field": 10482,
+            "ks_sort_by_order": "ASC",
+            "ks_domain": "[[\"state\",\"=\",\"sale\"]]"
+          },
+          {
+            "name": "Orders by Status",
+            "ks_dashboard_ninja_board_id": "{{BOARD_ID}}",
+            "ks_model_id": 688,
+            "ks_dashboard_item_type": "ks_pie_chart",
+            "ks_layout": "layout5",
+            "ks_list_view_type": "ungrouped",
+            "ks_date_filter_selection": "l_none",
+            "ks_date_filter_selection_2": "l_none",
+            "ks_chart_relation_groupby": 10476,
+            "ks_chart_data_count_type": "count",
+            "ks_chart_item_color": "moonrise",
+            "ks_show_data_value": true,
+            "ks_domain": "[]"
+          },
+          {
+            "name": "Top Orders",
+            "ks_dashboard_ninja_board_id": "{{BOARD_ID}}",
+            "ks_model_id": 688,
+            "ks_dashboard_item_type": "ks_list_view",
+            "ks_list_view_type": "grouped",
+            "ks_chart_relation_groupby": 10476,
+            "ks_list_view_fields": [[6, 0, [10473, 10475, 10476, 10506]]],
+            "ks_list_view_group_fields": [[6, 0, [10506]]],
+            "ks_list_view_layout": "layout_1",
+            "ks_pagination_limit": 15,
+            "ks_layout": "layout5",
+            "ks_date_filter_selection": "l_none",
+            "ks_date_filter_selection_2": "l_none",
+            "ks_record_data_limit": 50,
+            "ks_sort_by_field": 10506,
+            "ks_sort_by_order": "DESC",
+            "ks_domain": "[[\"state\",\"=\",\"sale\"]]"
+          }
+        ]
+      },
+      "capture": "ITEM_IDS (order preserved)",
+      "note": "Every x2many value (ks_chart_measure_field, ks_list_view_fields, ks_list_view_group_fields) MUST be in this create payload. odoo_update silently ignores x2many values, so there is no fix-it-later step (mcp-x2many-quirks.md, defect 1). A grouped list view additionally needs ks_chart_relation_groupby set alongside ks_list_view_group_fields, or ks_list_view_data computes to false with no error."
+    },
+    {
+      "step": 3,
+      "tool": "odoo_update",
+      "args": {
+        "instance": "erp-dev-hksis",
+        "model": "ks_dashboard_ninja.board",
+        "ids": ["{{BOARD_ID}}"],
+        "values": {
+          "ks_gridstack_config": "{\"{{TILE_ID}}\": {\"x\": 0, \"y\": 0, \"w\": 3, \"h\": 3}, \"{{BAR_ID}}\": {\"x\": 0, \"y\": 3, \"w\": 12, \"h\": 8}, \"{{PIE_ID}}\": {\"x\": 0, \"y\": 11, \"w\": 6, \"h\": 8}, \"{{LIST_ID}}\": {\"x\": 6, \"y\": 11, \"w\": 6, \"h\": 8}}"
+        }
+      },
+      "note": "12-column gridstack. Items without an entry render nowhere."
+    }
+  ],
+  "verification": [
+    {
+      "tool": "odoo_read",
+      "args": {
+        "instance": "erp-dev-hksis",
+        "model": "ks_dashboard_ninja.board",
+        "ids": ["{{BOARD_ID}}"],
+        "fields": ["name", "ks_dashboard_menu_id", "ks_dashboard_client_action_id", "ks_gridstack_config", "ks_dashboard_active"]
+      },
+      "expect": "ks_dashboard_menu_id and ks_dashboard_client_action_id non-false; ks_gridstack_config parses as JSON with one key per item"
+    },
+    {
+      "tool": "odoo_read",
+      "args": {
+        "instance": "erp-dev-hksis",
+        "model": "ks_dashboard_ninja.item",
+        "ids": ["{{ITEM_ID}}"],
+        "fields": ["name", "ks_dashboard_item_type", "ks_record_count", "ks_chart_measure_field",
+                   "ks_list_view_fields", "ks_chart_data", "ks_list_view_data"]
+      },
+      "expect": "Run this ONCE PER ITEM ID - never pass several ids at once. A multi-id read returns an x2many value only for the last record (mcp-x2many-quirks.md, defect 2).",
+      "assert": {
+        "tile / kpi": "ks_record_count != 0",
+        "bar / pie / line": "json.loads(ks_chart_data) has non-empty 'labels' AND 'datasets'",
+        "list view": "json.loads(ks_list_view_data) has non-empty 'data_rows'"
+      },
+      "note": "Do NOT assert on truthiness: a chart that failed to resolve still returns a truthy object {\"labels\": [], \"datasets\": [], ...}. Then cross-check the numbers with odoo_count / odoo_read_group - a non-empty value only proves something resolved, matching the independent aggregate proves it resolved correctly."
+    },
+    {
+      "note": "There is no orphan sweep. ks_dashboard_ninja_board_id = false identifies the module's 28 built-in template/library items, not leftovers from this run. To find items from this run, filter by {{BOARD_ID}}."
+    }
+  ],
+  "rollback": {
+    "preferred": {
+      "tool": "odoo_update",
+      "args": {
+        "instance": "erp-dev-hksis",
+        "model": "ks_dashboard_ninja.board",
+        "ids": ["{{BOARD_ID}}"],
+        "values": { "ks_dashboard_active": false }
+      }
+    },
+    "destructive": {
+      "tool": "odoo_delete",
+      "args": { "instance": "erp-dev-hksis", "model": "ks_dashboard_ninja.board", "ids": ["{{BOARD_ID}}"] },
+      "note": "Cascades to menu, client action, child boards and items. Disabled on erp-dev-hksis via toolConfig.disabledTools."
+    }
+  }
+}

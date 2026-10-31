@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.7.1] - 2026-10-31
+
+Brings in the v0.6.6 work, which was never released, on top of v0.7.0.
+
+### Fixed
+- Desktop restart replaces the server it started instead of reusing an existing one, and the desktop app no longer errors when a server is already running.
+- The desktop app checks both server endpoints and the backend version, and reports when the server is owned by another process or a restart fails.
+
+### Added
+- Persistent global permission-gate controls, with saved and active state reporting.
+- Explicit catalog enable flags for tools; tool guards still apply.
+- Recipes in the docs: Ninja dashboards, x2many quirks over MCP, and a discovery example.
+
 ## [v0.7.0] - 2026-10-31
 
 Odoo 20 support. Supported: Odoo 16, 17, 18, 19, Odoo Online saas~19.x and 20, Community and Enterprise.

@@ -317,26 +317,30 @@ async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
     let mut any_reachable = false;
     let mut any_unreachable = false;
 
-    for instance in instances {
-        match pool.get(&instance).await {
-            Ok(client) => match client.health_probe().await {
-                Ok(()) => {
-                    instance_health.insert(instance.clone(), json!({"reachable": true}));
-                    any_reachable = true;
-                }
-                Err(e) => {
-                    instance_health.insert(
-                        instance.clone(),
-                        json!({"reachable": false, "error": e.to_string()}),
-                    );
-                    any_unreachable = true;
-                }
-            },
+    // Probe concurrently with a bounded wait: one slow Odoo host must not stall /health,
+    // which the desktop app uses to detect a running server.
+    let probes = instances.into_iter().map(|instance| async move {
+        let result = tokio::time::timeout(Duration::from_secs(3), async {
+            pool.get(&instance)
+                .await
+                .map_err(|e| e.to_string())?
+                .health_probe()
+                .await
+                .map_err(|e| e.to_string())
+        })
+        .await
+        .unwrap_or_else(|_| Err("health probe timed out".into()));
+        (instance, result)
+    });
+
+    for (instance, result) in futures::future::join_all(probes).await {
+        match result {
+            Ok(()) => {
+                instance_health.insert(instance, json!({"reachable": true}));
+                any_reachable = true;
+            }
             Err(e) => {
-                instance_health.insert(
-                    instance.clone(),
-                    json!({"reachable": false, "error": e.to_string()}),
-                );
+                instance_health.insert(instance, json!({"reachable": false, "error": e}));
                 any_unreachable = true;
             }
         }

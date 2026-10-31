@@ -11,7 +11,7 @@ Supports:
 - MCP over `stdio`, `http`, and `ws`
 - Config UI on `http://localhost:3008`
 
-Current version: `0.7.0`
+Current version: `0.7.1`
 
 ## Screenshots
 

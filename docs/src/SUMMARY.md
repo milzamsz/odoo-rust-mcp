@@ -19,3 +19,11 @@
     - [Contributing](developer/contributing.md)
     - [Agentic Kanban Workflow](developer/agentic-kanban.md)
     - [Enterprise Pack Metadata](developer/enterprise-packs-diet.md)
+
+- [Dashboard Ninja Recipes]()
+    - [Overview](recipes/README.md)
+    - [MCP x2many Quirks](recipes/mcp-x2many-quirks.md)
+    - [Model Reference](recipes/ninja-dashboard-model-reference.md)
+    - [Recipes](recipes/ninja-dashboard-recipes.md)
+    - [AI Agent Playbook](recipes/ninja-dashboard-ai-playbook.md)
+    - [Discovery Evidence — erp-dev-hksis](recipes/discovery/erp-dev-hksis.md)

@@ -87,6 +87,11 @@ Read specific records by IDs.
 }
 ```
 
+> **Known limitation.** When several ids are passed, a `many2many` / `one2many` field is returned
+> only for the **last** record of the result; every other record comes back with `[]`. The data is
+> intact in Odoo — read one id per call when an x2many value matters. See
+> [MCP x2many quirks](../recipes/mcp-x2many-quirks.md).
+
 ---
 
 ### odoo_count
@@ -370,6 +375,11 @@ Update existing records.
   }
 }
 ```
+
+> **Known limitation.** `many2many` / `one2many` values are **silently ignored** — the call still
+> returns `{"success": true}` and the field is unchanged. Scalars and `many2one` values apply
+> normally. Supply x2many values in the create payload instead. See
+> [MCP x2many quirks](../recipes/mcp-x2many-quirks.md).
 
 ---
 
