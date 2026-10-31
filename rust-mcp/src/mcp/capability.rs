@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use crate::mcp::tools::OdooClientPool;
 use crate::odoo::config::{OdooAuthMode, OdooProtocol};
 use crate::odoo::types::{OdooError, OdooResult};
+use crate::odoo::version::OdooVersion;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -59,6 +60,7 @@ pub async fn execute(pool: &OdooClientPool, args: Value) -> OdooResult<Value> {
     let envelope: Envelope = serde_json::from_value(args.clone())
         .map_err(|e| invalid(format!("invalid capability envelope: {e}")))?;
     let registry = validate_envelope(pool, &args, &envelope)?;
+    validate_detected_target(pool, &envelope).await?;
     preflight_receipt(&registry, &envelope)?;
 
     let (state_path, created) = claim(&envelope)?;
@@ -222,6 +224,29 @@ pub async fn execute(pool: &OdooClientPool, args: Value) -> OdooResult<Value> {
     let output = validate_result(&registry, &envelope, output)?;
     persist_completed(&state_path, &envelope, &output)?;
     Ok(output)
+}
+
+/// Fails closed when the server itself reports a different major version or edition than the
+/// approved cell; configured values were already checked in `validate_registry_target`.
+async fn validate_detected_target(pool: &OdooClientPool, envelope: &Envelope) -> OdooResult<()> {
+    let snapshot = pool.module_snapshot(&envelope.instance).await;
+    let Some(detected) = snapshot.detected_version.as_deref() else {
+        return Ok(());
+    };
+    let major = |v: &str| OdooVersion::parse(v).map(|v| v.major);
+    if major(detected) != major(&envelope.target.version) {
+        return Err(invalid(format!(
+            "server reports Odoo {detected}, but the approved cell is {}",
+            envelope.target.version
+        )));
+    }
+    if snapshot.edition != "unknown" && snapshot.edition != envelope.target.edition {
+        return Err(invalid(format!(
+            "server edition is {}, but the approved cell is {}",
+            snapshot.edition, envelope.target.edition
+        )));
+    }
+    Ok(())
 }
 
 fn validate_envelope(pool: &OdooClientPool, raw: &Value, envelope: &Envelope) -> OdooResult<Value> {
@@ -500,13 +525,14 @@ fn validate_registry_target(
         OdooAuthMode::ApiKey => "api_key",
     };
     let local_database_ref = local.extra.get("databaseRef").and_then(Value::as_str);
-    let expected_major = odoo["expected_major_version"]
-        .as_i64()
-        .unwrap_or_default()
-        .to_string();
+    let expected_major = odoo["expected_major_version"].as_i64().unwrap_or_default();
     if local.url.trim_end_matches('/') != text(odoo, "base_url")?.trim_end_matches('/')
-        || local.version.as_deref().and_then(|v| v.split('.').next())
-            != Some(expected_major.as_str())
+        || local
+            .version
+            .as_deref()
+            .and_then(OdooVersion::parse)
+            .map(|v| i64::from(v.major))
+            != Some(expected_major)
         || local_protocol != expected.protocol
         || local_auth != expected.auth_mode
         || local_database_ref != Some(&expected.database_ref)
@@ -643,11 +669,7 @@ fn line_commands(input: &Map<String, Value>, quotation: bool, version: &str) -> 
         });
         if quotation {
             // Odoo 19 renamed sale.order.line tax_id/product_uom; later majors keep the new names.
-            let renamed = version
-                .split('.')
-                .next()
-                .and_then(|major| major.parse::<u32>().ok())
-                .is_some_and(|major| major >= 19);
+            let renamed = OdooVersion::parse(version).is_some_and(|v| v.major >= 19);
             values["product_id"] = line["product_id"].clone();
             if !renamed {
                 values["tax_id"] = values
@@ -965,7 +987,7 @@ fn verification_checks(capability: &str) -> Vec<&'static str> {
 #[allow(clippy::await_holding_lock)] // The process environment requires serialized tests.
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use std::collections::{BTreeSet, HashMap};
     use std::sync::Mutex;
 
     use tempfile::TempDir;
@@ -1015,6 +1037,7 @@ mod tests {
         let new = line_commands(input, true, "19.0").unwrap();
         let next = line_commands(input, true, "20.0").unwrap();
         assert_eq!(next, new);
+        assert_eq!(line_commands(input, true, "saas~19.3+e").unwrap(), new);
         assert_eq!(old[0][2]["product_uom"], 2);
         assert!(old[0][2].get("product_uom_id").is_none());
         assert!(old[0][2].get("tax_id").is_some());
@@ -1298,6 +1321,39 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("preflight rejected before write"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn detected_server_version_or_edition_mismatch_blocks_before_write() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        for (detected, edition, expected) in [
+            ("20.0", "community", "server reports Odoo 20.0"),
+            ("19.0+e", "enterprise", "server edition is enterprise"),
+        ] {
+            let fixture = crm_fixture(
+                ResponseTemplate::new(200).set_body_json(json!([42])),
+                0,
+                0,
+                json!({"type": "object"}),
+            )
+            .await;
+            fixture
+                .pool
+                .module_snapshots
+                .success(
+                    "test",
+                    Some("19".into()),
+                    Some(detected.into()),
+                    edition.into(),
+                    BTreeSet::from(["crm".into()]),
+                )
+                .await;
+            let error = execute(&fixture.pool, fixture.envelope.clone())
+                .await
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(expected), "{error}");
+        }
     }
 
     #[test]

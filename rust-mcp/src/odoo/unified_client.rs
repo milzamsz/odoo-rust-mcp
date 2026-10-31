@@ -4,7 +4,7 @@ use serde_json::Value;
 use super::client::OdooHttpClient;
 use super::config::{OdooAuthMode, OdooInstanceConfig};
 use super::legacy_client::OdooLegacyClient;
-use super::types::OdooResult;
+use super::types::{OdooError, OdooResult};
 use super::version::{OdooVersion, ServerVersionInfo};
 
 /// Trait for Odoo client operations, enabling mockability for testing.
@@ -271,6 +271,15 @@ impl OdooClient {
         match self {
             OdooClient::Modern(c) => c.fields_get(model, context).await,
             OdooClient::Legacy(c) => c.fields_get(model, context).await,
+        }
+    }
+
+    pub async fn doc_model(&self, model: &str) -> OdooResult<Value> {
+        match self {
+            OdooClient::Modern(c) => c.doc_model(model).await,
+            OdooClient::Legacy(_) => Err(OdooError::InvalidResponse(
+                "Model schema needs an API-key (JSON-2) instance on Odoo 19+".to_string(),
+            )),
         }
     }
 

@@ -2,7 +2,8 @@ use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::odoo::types::{OdooError, OdooResult};
+use crate::cleanup::model_installed;
+use crate::odoo::types::OdooResult;
 use crate::odoo::unified_client::OdooClient;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -152,16 +153,6 @@ pub async fn execute_full_cleanup(
         }
     }
 
-    // 7. Clear caches (best effort)
-    if !dry_run {
-        report.summary.cache_cleared = clear_caches(client).await.unwrap_or(false);
-        if !report.summary.cache_cleared {
-            report.warnings.push(
-                "Cache clearing failed or partially unsupported on this database.".to_string(),
-            );
-        }
-    }
-
     report.summary.total_records_processed = report.summary.test_data_removed
         + report.summary.inactive_records_archived
         + report.summary.drafts_cleaned
@@ -188,6 +179,9 @@ async fn remove_test_data(
     ];
 
     for (model, domain) in test_data_models {
+        if !model_installed(client, model).await? {
+            continue;
+        }
         let ids = client
             .search(model, Some(domain), None, None, None, None)
             .await?;
@@ -230,11 +224,8 @@ async fn archive_inactive_records(
     let threshold_date = (Utc::now() - Duration::days(days_threshold)).date_naive();
     let threshold_date_str = threshold_date.format("%Y-%m-%d").to_string();
 
-    let archivable_models = vec![
-        ("res.partner", "write_date"),
-        ("sale.order", "write_date"),
-        ("account.move", "write_date"),
-    ];
+    // sale.order and account.move have no `active` field on any supported version.
+    let archivable_models = vec![("res.partner", "write_date")];
 
     for (model, date_field) in archivable_models {
         let domain = json!([[date_field, "<", threshold_date_str], ["active", "=", true]]);
@@ -284,6 +275,9 @@ async fn cleanup_draft_documents(
         ("purchase.order", "state"),
     ];
     for (model, state_field) in draft_models {
+        if !model_installed(client, model).await? {
+            continue;
+        }
         let domain = json!([[state_field, "=", "draft"]]);
         let ids = client
             .search(model, Some(domain), None, None, None, None)
@@ -339,6 +333,9 @@ async fn remove_orphan_records(
     ];
 
     for (model, domain, label) in orphan_pairs {
+        if !model_installed(client, model).await? {
+            continue;
+        }
         let ids = client
             .search(model, Some(domain), None, None, None, None)
             .await?;
@@ -381,7 +378,10 @@ async fn cleanup_activity_logs(
     let mut details = vec![];
     let mut total = 0i64;
     let threshold_dt = Utc::now() - Duration::days(days_threshold);
-    let threshold_str = threshold_dt.to_rfc3339();
+    let threshold_str = threshold_dt.format("%Y-%m-%d %H:%M:%S").to_string();
+    if !model_installed(client, "mail.message").await? {
+        return Ok((0, details));
+    }
 
     // mail.message
     let msg_ids = client
@@ -420,20 +420,29 @@ async fn cleanup_activity_logs(
         }
     }
 
-    // mail.activity (done)
-    let act_ids = client
-        .search(
-            "mail.activity",
-            Some(json!([
-                ["create_date", "<", threshold_str],
-                ["state", "=", "done"]
-            ])),
-            None,
-            None,
-            None,
-            None,
-        )
-        .await?;
+    // mail.activity (done). 17+ archives done activities; 16 deletes them on completion.
+    let keeps_done = client
+        .fields_get("mail.activity", None)
+        .await?
+        .get("active")
+        .is_some();
+    let act_ids = if keeps_done {
+        client
+            .search(
+                "mail.activity",
+                Some(json!([
+                    ["create_date", "<", threshold_str],
+                    ["active", "=", false]
+                ])),
+                None,
+                None,
+                None,
+                Some(json!({"active_test": false})),
+            )
+            .await?
+    } else {
+        vec![]
+    };
     if !act_ids.is_empty() {
         let count = act_ids.len() as i64;
         total += count;
@@ -512,21 +521,6 @@ async fn cleanup_attachments(
     }
 
     Ok((total, details))
-}
-
-async fn clear_caches(client: &OdooClient) -> Result<bool, OdooError> {
-    // Best effort: those methods may not exist depending on modules/edition.
-    let params = serde_json::Map::new();
-    let _ = client
-        .call_named("ir.ui.view", "clear_caches", None, params, None)
-        .await?;
-
-    let params2 = serde_json::Map::new();
-    let _ = client
-        .call_named("ir.session", "clear_session_cache", None, params2, None)
-        .await?;
-
-    Ok(true)
 }
 
 #[cfg(test)]

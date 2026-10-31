@@ -51,7 +51,7 @@ pub struct OdooClientPool {
     env: Arc<RwLock<OdooEnvConfig>>,
     clients: Arc<Mutex<HashMap<String, OdooClient>>>,
     pub metadata_cache: MetadataCache,
-    module_snapshots: ModuleSnapshotStore,
+    pub(crate) module_snapshots: ModuleSnapshotStore,
 }
 
 impl OdooClientPool {
@@ -487,6 +487,9 @@ pub async fn execute_op(
         "onchange" => op_onchange(pool, op, args).await,
         "list_models" => op_list_models(pool, op, args).await,
         "check_access" => op_check_access(pool, op, args).await,
+        "access_rules" => op_access_rules(pool, op, args).await,
+        "model_schema" => op_model_schema(pool, op, args).await,
+        "web_search_read" => op_web_search_read(pool, op, args).await,
         "create_batch" => op_create_batch(pool, op, args).await,
         "execute_capability" => capability::execute(pool, args).await.map(ok_text),
         "refresh_capabilities" => op_refresh_capabilities(pool, op, args).await,
@@ -1328,6 +1331,12 @@ async fn op_read_group(
         params.insert("lazy".into(), json!(false));
         insert_opt(&mut params, "offset", offset);
         insert_opt(&mut params, "limit", limit);
+        // Old read_group sorts by the alias, not by "field:agg".
+        let order = order.map(|o| {
+            aggregates
+                .iter()
+                .fold(o, |o, a| o.replace(a.as_str(), &legacy_alias(a)))
+        });
         insert_opt(&mut params, "orderby", order);
         let groups = client
             .call_named(&model, "read_group", None, params, context)
@@ -1553,6 +1562,158 @@ async fn op_list_models(
         .await?;
 
     Ok(ok_text(json!({ "models": models })))
+}
+
+async fn op_access_rules(
+    pool: &OdooClientPool,
+    op: &OpSpec,
+    args: Value,
+) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let model = req_str(&args, op, "model")?;
+    let operation = opt_str(&args, op, "operation")?;
+    if let Some(operation) = &operation
+        && !["read", "write", "create", "unlink"].contains(&operation.as_str())
+    {
+        return Err(OdooError::InvalidResponse(format!(
+            "operation must be read, write, create or unlink, got '{operation}'"
+        )));
+    }
+
+    let client = pool
+        .get(&instance)
+        .await
+        .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    let context = Some(json!({ "active_test": false }));
+    let fields = |names: &[&str]| Some(names.iter().map(|n| n.to_string()).collect());
+    let domain = |prefix: &str| {
+        let mut domain = vec![json!(["model_id.model", "=", model])];
+        if let Some(operation) = &operation {
+            domain.push(json!([format!("{prefix}{operation}"), "=", true]));
+        }
+        Some(json!(domain))
+    };
+
+    // saas~19.4+ and 20 replace ir.model.access and ir.rule with ir.access.
+    if cleanup::model_installed(&client, "ir.access").await? {
+        let access = client
+            .search_read(
+                "ir.access",
+                domain("for_"),
+                fields(&[
+                    "name",
+                    "active",
+                    "group_id",
+                    "operation",
+                    "domain",
+                    "kind",
+                    "for_read",
+                    "for_write",
+                    "for_create",
+                    "for_unlink",
+                ]),
+                None,
+                None,
+                None,
+                context,
+            )
+            .await?;
+        return Ok(ok_text(
+            json!({ "model": model, "source": "ir.access", "access": access }),
+        ));
+    }
+
+    let access = client
+        .search_read(
+            "ir.model.access",
+            domain("perm_"),
+            fields(&[
+                "name",
+                "active",
+                "group_id",
+                "perm_read",
+                "perm_write",
+                "perm_create",
+                "perm_unlink",
+            ]),
+            None,
+            None,
+            None,
+            context.clone(),
+        )
+        .await?;
+    let rules = client
+        .search_read(
+            "ir.rule",
+            domain("perm_"),
+            fields(&[
+                "name",
+                "active",
+                "global",
+                "groups",
+                "domain_force",
+                "perm_read",
+                "perm_write",
+                "perm_create",
+                "perm_unlink",
+            ]),
+            None,
+            None,
+            None,
+            context,
+        )
+        .await?;
+    Ok(ok_text(json!({
+        "model": model,
+        "source": "ir.model.access+ir.rule",
+        "access": access,
+        "rules": rules,
+    })))
+}
+
+async fn op_model_schema(
+    pool: &OdooClientPool,
+    op: &OpSpec,
+    args: Value,
+) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let model = req_str(&args, op, "model")?;
+    let client = pool
+        .get(&instance)
+        .await
+        .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    Ok(ok_text(client.doc_model(&model).await?))
+}
+
+async fn op_web_search_read(
+    pool: &OdooClientPool,
+    op: &OpSpec,
+    args: Value,
+) -> Result<Value, OdooError> {
+    let instance = req_str(&args, op, "instance")?;
+    let model = req_str(&args, op, "model")?;
+    let mut params = Map::new();
+    params.insert(
+        "domain".into(),
+        opt_value(&args, op, "domain").unwrap_or_else(|| json!([])),
+    );
+    params.insert(
+        "specification".into(),
+        req_value(&args, op, "specification")?,
+    );
+    insert_opt(&mut params, "offset", opt_i64(&args, op, "offset")?);
+    insert_opt(&mut params, "limit", opt_i64(&args, op, "limit")?);
+    insert_opt(&mut params, "order", opt_str(&args, op, "order")?);
+    let context = opt_value(&args, op, "context");
+
+    let client = pool
+        .get(&instance)
+        .await
+        .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+    let result = client
+        .call_named(&model, "web_search_read", None, params, context)
+        .await?;
+    Ok(ok_text(result))
 }
 
 async fn op_check_access(
@@ -1805,6 +1966,7 @@ mod tests {
             description: String::new(),
             pack: None,
             required_modules: Vec::new(),
+            min_version: None,
             input_schema: json!({"type": "object"}),
             op: OpSpec {
                 op_type: op_type.to_string(),
@@ -2609,5 +2771,83 @@ mod tests {
         .unwrap_err();
 
         assert!(error.to_string().contains("missing_modules (stock)"));
+    }
+}
+
+#[cfg(test)]
+mod access_rules_tests {
+    use super::*;
+    use crate::odoo::config::{OdooInstanceConfig, OdooProtocol};
+    use wiremock::matchers::{body_partial_json, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    async fn run(has_ir_access: bool) -> (MockServer, Value) {
+        let server = MockServer::start().await;
+        let reply = |body: Value| ResponseTemplate::new(200).set_body_json(body);
+        Mock::given(method("POST"))
+            .and(path("/json/2/ir.model/search_count"))
+            .respond_with(reply(json!(if has_ir_access { 1 } else { 0 })))
+            .mount(&server)
+            .await;
+        for model in ["ir.access", "ir.model.access", "ir.rule"] {
+            let prefix = if model == "ir.access" {
+                "for_"
+            } else {
+                "perm_"
+            };
+            Mock::given(method("POST"))
+                .and(path(format!("/json/2/{model}/search_read")))
+                .and(body_partial_json(json!({"domain": [
+                    ["model_id.model", "=", "res.partner"], [format!("{prefix}write"), "=", true]
+                ]})))
+                .respond_with(reply(json!([{"name": model}])))
+                .mount(&server)
+                .await;
+        }
+        let mut instances = HashMap::new();
+        instances.insert(
+            "test".into(),
+            OdooInstanceConfig {
+                url: server.uri(),
+                db: Some("db".into()),
+                api_key: Some("key".into()),
+                username: None,
+                password: None,
+                version: Some("20".into()),
+                protocol: OdooProtocol::Json2,
+                timeout_ms: Some(5000),
+                max_retries: Some(0),
+                tool_config: None,
+                read_only: false,
+                tags: vec![],
+                aliases: vec![],
+                extra: HashMap::new(),
+            },
+        );
+        let pool = OdooClientPool::from_config(OdooEnvConfig { instances });
+        let op = OpSpec {
+            op_type: "access_rules".into(),
+            map: HashMap::from([
+                ("instance".into(), "/instance".into()),
+                ("model".into(), "/model".into()),
+                ("operation".into(), "/operation".into()),
+            ]),
+        };
+        let args = json!({"instance": "test", "model": "res.partner", "operation": "write"});
+        let result = execute_op(&pool, &op, args).await.unwrap();
+        let text = result["content"][0]["text"].as_str().unwrap();
+        (server, serde_json::from_str(text).unwrap())
+    }
+
+    #[tokio::test]
+    async fn test_should_read_ir_access_when_present_else_legacy_models() {
+        let (_server, modern) = run(true).await;
+        assert_eq!(modern["source"], "ir.access");
+        assert_eq!(modern["access"], json!([{"name": "ir.access"}]));
+
+        let (_server, legacy) = run(false).await;
+        assert_eq!(legacy["source"], "ir.model.access+ir.rule");
+        assert_eq!(legacy["access"], json!([{"name": "ir.model.access"}]));
+        assert_eq!(legacy["rules"], json!([{"name": "ir.rule"}]));
     }
 }

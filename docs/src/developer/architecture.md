@@ -166,6 +166,9 @@ Maps tool `op.type` to handler functions. All 22 operation types:
 | `get_model_metadata` | `op_get_model_metadata()` | Get model fields |
 | `list_models` | `op_list_models()` | List available models |
 | `check_access` | `op_check_access()` | Check permissions |
+| `access_rules` | `op_access_rules()` | List access rights and record rules |
+| `model_schema` | `op_model_schema()` | Model schema from api_doc (19+) |
+| `web_search_read` | `op_web_search_read()` | Search and read with a field specification (17+) |
 | `create_batch` | `op_create_batch()` | Batch create records |
 | `read_group` | `op_read_group()` | Aggregate data |
 | `name_search` | `op_name_search()` | Autocomplete search |

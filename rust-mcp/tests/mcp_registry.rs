@@ -12,6 +12,7 @@ mod tests {
             description: "Search for partners in Odoo".to_string(),
             pack: None,
             required_modules: Vec::new(),
+            min_version: None,
             op: OpSpec {
                 op_type: "search".to_string(),
                 map: Default::default(),
@@ -89,6 +90,7 @@ mod tests {
             description: "Admin-only tool".to_string(),
             pack: None,
             required_modules: Vec::new(),
+            min_version: None,
             op: OpSpec {
                 op_type: "admin_action".to_string(),
                 map: Default::default(),
