@@ -61,7 +61,7 @@ import { useSearchParams } from 'react-router-dom';
 type ConnStatus =
   | { status: 'idle' }
   | { status: 'checking' }
-  | { status: 'ok'; latency: number }
+  | { status: 'ok'; latency: number; admin?: boolean }
   | { status: 'error'; error: string };
 
 interface ModuleSnapshot {
@@ -170,7 +170,10 @@ function buildInstanceRow(
 function getStatusLabel(status: ConnStatus) {
   if (status.status === 'idle') return 'Not checked';
   if (status.status === 'checking') return 'Checking';
-  if (status.status === 'ok') return `Healthy ${status.latency}ms`;
+  if (status.status === 'ok') {
+    const role = status.admin === undefined ? '' : status.admin ? ' · Admin' : ' · Non-admin';
+    return `Healthy ${status.latency}ms${role}`;
+  }
   return 'Error';
 }
 
@@ -332,7 +335,7 @@ export function InstancesTab() {
     setConnStatuses((current) => ({ ...current, [name]: { status: 'checking' } }));
 
     try {
-      const response = await fetchJson<{ ok: boolean; latency_ms?: number; error?: string }>(
+      const response = await fetchJson<{ ok: boolean; latency_ms?: number; admin?: boolean; error?: string }>(
         `/api/config/instances/${encodeURIComponent(name)}/test`,
         {
           method: 'POST',
@@ -343,7 +346,7 @@ export function InstancesTab() {
       setConnStatuses((current) => ({
         ...current,
         [name]: response.ok
-          ? { status: 'ok', latency: response.latency_ms ?? 0 }
+          ? { status: 'ok', latency: response.latency_ms ?? 0, admin: response.admin }
           : { status: 'error', error: response.error ?? 'Connection failed' },
       }));
     } catch (error) {
@@ -1089,7 +1092,17 @@ function StatusBadge({ status }: { status: ConnStatus }) {
     status.status === 'ok' ? 'green' : status.status === 'error' ? 'red' : status.status === 'checking' ? 'yellow' : 'gray';
 
   return (
-    <Badge color={color} className="app-table-status">
+    <Badge
+      color={color}
+      className="app-table-status"
+      title={
+        status.status === 'error'
+          ? status.error
+          : status.status === 'ok' && status.admin === false
+            ? 'Connected, but this user lacks Administration/Access Rights (model metadata tools will be denied)'
+            : undefined
+      }
+    >
       {getStatusLabel(status)}
     </Badge>
   );

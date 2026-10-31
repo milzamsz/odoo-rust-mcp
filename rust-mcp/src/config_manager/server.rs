@@ -996,13 +996,18 @@ async fn test_instance_connection(
 
     match probe {
         Ok(()) => {
+            // ir.model is readable only with Administration/Access Rights, so it doubles as the admin check
+            let admin = client
+                .search_count("ir.model", Some(json!([])), None)
+                .await
+                .is_ok();
             info!(
-                "Connection test for '{}': ok=true, latency={}ms",
-                name, latency_ms
+                "Connection test for '{}': ok=true, latency={}ms, admin={}",
+                name, latency_ms, admin
             );
             (
                 StatusCode::OK,
-                Json(json!({ "ok": true, "latency_ms": latency_ms })),
+                Json(json!({ "ok": true, "latency_ms": latency_ms, "admin": admin })),
             )
                 .into_response()
         }
