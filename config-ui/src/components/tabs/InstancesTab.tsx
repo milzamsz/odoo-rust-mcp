@@ -170,10 +170,7 @@ function buildInstanceRow(
 function getStatusLabel(status: ConnStatus) {
   if (status.status === 'idle') return 'Not checked';
   if (status.status === 'checking') return 'Checking';
-  if (status.status === 'ok') {
-    const role = status.admin === undefined ? '' : status.admin ? ' · Admin' : ' · Non-admin';
-    return `Healthy ${status.latency}ms${role}`;
-  }
+  if (status.status === 'ok') return `Healthy ${status.latency}ms`;
   return 'Error';
 }
 
@@ -622,6 +619,13 @@ export function InstancesTab() {
         cell: ({ row }) => <StatusBadge status={row.original.connectionStatus} />,
       },
       {
+        id: 'access',
+        header: 'Access',
+        enableSorting: false,
+        enableColumnFilter: false,
+        cell: ({ row }) => <AccessBadge status={row.original.connectionStatus} />,
+      },
+      {
         id: 'actions',
         header: 'Actions',
         enableSorting: false,
@@ -896,6 +900,7 @@ export function InstancesTab() {
                         />
                       </Table.Th>
                       <Table.Th />
+                      <Table.Th />
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -928,6 +933,7 @@ export function InstancesTab() {
                           <Group gap="xs">
                             <NameChip>{row.original.name}</NameChip>
                             <StatusBadge status={row.original.connectionStatus} />
+                            <AccessBadge status={row.original.connectionStatus} />
                           </Group>
                           <Text c="blue.4" size="sm" mt={6}>
                             {row.original.instance.url}
@@ -1095,15 +1101,33 @@ function StatusBadge({ status }: { status: ConnStatus }) {
     <Badge
       color={color}
       className="app-table-status"
-      title={
-        status.status === 'error'
-          ? status.error
-          : status.status === 'ok' && status.admin === false
-            ? 'Connected, but this user lacks Administration/Access Rights (model metadata tools will be denied)'
-            : undefined
-      }
+      title={status.status === 'error' ? status.error : undefined}
     >
       {getStatusLabel(status)}
+    </Badge>
+  );
+}
+
+function AccessBadge({ status }: { status: ConnStatus }) {
+  if (status.status !== 'ok' || status.admin === undefined) {
+    return (
+      <Text size="sm" c="dimmed">
+        —
+      </Text>
+    );
+  }
+
+  return status.admin ? (
+    <Badge color="violet" variant="light" title="User has Administration/Access Rights">
+      Admin
+    </Badge>
+  ) : (
+    <Badge
+      color="orange"
+      variant="light"
+      title="Connected, but this user lacks Administration/Access Rights (model metadata tools will be denied)"
+    >
+      Non-admin
     </Badge>
   );
 }
