@@ -426,3 +426,22 @@ async fn test_should_reject_login_page_returned_instead_of_pdf() {
         .unwrap_err();
     assert!(error.to_string().contains("did not return a PDF"));
 }
+
+#[tokio::test]
+async fn test_should_send_empty_domain_when_search_has_none() {
+    // Odoo 19+/20 JSON-2 rejects search without `domain` (422).
+    let mock = MockOdooServer::start().await;
+    Mock::given(method("POST"))
+        .and(path_regex(r"/json/2/res\.company/search$"))
+        .and(wiremock::matchers::body_partial_json(json!({"domain": []})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([1])))
+        .mount(&mock.server)
+        .await;
+
+    let client = OdooHttpClient::new(&create_config(&mock.uri())).unwrap();
+    let result = client
+        .search("res.company", None, Some(1), None, None, None)
+        .await
+        .unwrap();
+    assert_eq!(result, vec![1]);
+}

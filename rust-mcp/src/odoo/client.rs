@@ -292,9 +292,8 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        if let Some(d) = domain {
-            body["domain"] = d;
-        }
+        // `domain` is a required positional argument of search/search_count on JSON-2.
+        body["domain"] = domain.unwrap_or_else(|| json!([]));
         if let Some(v) = limit {
             body["limit"] = json!(v);
         }
@@ -327,9 +326,8 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        if let Some(d) = domain {
-            body["domain"] = d;
-        }
+        // `domain` is a required positional argument of search/search_count on JSON-2.
+        body["domain"] = domain.unwrap_or_else(|| json!([]));
         if let Some(v) = fields {
             body["fields"] = json!(v);
         }
@@ -456,9 +454,8 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        if let Some(d) = domain {
-            body["domain"] = d;
-        }
+        // `domain` is a required positional argument of search/search_count on JSON-2.
+        body["domain"] = domain.unwrap_or_else(|| json!([]));
         let v = self
             .post_json2_raw(model, "search_count", body, RetryMode::Safe)
             .await?;
