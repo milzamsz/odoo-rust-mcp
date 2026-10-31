@@ -19,6 +19,7 @@ Odoo 20 support, planned as v0.7.0. Supported: Odoo 16, 17, 18, 19, Odoo Online 
 - `odoo_model_schema` (Odoo 19+, `api_doc`): fields and methods from `/doc-bearer`.
 - `odoo_web_search_read` (Odoo 17+): search and read with a field specification.
 - Version notes for Odoo 19/20 in the built-in prompts and server instructions.
+- CI job `odoo-live` runs the tools against disposable Odoo 16, 17, 18, 19 and 20 containers (`scripts/odoo-test-db.sh`, `tests/odoo_live_tools.rs`).
 
 ### Changed
 - `odoo_read_group` uses `formatted_read_group` on 19+ and translates to `read_group` on 16–18.

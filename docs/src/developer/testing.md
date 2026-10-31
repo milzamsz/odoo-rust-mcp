@@ -49,6 +49,16 @@ cargo test --all-features
 
 ---
 
+### Live Odoo Tests
+
+`scripts/odoo-test-db.sh` starts a disposable Odoo (16.0 to 20.0) in Docker, creates a database named `mcp`, and prints the connection env. Odoo 19+ gets an `rpc`-scope API key; older versions use admin/admin. The ignored test `odoo_live_tools` then runs the read tools, `odoo_access_rules`, and a cleanup dry run against it. CI runs it for every version in the `odoo-live` job.
+
+```bash
+set -a; . <(scripts/odoo-test-db.sh 20.0 28069); set +a
+cargo test --manifest-path rust-mcp/Cargo.toml --test odoo_live_tools -- --ignored --nocapture
+scripts/odoo-test-db.sh down 20.0
+```
+
 ## Config UI Tests
 
 The React Config UI uses Vitest with Istanbul coverage:
