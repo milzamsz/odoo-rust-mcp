@@ -1,7 +1,10 @@
 use std::{
     io::{Read, Write},
     net::{SocketAddr, TcpStream},
-    sync::Mutex,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     time::Duration,
 };
 use tauri::{
@@ -11,11 +14,19 @@ use tauri::{
 };
 use tauri_plugin_shell::process::CommandChild;
 
+mod lifecycle;
+use lifecycle::{backend_version, ports_available, stop_child, track_child};
+
 pub struct SidecarState {
     pub child: Mutex<Option<CommandChild>>,
+    operation: Mutex<()>,
+    exited: Mutex<Arc<AtomicBool>>,
 }
 
-const CONFIG_UI_URL: &str = concat!("http://127.0.0.1:3008/?desktopVersion=", env!("CARGO_PKG_VERSION"));
+const CONFIG_UI_URL: &str = concat!(
+    "http://127.0.0.1:3008/?desktopVersion=",
+    env!("CARGO_PKG_VERSION")
+);
 const CONFIG_UI_HOST: &str = "127.0.0.1";
 const CONFIG_UI_PORT: u16 = 3008;
 const CONFIG_UI_STARTUP_ATTEMPTS: usize = 30;
@@ -58,6 +69,8 @@ pub fn run() {
     tauri::Builder::default()
         .manage(SidecarState {
             child: Mutex::new(None),
+            operation: Mutex::new(()),
+            exited: Mutex::new(Arc::new(AtomicBool::new(true))),
         })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
@@ -94,8 +107,8 @@ pub fn run() {
 
             // Start the sidecar server
             let app_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                start_sidecar(&app_handle).await;
+            tauri::async_runtime::spawn_blocking(move || {
+                start_sidecar(&app_handle, false);
             });
 
             Ok(())
@@ -124,8 +137,11 @@ pub fn run() {
                 let _ = app.clipboard().write_text(clipboard_text);
             }
             "docs" => {
-                tauri_plugin_opener::open_url("https://milzamsz.github.io/odoo-rust-mcp/", None::<&str>)
-                    .unwrap_or_default();
+                tauri_plugin_opener::open_url(
+                    "https://milzamsz.github.io/odoo-rust-mcp/",
+                    None::<&str>,
+                )
+                .unwrap_or_default();
             }
             "config" => {
                 let config_path = std::env::var("APPDATA").unwrap_or_else(|_| "~/.config".into());
@@ -133,8 +149,8 @@ pub fn run() {
             }
             "restart" => {
                 let app_handle = app.clone();
-                tauri::async_runtime::spawn(async move {
-                    start_sidecar(&app_handle).await;
+                tauri::async_runtime::spawn_blocking(move || {
+                    start_sidecar(&app_handle, true);
                 });
             }
             "quit" => {
@@ -146,25 +162,61 @@ pub fn run() {
             }
             _ => {}
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Stop the sidecar on any exit path, not only the tray Quit, so it is never orphaned.
+            if let tauri::RunEvent::Exit = event {
+                if let Some(child) = app.state::<SidecarState>().child.lock().unwrap().take() {
+                    let _ = child.kill();
+                }
+            }
+        });
 }
 
 /// Locate and start the `odoo-rust-mcp.exe` sidecar.
-async fn start_sidecar(app: &AppHandle) {
+fn start_sidecar(app: &AppHandle, restart: bool) {
     use tauri_plugin_shell::ShellExt;
 
+    let state = app.state::<SidecarState>();
+    let Ok(_operation) = state.operation.try_lock() else {
+        return;
+    };
     set_startup_status(app, "Starting the local Odoo Rust MCP server...");
 
-    // Get sidecar state
-    let state = app.state::<SidecarState>();
-
-    // Kill prior child if it exists
-    {
-        let mut child_guard = state.child.lock().unwrap();
-        if let Some(child) = child_guard.take() {
-            let _ = child.kill();
+    if restart {
+        let child = state.child.lock().unwrap().take();
+        if let Some(child) = child {
+            let exited = state.exited.lock().unwrap().clone();
+            if let Err(error) = stop_child(
+                || child.kill().map_err(|e| e.to_string()),
+                || exited.load(Ordering::Acquire) && ports_available(),
+            ) {
+                show_startup_error(app, &error);
+                return;
+            }
+        } else if !ports_available() {
+            let version = backend_version().unwrap_or_else(|| "unknown".into());
+            show_startup_error(app, &format!("Server version {version} was started outside this desktop session. Restart it using its owning application or service. It has not been stopped."));
+            return;
         }
+    }
+
+    if !ports_available() {
+        if let Some(version) = backend_version()
+            .filter(|_| is_config_ui_ready(SocketAddr::from(([127, 0, 0, 1], CONFIG_UI_PORT))))
+        {
+            navigate_to_config_ui(app);
+            // Same version (e.g. left over from an earlier desktop run): just use it quietly.
+            if version == env!("CARGO_PKG_VERSION") {
+                return;
+            }
+            use tauri_plugin_dialog::DialogExt;
+            app.dialog().message(format!("Using server version {version}, started outside this desktop session. Desktop version: {}. Restart Server cannot replace an externally managed server.", env!("CARGO_PKG_VERSION"))).title("Existing MCP server").show(|_| {});
+        } else {
+            show_startup_error(app, "Ports 3008 or 8787 are occupied, but both Odoo MCP endpoints are not ready. No server was started.");
+        }
+        return;
     }
 
     let shell = app.shell();
@@ -181,26 +233,12 @@ async fn start_sidecar(app: &AppHandle) {
         ]);
 
     match sidecar.spawn() {
-        Ok((mut _rx, child)) => {
-            let mut child_guard = state.child.lock().unwrap();
-            *child_guard = Some(child);
+        Ok((rx, child)) => {
+            *state.exited.lock().unwrap() = track_child(rx);
+            *state.child.lock().unwrap() = Some(child);
 
             if wait_for_config_ui(app) {
-                if let Some(window) = app.get_webview_window("main") {
-                    if let Ok(url) = Url::parse(CONFIG_UI_URL) {
-                        if let Err(error) = window.navigate(url) {
-                            show_startup_error(
-                                app,
-                                &format!(
-                                    "The local configuration server started, but the desktop window could not open it: {}",
-                                    error
-                                ),
-                            );
-                        }
-                    } else {
-                        show_startup_error(app, "The desktop app generated an invalid configuration UI URL.");
-                    }
-                }
+                navigate_to_config_ui(app);
             } else {
                 show_startup_error(
                     app,
@@ -233,9 +271,27 @@ fn wait_for_config_ui(app: &AppHandle) -> bool {
             ),
         );
 
+        if app
+            .state::<SidecarState>()
+            .exited
+            .lock()
+            .unwrap()
+            .load(Ordering::Acquire)
+        {
+            return false;
+        }
         if is_config_ui_ready(address) {
-            set_startup_status(app, "Configuration server is ready. Opening the desktop UI...");
-            return true;
+            if let Some(version) = backend_version() {
+                if version != env!("CARGO_PKG_VERSION") {
+                    show_startup_error(app, &format!("Backend version {version} does not match desktop {}. Reinstall the matching backend.", env!("CARGO_PKG_VERSION")));
+                    return false;
+                }
+                set_startup_status(
+                    app,
+                    &format!("MCP and configuration server version {version} are ready."),
+                );
+                return true;
+            }
         }
 
         std::thread::sleep(CONFIG_UI_RETRY_DELAY);
@@ -280,7 +336,25 @@ fn set_startup_status(app: &AppHandle, status: &str) {
     }
 }
 
+fn navigate_to_config_ui(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        if let Ok(url) = Url::parse(CONFIG_UI_URL) {
+            if let Err(error) = window.navigate(url) {
+                show_startup_error(
+                    app,
+                    &format!("Could not open the configuration UI: {error}"),
+                );
+            }
+        }
+    }
+}
+
 fn show_startup_error(app: &AppHandle, message: &str) {
+    use tauri_plugin_dialog::DialogExt;
+    app.dialog()
+        .message(message)
+        .title("MCP server not restarted")
+        .show(|_| {});
     let Some(window) = app.get_webview_window("main") else {
         return;
     };

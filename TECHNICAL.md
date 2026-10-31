@@ -11,6 +11,19 @@ document.
 
 ## Repository shape
 
+### Desktop server ownership and restart
+
+The desktop serializes startup and explicit restart using one operation lock. Normal startup
+may connect to an existing server; explicit restart only terminates the child owned by this
+desktop session. It consumes process events, waits for termination and both ports to become
+available, then starts the replacement. Both the configuration UI and MCP health response must
+be ready; the owned backend version must match the desktop version. External servers are
+identified by their running version and are never terminated by the desktop restart action.
+Restart errors use native dialogs so they remain visible after navigation away from the splash.
+
+MCP discovery and client tool availability are separate: verify the live `tools/list` response
+before diagnosing permissions. A client may need a fresh connection/session to rediscover tools.
+
 - Backend: `rust-mcp/`
 - Config UI: `config-ui/`
 - Docs: `docs/src/`

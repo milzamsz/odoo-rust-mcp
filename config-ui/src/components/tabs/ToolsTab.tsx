@@ -7,6 +7,7 @@ import {
   SegmentedControl,
   SimpleGrid,
   Stack,
+  Switch,
   Text,
   TextInput,
   Title,
@@ -15,7 +16,7 @@ import { notifications } from '@mantine/notifications';
 import { ArrowClockwise, DownloadSimple, MagnifyingGlass } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ToolDetail } from '../ToolDetail';
-import { importMissingTools, loadToolCatalogDrift, useConfig } from '../../hooks/useConfig';
+import { importMissingTools, loadPermissions, loadToolCatalogDrift, savePermissions, useConfig } from '../../hooks/useConfig';
 import type { ToolCatalogDrift, ToolConfig } from '../../types';
 import { ALL_GROUPED_TOOL_NAMES, OTHER_TOOL_GROUP, TOOL_GROUPS } from '../../toolGroups';
 
@@ -40,6 +41,7 @@ export function ToolsTab() {
   const [importingMissingTools, setImportingMissingTools] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [permissions, setPermissions] = useState<Record<string, { saved: boolean; active: boolean; restart_required: boolean; environment_override: boolean }>>({});
 
   const refreshDrift = useCallback(async () => {
     setDriftLoading(true);
@@ -72,9 +74,10 @@ export function ToolsTab() {
   useEffect(() => {
     void loadTools();
     void refreshDrift();
+    void loadPermissions().then((data) => setPermissions(data.gates)).catch(() => undefined);
   }, [loadTools, refreshDrift]);
 
-  const isToolEnabled = useCallback((tool: ToolConfig) => !tool.guards?.requiresEnvTrue, []);
+  const isToolEnabled = useCallback((tool: ToolConfig) => tool.enabled !== false, []);
 
   const autoSave = useCallback(
     async (updatedTools: ToolConfig[]) => {
@@ -90,22 +93,7 @@ export function ToolsTab() {
         return tool;
       }
 
-      if (enabled) {
-        if (!tool.guards?.requiresEnvTrue) {
-          return tool;
-        }
-        const { requiresEnvTrue, ...rest } = tool.guards;
-        void requiresEnvTrue;
-        return { ...tool, guards: Object.keys(rest).length ? rest : undefined };
-      }
-
-      return {
-        ...tool,
-        guards: {
-          ...tool.guards,
-          requiresEnvTrue: `ENABLE_${tool.name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`,
-        },
-      };
+      return { ...tool, enabled };
     });
   }, []);
 
@@ -244,6 +232,21 @@ export function ToolsTab() {
           </Title>
         </Card>
       </SimpleGrid>
+
+      <Card p="lg" className="surface-panel">
+        <Text className="page-eyebrow">Global permission gates</Text>
+        <Text size="sm" c="dimmed" mt={4}>Saved values apply after the server restarts. Process environment overrides stay authoritative.</Text>
+        <Stack gap="xs" mt="md">
+          {['ODOO_ENABLE_WRITE_TOOLS', 'ODOO_ENABLE_CLEANUP_TOOLS', 'ODOO_ENABLE_EXECUTE_TOOL'].map((key) => {
+            const gate = permissions[key];
+            return <Switch key={key} label={`${key.replace('ODOO_ENABLE_', '').replace(/_/g, ' ')} · saved ${gate?.saved ? 'on' : 'off'}, active ${gate?.active ? 'on' : 'off'}`} checked={gate?.saved ?? false} disabled={gate?.environment_override} onChange={(event) => {
+              const value = event.currentTarget.checked;
+              void savePermissions({ [key]: value }).then((data) => setPermissions(data.gates)).catch((error) => notifications.show({ color: 'red', title: 'Permission save failed', message: error.message }));
+            }} />;
+          })}
+        </Stack>
+        {Object.values(permissions).some((gate) => gate.restart_required) ? <Text size="sm" c="orange" mt="sm">Restart the MCP server, then reconnect the client to refresh its tool list.</Text> : null}
+      </Card>
 
       <Card p="lg" className="surface-panel">
         <Group justify="space-between" align="flex-start" gap="lg" wrap="wrap">

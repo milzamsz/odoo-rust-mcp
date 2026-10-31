@@ -13,6 +13,7 @@ mod tests {
             pack: None,
             required_modules: Vec::new(),
             min_version: None,
+            enabled: true,
             op: OpSpec {
                 op_type: "search".to_string(),
                 map: Default::default(),
@@ -91,6 +92,7 @@ mod tests {
             pack: None,
             required_modules: Vec::new(),
             min_version: None,
+            enabled: true,
             op: OpSpec {
                 op_type: "admin_action".to_string(),
                 map: Default::default(),

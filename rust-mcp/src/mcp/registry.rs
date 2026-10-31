@@ -52,6 +52,13 @@ pub struct ToolDef {
     pub op: OpSpec,
     #[serde(default)]
     pub guards: Option<ToolGuards>,
+    /// Explicit catalog toggle. Missing keeps legacy enabled behavior.
+    #[serde(default = "default_tool_enabled")]
+    pub enabled: bool,
+}
+
+fn default_tool_enabled() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -229,6 +236,9 @@ impl Registry {
         st.tools
             .iter()
             .filter(|tool| {
+                if !tool.enabled {
+                    return false;
+                }
                 let mut denial_instance = if capabilities.len() == 1 {
                     capabilities[0].instance.as_str()
                 } else {
@@ -285,6 +295,15 @@ impl Registry {
     pub async fn get_tool(&self, name: &str, instance: Option<&str>) -> Option<ToolDef> {
         let st = self.state.read().await;
         let t = st.tool_by_name.get(name)?.clone();
+        if !t.enabled {
+            audit_tool_denial(
+                instance.unwrap_or("unknown"),
+                &t,
+                "catalog_disabled",
+                "tool is disabled in tools.json",
+            );
+            return None;
+        }
         if let Some(detail) = guard_denial(t.guards.as_ref()) {
             audit_tool_denial(instance.unwrap_or("unknown"), &t, "env_guard", &detail);
             None
