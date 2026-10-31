@@ -84,7 +84,7 @@ describe('InstancesTab', () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      text: async () => JSON.stringify({ ok: true, latency_ms: 123 }),
+      text: async () => JSON.stringify({ ok: true, latency_ms: 123, admin: false }),
     });
 
     renderWithProviders(<InstancesTab />);
@@ -102,5 +102,6 @@ describe('InstancesTab', () => {
     );
 
     expect(await screen.findByText(/healthy 123ms/i)).toBeInTheDocument();
+    expect(within(row as HTMLElement).getByText('Non-admin')).toBeInTheDocument();
   }, 30000);
 });
