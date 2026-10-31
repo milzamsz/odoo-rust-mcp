@@ -150,8 +150,8 @@ curl http://127.0.0.1:3008/health
 - [ ] **Read tools**: search, search_read, read, count, name_search, name_get
 - [ ] **Write tools**: create, create_batch, update, delete, copy
 - [ ] **Workflow tools**: execute, workflow_action
-- [ ] **Metadata tools**: list_models, get_model_metadata, default_get, check_access
-- [ ] **Advanced tools**: read_group, onchange, generate_report
+- [ ] **Metadata tools**: list_models, get_model_metadata, default_get, check_access, access_rules, model_schema (19+)
+- [ ] **Advanced tools**: read_group (with `aggregates` and `order`), web_search_read (17+), onchange, generate_report
 - [ ] **Cleanup tools**: database_cleanup, deep_cleanup (requires `ODOO_ENABLE_CLEANUP_TOOLS=true`)
 
 ### Config UI

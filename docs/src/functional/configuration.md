@@ -38,7 +38,7 @@ Create `instances.json`:
 | `url` | Yes | - | Odoo server URL |
 | `db` | Odoo 18 and earlier | - | Database name |
 | `apiKey` | Odoo 19+ | - | API key for JSON-2 authentication |
-| `version` | No | - | Odoo version |
+| `version` | No | - | Odoo version (`16`–`20`, or `saas~19.3`). Wins over the version the server reports; a mismatch is logged and shown in the Config UI. |
 | `username` | Odoo 18 and earlier | - | Username for JSON-RPC auth |
 | `password` | Odoo 18 and earlier | - | Password for JSON-RPC auth |
 | `protocol` | No | `auto` | `auto`, `jsonrpc`, or `json2` |
@@ -55,8 +55,12 @@ By default, the server auto-detects the protocol based on available credentials:
 
 | Condition | Protocol Used |
 |-----------|---------------|
-| `apiKey` present | JSON-2 API (Odoo 19+) |
-| `username` + `password` + `version` present | JSON-RPC (Odoo 18 and earlier) |
+| `protocol` is `jsonrpc` or `json2` | That protocol |
+| `version` below 19 | JSON-RPC (username/password) |
+| No `apiKey`, but `username` and `password` | JSON-RPC (username/password) |
+| Anything else | JSON-2 API (API key) |
+
+On Odoo 20, create the API key with the `rpc` scope; keys with only the `mcp` scope (for Odoo Enterprise's own `/mcp` endpoint) are rejected by JSON-2. Password instances still work on 20, but Odoo removes `/jsonrpc` in version 22.
 
 You can override this with the `protocol` field when needed.
 
@@ -234,3 +238,18 @@ Files: `instances.json`, `tools.json`, `prompts.json`, `server.json`, `env`
 | systemd / Windows Service | Background service installs |
 
 See [Deployment Guide](./deployment.md) for full setup detail.
+
+---
+
+## Odoo 20 Enterprise Native MCP
+
+Odoo 20 Enterprise ships an `ai_mcp` module with its own MCP endpoint at `POST /mcp`. Both can run at the same time:
+
+| | Odoo `ai_mcp` | odoo-rust-mcp |
+|---|---|---|
+| Editions and versions | Odoo 20 Enterprise | Odoo 16–20, Community and Enterprise, saas~19.x |
+| API key scope | `mcp` | `rpc` (a key with only the `mcp` scope is rejected) |
+| Instances | One database | Many instances, routed by the `instance` argument |
+| Write controls | The key user's Odoo access rights | The key user's access rights, plus: writes off unless `ODOO_ENABLE_WRITE_TOOLS=true`, optional signed controlled mode, guarded cleanup tools |
+
+Give each one its own API key with the matching scope.

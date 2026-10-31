@@ -4,12 +4,14 @@ Odoo MCP server with a built-in Config UI for managing instances, tools, prompts
 
 Supports:
 
-- Odoo `19+` via JSON-2 + API key
+- Odoo `16`, `17`, `18`, `19`, Odoo Online `saas~19.x`, and `20`, Community and Enterprise
+- Odoo `19+` via JSON-2 + API key (on `20` the key needs the `rpc` scope)
 - Odoo `18-` via JSON-RPC + username/password
+- The real Odoo version and edition are detected from the server; tools a version lacks are hidden
 - MCP over `stdio`, `http`, and `ws`
 - Config UI on `http://localhost:3008`
 
-Current version: `0.6.5`
+Current version: `0.7.0`
 
 ## Screenshots
 
@@ -89,7 +91,7 @@ Typical fields:
 - `Name`: internal label used in MCP calls
 - `URL`: your Odoo base URL
 - `Database`: required for older Odoo and some multi-db setups
-- `Version`: `16`, `17`, `18`, or `19`
+- `Version`: `16`, `17`, `18`, `19`, or `20`
 - `Tags`: optional labels for filtering in the UI
 
 Then click `Test` to verify the connection.
