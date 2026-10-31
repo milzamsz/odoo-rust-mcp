@@ -1331,6 +1331,12 @@ async fn op_read_group(
         params.insert("lazy".into(), json!(false));
         insert_opt(&mut params, "offset", offset);
         insert_opt(&mut params, "limit", limit);
+        // Old read_group sorts by the alias, not by "field:agg".
+        let order = order.map(|o| {
+            aggregates
+                .iter()
+                .fold(o, |o, a| o.replace(a.as_str(), &legacy_alias(a)))
+        });
         insert_opt(&mut params, "orderby", order);
         let groups = client
             .call_named(&model, "read_group", None, params, context)
