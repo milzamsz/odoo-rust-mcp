@@ -63,7 +63,7 @@ Prompts are defined in `prompts.json` and support hot-reload -- changes take eff
 **Documents covered:**
 | Document | States |
 |----------|--------|
-| Sale Order | draft → sent → sale → done / cancel |
+| Sale Order | draft → sent → sale / cancel (17+ locks with `locked`; 16 uses `done`) |
 | Purchase Order | draft → sent → to approve → purchase → done |
 | Invoice | draft → posted → cancel |
 | Stock Picking | draft → waiting → confirmed → assigned → done |
@@ -74,11 +74,11 @@ Prompts are defined in `prompts.json` and support hot-reload -- changes take eff
 
 ### odoo_read_group
 
-**Description:** How to use `read_group` for aggregation and reporting.
+**Description:** How to use `odoo_read_group` (`groupby`, `aggregates`, `having`, `order`) for aggregation and reporting on Odoo 16–20.
 
 **Covers:**
 - Syntax and parameters
-- Aggregation functions: `sum`, `count`, `avg`, `min`, `max`
+- Aggregation functions: `sum`, `avg`, `min`, `max`, `count`, `count_distinct`, and `__count`
 - Time grouping: `day`, `week`, `month`, `quarter`, `year`
 - Practical examples:
   - Count orders by state

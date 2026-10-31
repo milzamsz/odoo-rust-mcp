@@ -674,6 +674,130 @@
       }
     },
     {
+      "name": "odoo_access_rules",
+      "description": "List the access rights and record rules that apply to a model, optionally for one operation. Reads ir.access on Odoo saas~19.4+/20, and ir.model.access plus ir.rule on older versions. Includes archived entries (see `active`).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "create",
+              "unlink"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "model"
+        ],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "access_rules",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "operation": "/operation"
+        }
+      }
+    },
+    {
+      "name": "odoo_model_schema",
+      "description": "Full schema of a model from Odoo's API documentation: fields with types and help, plus public methods with their parameters and docstrings. Needs Odoo 19+, the api_doc module, and an API-key instance whose user is in the 'Allow API documentation' group.",
+      "minVersion": "19",
+      "requiredModules": [
+        "api_doc"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "model"
+        ],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "model_schema",
+        "map": {
+          "instance": "/instance",
+          "model": "/model"
+        }
+      }
+    },
+    {
+      "name": "odoo_web_search_read",
+      "description": "Search and read records with a field specification, the way the Odoo web client does (Odoo 17+). The specification picks fields and nested relational fields in one call, e.g. {\"name\": {}, \"partner_id\": {\"fields\": {\"display_name\": {}}}}. Returns {length, records}.",
+      "minVersion": "17",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "array",
+            "description": "Odoo domain, e.g. [[\"state\", \"=\", \"sale\"]]",
+            "items": {}
+          },
+          "specification": {
+            "type": "object",
+            "description": "Field specification: {field: {}} or {relation: {\"fields\": {...}, \"limit\": n}}"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "order": {
+            "type": "string"
+          },
+          "context": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "instance",
+          "model",
+          "specification"
+        ],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "web_search_read",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "domain": "/domain",
+          "specification": "/specification",
+          "offset": "/offset",
+          "limit": "/limit",
+          "order": "/order",
+          "context": "/context"
+        }
+      }
+    },
+    {
       "name": "odoo_create_batch",
       "description": "Create multiple records in a single operation. More efficient than calling odoo_create multiple times.",
       "guards": { "requiresEnvTrue": "ODOO_ENABLE_WRITE_TOOLS" },

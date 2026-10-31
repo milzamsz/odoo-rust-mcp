@@ -145,6 +145,15 @@ impl OdooHttpClient {
         let url = self
             .endpoint(model, method)
             .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
+        self.post_url_raw(url, body, retry_mode).await
+    }
+
+    async fn post_url_raw(
+        &self,
+        url: Url,
+        body: Value,
+        retry_mode: RetryMode,
+    ) -> OdooResult<Value> {
         let headers = self
             .headers()
             .map_err(|e| OdooError::InvalidResponse(e.to_string()))?;
@@ -202,6 +211,13 @@ impl OdooHttpClient {
         Err(last_err.unwrap_or_else(|| {
             OdooError::InvalidResponse("Request failed without error details".to_string())
         }))
+    }
+
+    /// Model fields and method signatures from the `api_doc` module (Odoo 19+).
+    pub async fn doc_model(&self, model: &str) -> OdooResult<Value> {
+        let mut url = self.base_url.clone();
+        url.set_path(&format!("/doc-bearer/{model}.json"));
+        self.post_url_raw(url, json!({}), RetryMode::Safe).await
     }
 
     pub async fn download_report_pdf(&self, report_name: &str, ids: &[i64]) -> OdooResult<Vec<u8>> {
@@ -292,9 +308,8 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        if let Some(d) = domain {
-            body["domain"] = d;
-        }
+        // `domain` is a required positional argument of search/search_count on JSON-2.
+        body["domain"] = domain.unwrap_or_else(|| json!([]));
         if let Some(v) = limit {
             body["limit"] = json!(v);
         }
@@ -327,9 +342,8 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        if let Some(d) = domain {
-            body["domain"] = d;
-        }
+        // `domain` is a required positional argument of search/search_count on JSON-2.
+        body["domain"] = domain.unwrap_or_else(|| json!([]));
         if let Some(v) = fields {
             body["fields"] = json!(v);
         }
@@ -456,9 +470,8 @@ impl OdooHttpClient {
         if let Some(ctx) = context {
             body["context"] = ctx;
         }
-        if let Some(d) = domain {
-            body["domain"] = d;
-        }
+        // `domain` is a required positional argument of search/search_count on JSON-2.
+        body["domain"] = domain.unwrap_or_else(|| json!([]));
         let v = self
             .post_json2_raw(model, "search_count", body, RetryMode::Safe)
             .await?;
