@@ -446,22 +446,25 @@
     },
     {
       "name": "odoo_read_group",
-      "description": "Aggregate records with GROUP BY. Returns grouped data with sum, count, avg, etc.",
+      "description": "Aggregate records with GROUP BY, using Odoo's formatted_read_group shape on every version (16-20). groupby entries are fields or 'field:granularity' (day/week/month/quarter/year). aggregates are 'field:agg' (sum, avg, min, max, count, count_distinct, array_agg) or '__count'. Returns groups keyed by each groupby and aggregate spec, e.g. {\"state\": \"draft\", \"amount_total:sum\": 120.0, \"__count\": 3}. 'having' (a domain over aggregates) needs Odoo 19+. fields/lazy/orderby are deprecated and will be removed in 0.8.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "instance": { "type": "string" },
           "model": { "type": "string" },
           "domain": { "type": "array", "items": {} },
-          "fields": { "type": "array", "items": { "type": "string" } },
           "groupby": { "type": "array", "items": { "type": "string" } },
+          "aggregates": { "type": "array", "items": { "type": "string" } },
+          "having": { "type": "array", "items": {} },
           "offset": { "type": "integer" },
           "limit": { "type": "integer" },
-          "orderby": { "type": "string" },
-          "lazy": { "type": "boolean" },
-          "context": { "type": "object" }
+          "order": { "type": "string" },
+          "context": { "type": "object" },
+          "fields": { "type": "array", "items": { "type": "string" }, "description": "Deprecated: use aggregates." },
+          "orderby": { "type": "string", "description": "Deprecated: use order." },
+          "lazy": { "type": "boolean", "description": "Deprecated: ignored." }
         },
-        "required": ["instance", "model", "fields", "groupby"],
+        "required": ["instance", "model", "groupby"],
         "additionalProperties": false
       },
       "op": {
@@ -470,13 +473,16 @@
           "instance": "/instance",
           "model": "/model",
           "domain": "/domain",
-          "fields": "/fields",
           "groupby": "/groupby",
+          "aggregates": "/aggregates",
+          "having": "/having",
           "offset": "/offset",
           "limit": "/limit",
+          "order": "/order",
+          "context": "/context",
+          "fields": "/fields",
           "orderby": "/orderby",
-          "lazy": "/lazy",
-          "context": "/context"
+          "lazy": "/lazy"
         }
       }
     },
@@ -649,7 +655,7 @@
         "properties": {
           "instance": { "type": "string" },
           "model": { "type": "string" },
-          "operation": { "type": "string", "enum": ["read", "write", "unlink"] },
+          "operation": { "type": "string", "enum": ["read", "write", "create", "unlink"] },
           "ids": { "type": "array", "items": { "type": "integer" }, "description": "Optional: check access rules for specific records" },
           "context": { "type": "object" }
         },
@@ -663,6 +669,130 @@
           "model": "/model",
           "operation": "/operation",
           "ids": "/ids",
+          "context": "/context"
+        }
+      }
+    },
+    {
+      "name": "odoo_access_rules",
+      "description": "List the access rights and record rules that apply to a model, optionally for one operation. Reads ir.access on Odoo saas~19.4+/20, and ir.model.access plus ir.rule on older versions. Includes archived entries (see `active`).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "create",
+              "unlink"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "model"
+        ],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "access_rules",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "operation": "/operation"
+        }
+      }
+    },
+    {
+      "name": "odoo_model_schema",
+      "description": "Full schema of a model from Odoo's API documentation: fields with types and help, plus public methods with their parameters and docstrings. Needs Odoo 19+, the api_doc module, and an API-key instance whose user is in the 'Allow API documentation' group.",
+      "minVersion": "19",
+      "requiredModules": [
+        "api_doc"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "model"
+        ],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "model_schema",
+        "map": {
+          "instance": "/instance",
+          "model": "/model"
+        }
+      }
+    },
+    {
+      "name": "odoo_web_search_read",
+      "description": "Search and read records with a field specification, the way the Odoo web client does (Odoo 17+). The specification picks fields and nested relational fields in one call, e.g. {\"name\": {}, \"partner_id\": {\"fields\": {\"display_name\": {}}}}. Returns {length, records}.",
+      "minVersion": "17",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "array",
+            "description": "Odoo domain, e.g. [[\"state\", \"=\", \"sale\"]]",
+            "items": {}
+          },
+          "specification": {
+            "type": "object",
+            "description": "Field specification: {field: {}} or {relation: {\"fields\": {...}, \"limit\": n}}"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "order": {
+            "type": "string"
+          },
+          "context": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "instance",
+          "model",
+          "specification"
+        ],
+        "additionalProperties": false
+      },
+      "op": {
+        "type": "web_search_read",
+        "map": {
+          "instance": "/instance",
+          "model": "/model",
+          "domain": "/domain",
+          "specification": "/specification",
+          "offset": "/offset",
+          "limit": "/limit",
+          "order": "/order",
           "context": "/context"
         }
       }

@@ -4,6 +4,25 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::version::OdooVersion;
+
+/// Accepts `"version": 19` as well as `"version": "19.0"`; the Config UI may write either.
+fn deserialize_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(match Option::<Value>::deserialize(deserializer)? {
+        Some(Value::String(s)) => Some(s),
+        Some(Value::Number(n)) => Some(n.to_string()),
+        Some(Value::Null) | None => None,
+        Some(other) => {
+            return Err(serde::de::Error::custom(format!(
+                "version must be a string or number, got {other}"
+            )));
+        }
+    })
+}
+
 fn is_false(value: &bool) -> bool {
     !value
 }
@@ -98,8 +117,12 @@ pub struct OdooInstanceConfig {
     /// Password for Odoo < 19 (JSON-RPC authentication)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
-    /// Odoo version (e.g., "18", "17", "19"). If < 19, uses JSON-RPC with username/password.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Odoo version (e.g., "18", "19.0", "saas~19.3", "20"). If < 19, uses JSON-RPC with username/password.
+    #[serde(
+        default,
+        deserialize_with = "deserialize_version",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub version: Option<String>,
     /// Explicitly select protocol: "auto", "jsonrpc", or "json2"
     #[serde(default, skip_serializing_if = "OdooProtocol::is_auto")]
@@ -141,9 +164,8 @@ impl OdooInstanceConfig {
         }
 
         // If version is explicitly set and < 19, use password mode
-        if let Some(v) = &self.version
-            && let Ok(major) = v.split('.').next().unwrap_or(v).parse::<u32>()
-            && major < 19
+        if let Some(v) = self.version.as_deref().and_then(OdooVersion::parse)
+            && v.major < 19
         {
             return OdooAuthMode::Password;
         }
@@ -607,6 +629,26 @@ mod tests {
             extra: HashMap::new(),
         };
         assert_eq!(config.auth_mode(), OdooAuthMode::ApiKey);
+    }
+
+    #[test]
+    fn test_should_accept_numeric_and_saas_versions() {
+        let numeric: OdooInstanceConfig = serde_json::from_str(
+            r#"{"url": "http://localhost", "version": 18, "db": "d", "username": "u", "password": "p"}"#,
+        )
+        .unwrap();
+        assert_eq!(numeric.version.as_deref(), Some("18"));
+        assert_eq!(numeric.auth_mode(), OdooAuthMode::Password);
+
+        let saas: OdooInstanceConfig = serde_json::from_str(
+            r#"{"url": "http://localhost", "version": "saas~19.3+e", "apiKey": "k"}"#,
+        )
+        .unwrap();
+        assert_eq!(saas.auth_mode(), OdooAuthMode::ApiKey);
+
+        assert!(
+            serde_json::from_str::<OdooInstanceConfig>(r#"{"url": "x", "version": true}"#).is_err()
+        );
     }
 
     #[test]

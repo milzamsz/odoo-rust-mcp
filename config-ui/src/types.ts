@@ -63,6 +63,7 @@ export interface ToolConfig {
   description?: string;
   pack?: string;
   requiredModules?: string[];
+  minVersion?: string;
   guards?: {
     requiresEnvTrue?: string;
     requiresEnvTrueAll?: string[];

@@ -84,8 +84,9 @@ with total amount and count.
     ["move_type", "=", "out_invoice"],
     ["payment_state", "!=", "paid"]
   ],
-  "fields": ["amount_residual:sum", "id:count"],
-  "groupby": ["partner_id"]
+  "groupby": ["partner_id"],
+  "aggregates": ["amount_residual:sum", "__count"],
+  "order": "amount_residual:sum desc"
 }
 ```
 
@@ -225,8 +226,8 @@ Show me total revenue by month for the current year.
     ["move_type", "=", "out_invoice"],
     ["invoice_date", ">=", "2026-01-01"]
   ],
-  "fields": ["amount_untaxed_signed:sum"],
-  "groupby": ["invoice_date:month"]
+  "groupby": ["invoice_date:month"],
+  "aggregates": ["amount_untaxed_signed:sum"]
 }
 ```
 

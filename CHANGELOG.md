@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v0.7.0] - 2026-10-31
+
+Odoo 20 support. Supported: Odoo 16, 17, 18, 19, Odoo Online saas~19.x and 20, Community and Enterprise.
+
+### Breaking
+- `odoo_read_group` takes `groupby`, `aggregates`, `having`, `offset`, `limit` and `order`, and always returns `{groups: [...]}` with one key per aggregate spec (e.g. `"amount_total:sum"`). The old `fields`/`orderby`/`lazy` input still works in 0.7 and adds a `deprecation` note to the result; it will be removed in 0.8. An existing runtime `tools.json` keeps the old tool definition (old input keeps working); copy the new `odoo_read_group` definition from `config-defaults/tools.json` to use `aggregates`, `having` and `order`.
+
+### Added
+- Detect the Odoo version and edition from `/web/webclient/version_info`. The configured `version` still wins; a mismatch is logged and shown in the Config UI.
+- `minVersion` on tool definitions hides a tool from older instances (`version_unsupported`).
+- `odoo_access_rules`: access rights and record rules for a model (`ir.access` on saas~19.4+/20, `ir.model.access` + `ir.rule` before).
+- `odoo_model_schema` (Odoo 19+, `api_doc`): fields and methods from `/doc-bearer`.
+- `odoo_web_search_read` (Odoo 17+): search and read with a field specification.
+- Version notes for Odoo 19/20 in the built-in prompts and server instructions.
+- CI job `odoo-live` runs the tools against disposable Odoo 16, 17, 18, 19 and 20 containers (`scripts/odoo-test-db.sh`, `tests/odoo_live_tools.rs`).
+
+### Changed
+- `odoo_read_group` uses `formatted_read_group` on 19+ and translates to `read_group` on 16–18.
+- `odoo_name_get` reads `display_name` (Odoo removed `name_get` in 18).
+- `odoo_check_access` uses `has_access` on 18+, returns the real result instead of always `true`, and accepts `create`.
+- JSON-2 `name_search`, `default_get` and `onchange` send the argument names Odoo 17+ expects; `copy` accepts both return shapes.
+- On Odoo 20, binary fields are flattened back to base64 on read, and `ir.attachment` `datas` is sent as `raw` on write.
+- Controlled capabilities refuse a write when the version or edition Odoo reports differs from the approved registry cell.
+- Cleanup tools skip models from modules that are not installed and use the 17+ archived-activity model; removed calls to cache methods that no longer exist.
+- Password instances on Odoo 20 log a warning that Odoo removes `/jsonrpc` in 22; JSON-2 401 errors explain the `rpc` key scope.
+
+### Fixed
+- JSON-2 `search`, `search_read` and `search_count` always send a `domain`; Odoo 19+ rejected calls without one.
+- `odoo_generate_report` reports a clear error when Odoo 19+ redirects an API-key request to the login page instead of returning a PDF.
+
 ## [v0.6.5] - 2026-09-15
 
 ### Fixed

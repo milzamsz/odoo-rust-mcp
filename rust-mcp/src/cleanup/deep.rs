@@ -2,6 +2,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use crate::cleanup::model_installed;
 use crate::odoo::types::OdooResult;
 use crate::odoo::unified_client::OdooClient;
 
@@ -133,7 +134,7 @@ pub async fn execute_deep_cleanup(
     let (journals_removed, mut jdetails) = remove_by_domain_best_effort(
         client,
         "account.journal",
-        json!([["type", "not in", ["general", "situation"]]]),
+        json!([["type", "!=", "general"]]),
         dry_run,
         "Removed custom journals (best effort)",
     )
@@ -270,10 +271,12 @@ pub async fn execute_deep_cleanup(
         "Removed mail messages",
     )
     .await?;
-    let (acts_removed, mut acdetails) = remove_by_domain_best_effort(
+    // 17+ archives done activities; include them.
+    let (acts_removed, mut acdetails) = remove_matching(
         client,
         "mail.activity",
         json!([]),
+        Some(json!({"active_test": false})),
         dry_run,
         "Removed mail activities",
     )
@@ -416,9 +419,23 @@ async fn remove_by_domain_best_effort(
     dry_run: bool,
     label: &str,
 ) -> OdooResult<(i64, Vec<DeepCleanupDetail>)> {
+    remove_matching(client, model, domain, None, dry_run, label).await
+}
+
+async fn remove_matching(
+    client: &OdooClient,
+    model: &str,
+    domain: Value,
+    context: Option<Value>,
+    dry_run: bool,
+    label: &str,
+) -> OdooResult<(i64, Vec<DeepCleanupDetail>)> {
     let mut details = vec![];
+    if !model_installed(client, model).await? {
+        return Ok((0, details));
+    }
     let ids = client
-        .search(model, Some(domain), None, None, None, None)
+        .search(model, Some(domain), None, None, None, context.clone())
         .await?;
     let count = ids.len() as i64;
     if count == 0 {
@@ -435,7 +452,7 @@ async fn remove_by_domain_best_effort(
         return Ok((count, details));
     }
 
-    let ok = client.unlink(model, ids, None).await.unwrap_or(false);
+    let ok = client.unlink(model, ids, context).await.unwrap_or(false);
     details.push(DeepCleanupDetail {
         model: model.to_string(),
         records_removed: if ok { count } else { 0 },

@@ -6,6 +6,8 @@ use serde_json::{Value, json};
 use tokio::sync::RwLock;
 use url::Url;
 
+use super::version::{ServerVersionInfo, fetch_version_info};
+
 use super::config::OdooInstanceConfig;
 use super::types::{OdooError, OdooErrorBody, OdooResult};
 
@@ -30,6 +32,10 @@ pub struct OdooLegacyClient {
 }
 
 impl OdooLegacyClient {
+    pub async fn version_info(&self) -> OdooResult<ServerVersionInfo> {
+        fetch_version_info(&self.http, &self.base_url).await
+    }
+
     pub fn new(cfg: &OdooInstanceConfig) -> anyhow::Result<Self> {
         let mut base_url = Url::parse(&cfg.url)
             .map_err(|e| anyhow::anyhow!("Invalid Odoo url '{}': {e}", cfg.url))?;
@@ -145,10 +151,21 @@ impl OdooLegacyClient {
                                 .unwrap_or("Unknown JSON-RPC error")
                                 .to_string();
 
+                            // Keep Odoo's exception class (e.g. odoo.exceptions.AccessError) for callers.
+                            let name = error
+                                .pointer("/data/name")
+                                .and_then(|n| n.as_str())
+                                .map(str::to_string);
                             return Err(OdooError::Api {
                                 status: 400,
+                                body: name.map(|name| OdooErrorBody {
+                                    name: Some(name),
+                                    message: Some(message.clone()),
+                                    arguments: vec![],
+                                    context: Value::Null,
+                                    debug: None,
+                                }),
                                 message,
-                                body: None,
                             });
                         }
 
@@ -610,43 +627,6 @@ impl OdooLegacyClient {
         }))
     }
 
-    /// read_group - Aggregate records with GROUP BY
-    pub async fn read_group(
-        &self,
-        model: &str,
-        domain: Option<Value>,
-        fields: Vec<String>,
-        groupby: Vec<String>,
-        offset: Option<i64>,
-        limit: Option<i64>,
-        orderby: Option<String>,
-        lazy: Option<bool>,
-        context: Option<Value>,
-    ) -> OdooResult<Value> {
-        let domain = domain.unwrap_or(json!([]));
-        let mut kwargs = json!({});
-        if let Some(v) = offset {
-            kwargs["offset"] = json!(v);
-        }
-        if let Some(v) = limit {
-            kwargs["limit"] = json!(v);
-        }
-        if let Some(v) = orderby {
-            kwargs["orderby"] = json!(v);
-        }
-        if let Some(v) = lazy {
-            kwargs["lazy"] = json!(v);
-        }
-        self.execute_kw(
-            model,
-            "read_group",
-            json!([domain, fields, groupby]),
-            Self::kwargs_with_context(Some(kwargs), context),
-            RetryMode::Safe,
-        )
-        .await
-    }
-
     /// name_search - Search by name with autocomplete-style matching
     pub async fn name_search(
         &self,
@@ -665,23 +645,6 @@ impl OdooLegacyClient {
             model,
             "name_search",
             json!([name, args, operator, limit]),
-            Self::kwargs_with_context(None, context),
-            RetryMode::Safe,
-        )
-        .await
-    }
-
-    /// name_get - Get display names for records
-    pub async fn name_get(
-        &self,
-        model: &str,
-        ids: Vec<i64>,
-        context: Option<Value>,
-    ) -> OdooResult<Value> {
-        self.execute_kw(
-            model,
-            "name_get",
-            json!([ids]),
             Self::kwargs_with_context(None, context),
             RetryMode::Safe,
         )
@@ -723,8 +686,13 @@ impl OdooLegacyClient {
                 RetryMode::Never,
             )
             .await?;
-        serde_json::from_value(result)
-            .map_err(|e| OdooError::InvalidResponse(format!("Expected id from copy: {e}")))
+        // Odoo 18+ returns the new recordset as a list of ids.
+        result
+            .as_i64()
+            .or_else(|| result.as_array()?.first()?.as_i64())
+            .ok_or_else(|| {
+                OdooError::InvalidResponse(format!("Expected id from copy, got {result}"))
+            })
     }
 
     /// onchange - Simulate form onchange behavior

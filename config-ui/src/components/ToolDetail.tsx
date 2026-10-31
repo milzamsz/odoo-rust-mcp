@@ -36,11 +36,16 @@ export function ToolDetail({
           <Switch checked={enabled} onChange={(event) => void onToggle(event.currentTarget.checked)} />
         </Group>
 
-        {(tool.pack || (tool.requiredModules?.length ?? 0) > 0) && (
+        {(tool.pack || tool.minVersion || (tool.requiredModules?.length ?? 0) > 0) && (
           <Group gap="xs">
             {tool.pack && (
               <Badge variant="outline" color="grape" size="sm">
                 pack: {tool.pack}
+              </Badge>
+            )}
+            {tool.minVersion && (
+              <Badge variant="outline" color="blue" size="sm">
+                Odoo {tool.minVersion}+
               </Badge>
             )}
             {tool.requiredModules?.map((mod) => (
