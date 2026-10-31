@@ -21,7 +21,7 @@ pub const PROMPTS: &[PromptDef] = &[
         name: "odoo_common_models",
         description: "List of commonly used Odoo models",
         content: r#"
-# Common Odoo Models (v16-19)
+# Common Odoo Models (v16-20)
 
 Use when: you need the technical model name for a business concept.
 
@@ -52,7 +52,7 @@ Use when: you need the technical model name for a business concept.
 
 ## HR
 - hr.employee / hr.department — Employees / Departments
-- hr.leave / hr.contract — Time Off / Contracts
+- hr.leave / hr.contract — Time Off / Contracts (19+: hr.version)
 
 ## Projects
 - project.project / project.task / project.task.type — Projects / Tasks / Stages
