@@ -281,7 +281,7 @@ pub async fn start_config_server(
                 HeaderValue::from_static("no-cache"),
             ),
         )
-            .fallback_service(static_service)
+        .fallback_service(static_service)
     } else {
         // Keep the existing asset fallback when the built index is missing so startup can still warn.
         app.fallback_service(static_service)
@@ -1923,6 +1923,11 @@ mod tests {
         let mock_server = MockServer::start().await;
 
         Mock::given(method("POST"))
+            .and(path("/json/2/res.users/search_count"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw("9", "application/json"))
+            .mount(&mock_server)
+            .await;
+        Mock::given(method("POST"))
             .and(path("/json/2/ir.model/search_count"))
             .respond_with(ResponseTemplate::new(200).set_body_raw("662", "application/json"))
             .mount(&mock_server)
@@ -1952,8 +1957,55 @@ mod tests {
             serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
                 .unwrap();
         assert_eq!(body["ok"], json!(true));
+        assert_eq!(body["admin"], json!(true));
         assert!(body["latency_ms"].as_u64().is_some());
         assert!(body.get("error").is_none() || body["error"].is_null());
+    }
+
+    #[tokio::test]
+    async fn test_instance_connection_reports_non_admin_when_ir_model_is_denied() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let env_file = temp_dir.path().join("env");
+        let instances_file = temp_dir.path().join("instances.json");
+        let _instances_json = EnvGuard::set(
+            "ODOO_INSTANCES_JSON",
+            Some(instances_file.to_string_lossy().as_ref()),
+        );
+        let mock_server = MockServer::start().await;
+
+        // Only res.users answers; ir.model is unmatched, like a user without Access Rights.
+        Mock::given(method("POST"))
+            .and(path("/json/2/res.users/search_count"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw("9", "application/json"))
+            .mount(&mock_server)
+            .await;
+
+        write_json(
+            &instances_file,
+            &json!({
+                "regular": {
+                    "url": mock_server.uri(),
+                    "db": "agrinas_live",
+                    "apiKey": "secret",
+                    "version": "19"
+                }
+            }),
+        );
+
+        let response = test_instance_connection(
+            State(make_test_state(temp_dir.path(), &env_file)),
+            Path("regular".to_string()),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body: serde_json::Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
+                .unwrap();
+        assert_eq!(body["ok"], json!(true));
+        assert_eq!(body["admin"], json!(false));
     }
 
     #[tokio::test]
