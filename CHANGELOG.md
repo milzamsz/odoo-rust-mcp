@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Odoo 20 support, planned as v0.7.0. Supported: Odoo 16, 17, 18, 19, Odoo Online saas~19.x and 20, Community and Enterprise.
+## [v0.7.0] - 2026-10-31
+
+Odoo 20 support. Supported: Odoo 16, 17, 18, 19, Odoo Online saas~19.x and 20, Community and Enterprise.
 
 ### Breaking
 - `odoo_read_group` takes `groupby`, `aggregates`, `having`, `offset`, `limit` and `order`, and always returns `{groups: [...]}` with one key per aggregate spec (e.g. `"amount_total:sum"`). The old `fields`/`orderby`/`lazy` input still works in 0.7 and adds a `deprecation` note to the result; it will be removed in 0.8. An existing runtime `tools.json` keeps the old tool definition (old input keeps working); copy the new `odoo_read_group` definition from `config-defaults/tools.json` to use `aggregates`, `having` and `order`.
