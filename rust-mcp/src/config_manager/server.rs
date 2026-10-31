@@ -1,7 +1,7 @@
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -17,6 +17,7 @@ use tokio::sync::RwLock;
 use tower_http::{
     cors::CorsLayer,
     services::{ServeDir, ServeFile},
+    set_header::SetResponseHeader,
 };
 use tracing::{error, info, warn};
 
@@ -271,7 +272,15 @@ pub async fn start_config_server(
     let static_service = ServeDir::new(&static_dir_final);
 
     let app = if static_index_final.exists() {
-        app.route_service("/", ServeFile::new(&static_index_final))
+        // no-cache: index.html names the hashed bundles, so a cached copy keeps loading the old UI after an upgrade
+        app.route_service(
+            "/",
+            SetResponseHeader::overriding(
+                ServeFile::new(&static_index_final),
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("no-cache"),
+            ),
+        )
             .fallback_service(static_service)
     } else {
         // Keep the existing asset fallback when the built index is missing so startup can still warn.
