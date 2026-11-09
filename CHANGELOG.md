@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- The connection test, `/health` and the startup check no longer fail for non-admin users: the probe reads `res.users` instead of `ir.model`, which needs Administration/Access Rights.
+- The Config UI serves `index.html` with `Cache-Control: no-cache`, so the desktop app no longer shows the previous UI after an upgrade.
+
+### Added
+- The connection test reports whether the user has Administration/Access Rights (`admin` in the response), shown as an Admin / Non-admin badge in a new Access column of the instances table and in the card view.
+
 ## [v0.7.1] - 2026-10-31
 
 Brings in the v0.6.6 work, which was never released, on top of v0.7.0.

@@ -618,13 +618,14 @@ impl OdooHttpClient {
     }
 
     pub async fn health_probe(&self) -> OdooResult<()> {
-        self.search_count("ir.model", Some(json!([])), None)
+        // res.users: readable by any internal user; ir.model needs Access Rights, so the probe failed for non-admins
+        self.search_count("res.users", Some(json!([])), None)
             .await
             .map(|_| ())
     }
 
     /// Health check: perform a minimal operation to verify Odoo is reachable.
-    /// Uses search_count on ir.model with empty domain as a cheap probe.
+    /// Uses search_count on res.users with empty domain as a cheap probe.
     pub async fn health_check(&self) -> bool {
         self.health_probe().await.is_ok()
     }
